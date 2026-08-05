@@ -1,0 +1,114 @@
+// PMB League Manager - Database Schema
+//
+// Phase 1 scope: Users, Leagues, Clubs are fully functional.
+// Players, Transfers, Notifications, ActivityLogs, TransferWindow exist as
+// tables only, ready for future phases without needing schema changes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMINISTRATOR
+  CLUB_MANAGER
+}
+
+model User {
+  id       String @id @default(cuid())
+  username String @unique
+  password String // bcrypt hash, never plain text
+  role     Role
+
+  // A Club Manager is linked to exactly one club. Null for Administrators.
+  clubId String? @unique
+  club   Club?   @relation("UserManagesClub", fields: [clubId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+}
+
+model League {
+  id      String  @id @default(cuid())
+  name    String  @unique
+  country String
+  logo    String?
+
+  clubs Club[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Club {
+  id       String @id @default(cuid())
+  name     String
+  logo     String?
+
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id])
+
+  // Denormalized copy of the manager's user id, kept in sync at write time.
+  // Convenient for read-heavy admin views without an extra join.
+  managerId String? @unique
+
+  // Real relation: the manager User row points back at this club via clubId.
+  manager User? @relation("UserManagesClub")
+
+  players Player[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, leagueId])
+  @@index([leagueId])
+}
+
+// --- Future-phase tables (schema only, no functionality yet) ---
+
+model Player {
+  id     String @id @default(cuid())
+  clubId String
+  club   Club   @relation(fields: [clubId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId])
+}
+
+model Transfer {
+  id String @id @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id String @id @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Single-row table holding the global transfer window status shown on the
+// admin dashboard. Toggling it does NOT unlock any transfer functionality
+// yet - it is purely a status flag for Phase 1.
+model TransferWindow {
+  id        String   @id @default("singleton")
+  isOpen    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
