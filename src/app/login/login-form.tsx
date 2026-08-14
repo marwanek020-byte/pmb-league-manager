@@ -29,6 +29,11 @@ export function LoginForm() {
       return;
     }
 
+    // Unlock and start PMB background music after successful login.
+    sessionStorage.setItem("pmb-music-started", "true");
+
+    window.dispatchEvent(new Event("pmb-start-music"));
+
     router.push("/");
     router.refresh();
   }
@@ -39,6 +44,7 @@ export function LoginForm() {
         <label htmlFor="username" className="pmb-label">
           Username
         </label>
+
         <input
           id="username"
           name="username"
@@ -56,6 +62,7 @@ export function LoginForm() {
         <label htmlFor="password" className="pmb-label">
           Password
         </label>
+
         <input
           id="password"
           name="password"
@@ -75,7 +82,11 @@ export function LoginForm() {
         </div>
       )}
 
-      <button type="submit" disabled={loading} className="pmb-btn-primary w-full">
+      <button
+        type="submit"
+        disabled={loading}
+        className="pmb-btn-primary w-full"
+      >
         {loading ? "Signing in..." : "Login"}
       </button>
     </form>

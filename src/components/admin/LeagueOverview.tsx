@@ -1,12 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ClubBadge } from "@/components/ClubBadge";
 
 export type AdminClub = {
   id: string;
   name: string;
+  logo: string | null;
   managerUsername: string | null;
+  registeredPlayerCount: number;
 };
 
 export type AdminLeague = {
@@ -65,15 +68,24 @@ export function LeagueOverview({ leagues }: { leagues: AdminLeague[] }) {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {league.clubs.map((club) => (
-                <div key={club.id} className="pmb-card flex items-center gap-3 p-4">
-                  <ClubBadge name={club.name} size="sm" />
+                <Link
+                  key={club.id}
+                  href={`/admin/clubs/${club.id}`}
+                  className="pmb-card flex items-center gap-3 p-4 transition hover:border-pmb-gold/50 hover:bg-pmb-charcoal"
+                >
+                  <ClubBadge
+  name={club.name}
+  logo={club.logo}
+  size="sm"
+/>
                   <div className="min-w-0">
                     <p className="truncate font-medium text-white">{club.name}</p>
                     <p className="truncate text-xs text-gray-500">
                       {club.managerUsername ?? "No manager assigned"}
                     </p>
+                    <p className="mt-1 text-xs text-pmb-gold">{club.registeredPlayerCount} registered players</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </section>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PMBMusic } from "@/components/PMBMusic";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-pmb-black font-sans text-white antialiased">
+<PMBMusic />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -10,6 +10,7 @@ const LEAGUE_PREFIX: Record<string, string> = {
   "Bundesliga": "bundesliga",
   "Ligue 1": "ligue1",
   "VIP League": "vip",
+  "BOTOLA PRO": "botola",
 };
 
 function slugify(name: string): string {
@@ -163,6 +164,28 @@ const leaguesData: { name: string; country: string; clubs: string[] }[] = [
       "Ajax",
       "Club Brugge",
       "Shakhtar Donetsk",
+    ],
+  },
+    {
+    name: "BOTOLA PRO",
+    country: "Morocco",
+    clubs: [
+      "Maghreb Fez",
+      "Berkane",
+      "Raja Casablanca",
+      "FAR Rabat",
+      "Wydad AC",
+      "Difaa El Jadidi",
+      "IR Tanger",
+      "FUS Rabat",
+      "Kawkab Marrakech",
+      "COD Meknes",
+      "Renaissance Zemamra",
+      "Hassania Agadir",
+      "Union Touarga",
+      "Dcheira",
+      "Yacoub El Mansour",
+      "Olympique Safi",
     ],
   },
 ];

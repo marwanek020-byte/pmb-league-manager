@@ -32,7 +32,11 @@ export default async function ClubInformationPage() {
       </div>
 
       <div className="pmb-card flex items-center gap-5 p-6">
-        <ClubBadge name={club.name} size="lg" />
+        <ClubBadge
+  name={club.name}
+  logo={club.logo}
+  size="lg"
+/>
         <div>
           <h2 className="text-xl font-bold text-white">{club.name}</h2>
           <p className="text-sm text-gray-400">{club.league.name}</p>

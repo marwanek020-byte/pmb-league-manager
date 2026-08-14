@@ -1,9 +1,3 @@
-// PMB League Manager - Database Schema
-//
-// Phase 1 scope: Users, Leagues, Clubs are fully functional.
-// Players, Transfers, Notifications, ActivityLogs, TransferWindow exist as
-// tables only, ready for future phases without needing schema changes.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,102 +7,332 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMINISTRATOR
-  CLUB_MANAGER
-}
-
 model User {
-  id       String @id @default(cuid())
-  username String @unique
-  password String // bcrypt hash, never plain text
-  role     Role
-
-  // A Club Manager is linked to exactly one club. Null for Administrators.
-  clubId String? @unique
-  club   Club?   @relation("UserManagesClub", fields: [clubId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String                  @id @default(cuid())
+  username              String                  @unique
+  password              String
+  role                  Role
+  clubId                String?                 @unique
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  activityLogs          ActivityLog[]
+  notifications         Notification[]
+  transferWindowHistory TransferWindowHistory[]
+  transfersInitiated    Transfer[]              @relation("TransferInitiatedBy")
+  transfersResponded    Transfer[]              @relation("TransferRespondedBy")
+  club                  Club?                   @relation("UserManagesClub", fields: [clubId], references: [id])
 
   @@index([role])
 }
 
 model League {
-  id      String  @id @default(cuid())
-  name    String  @unique
-  country String
-  logo    String?
-
-  clubs Club[]
-
+  id        String   @id @default(cuid())
+  name      String   @unique
+  country   String
+  logo      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  clubs     Club[]
+  seasons   Season[]
 }
 
 model Club {
-  id       String @id @default(cuid())
-  name     String
-  logo     String?
+  id                                     String                  @id @default(cuid())
+  name                                   String
+  logo                                   String?
+  leagueId                               String
+  managerId                              String?                 @unique
+  createdAt                              DateTime                @default(now())
+  updatedAt                              DateTime                @updatedAt
+  budget                                 Decimal                 @default(0) @db.Decimal(14, 2)
 
-  leagueId String
-  league   League @relation(fields: [leagueId], references: [id])
-
-  // Denormalized copy of the manager's user id, kept in sync at write time.
-  // Convenient for read-heavy admin views without an extra join.
-  managerId String? @unique
-
-  // Real relation: the manager User row points back at this club via clubId.
-  manager User? @relation("UserManagesClub")
-
-  players Player[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  league                                 League                  @relation(fields: [leagueId], references: [id])
+  seasonClassifications                  SeasonClassification[]
+  powerRating                          ClubPowerRating?
+  budgetTransactions                     ClubBudgetTransaction[]
+  players                                Player[]
+  PlayerLoan_PlayerLoan_fromClubIdToClub PlayerLoan[]            @relation("PlayerLoan_fromClubIdToClub")
+  PlayerLoan_PlayerLoan_toClubIdToClub   PlayerLoan[]            @relation("PlayerLoan_toClubIdToClub")
+  transfersOut                           Transfer[]              @relation("TransferFromClub")
+  transfersIn                            Transfer[]              @relation("TransferToClub")
+  manager                                User?                   @relation("UserManagesClub")
 
   @@unique([name, leagueId])
   @@index([leagueId])
 }
 
-// --- Future-phase tables (schema only, no functionality yet) ---
-
 model Player {
-  id     String @id @default(cuid())
-  clubId String
-  club   Club   @relation(fields: [clubId], references: [id])
+  id                 String                  @id @default(uuid())
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  dateOfBirth        DateTime?
+  fullName           String
+  marketValue        Decimal?               @db.Decimal(12, 2)
+  nationality        String
+  overallRating      Int?
+  photo              String?
+  playerId           Int                     @unique @default(autoincrement())
+  pmbClubId          String?
+  position           String
+  realClub           String
+  status             PlayerStatus            @default(AVAILABLE)
+  budgetTransactions ClubBudgetTransaction[]
+  pmbClub            Club?                  @relation(fields: [pmbClubId], references: [id])
+  PlayerLoan         PlayerLoan[]
+  transfers          Transfer[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([clubId])
+  @@index([fullName])
+  @@index([position])
+  @@index([realClub])
+  @@index([nationality])
+  @@index([status])
+  @@index([pmbClubId])
 }
 
 model Transfer {
-  id String @id @default(cuid())
+  id                   String                  @id @default(uuid())
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  completedAt          DateTime?
+  currency             String                  @default("EUR")
+  fee                  Decimal?                @db.Decimal(12, 2)
+  fromClubId           String
+  fromClubName         String
+  initiatedByUserId    String
+  notes                String?
+  playerId             String
+  playerName           String
+  respondedAt          DateTime?
+  respondedByUserId    String?
+  season               String
+  status               TransferStatus          @default(PENDING_SELLER_APPROVAL)
+  toClubId             String
+  toClubName           String
+  type                 TransferType            @default(PERMANENT)
+  durationDays         Int?
+  swapPlayerName       String?
+  budgetTransactions   ClubBudgetTransaction[]
+  notifications        Notification[]
+  PlayerLoan           PlayerLoan?
+  fromClub             Club                    @relation("TransferFromClub", fields: [fromClubId], references: [id])
+  initiatedBy          User                    @relation("TransferInitiatedBy", fields: [initiatedByUserId], references: [id])
+  player               Player                  @relation(fields: [playerId], references: [id])
+  respondedBy          User?                   @relation("TransferRespondedBy", fields: [respondedByUserId], references: [id])
+  toClub               Club                    @relation("TransferToClub", fields: [toClubId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([playerId])
+  @@index([fromClubId])
+  @@index([toClubId])
+  @@index([status])
+  @@index([playerId, status])
 }
 
 model Notification {
-  id String @id @default(cuid())
+  id         String           @id @default(uuid())
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  message    String
+  read       Boolean          @default(false)
+  transferId String?
+  type       NotificationType
+  userId     String
+  transfer   Transfer?        @relation(fields: [transferId], references: [id])
+  user       User             @relation(fields: [userId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([userId])
+  @@index([userId, read])
+  @@index([transferId])
 }
 
 model ActivityLog {
-  id String @id @default(cuid())
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  action      String
+  actorUserId String?
+  entityId    String?
+  entityType  String?
+  metadata    Json?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
 }
 
-// Single-row table holding the global transfer window status shown on the
-// admin dashboard. Toggling it does NOT unlock any transfer functionality
-// yet - it is purely a status flag for Phase 1.
 model TransferWindow {
   id        String   @id @default("singleton")
   isOpen    Boolean  @default(false)
   updatedAt DateTime @updatedAt
+}
+
+model TransferWindowHistory {
+  id              String               @id @default(uuid())
+  previousIsOpen  Boolean
+  newIsOpen       Boolean
+  action          TransferWindowAction
+  changedByUserId String
+  createdAt       DateTime             @default(now())
+  changedBy       User                 @relation(fields: [changedByUserId], references: [id])
+
+  @@index([createdAt])
+  @@index([changedByUserId])
+}
+
+model ClubBudgetTransaction {
+  id           String                @id @default(uuid())
+  clubId       String
+  amount       Decimal               @db.Decimal(14, 2)
+  balanceAfter Decimal               @db.Decimal(14, 2)
+  type         BudgetTransactionType
+  description  String?
+  transferId   String?
+  playerId     String?
+  createdAt    DateTime              @default(now())
+
+  club         Club                  @relation(fields: [clubId], references: [id])
+  player       Player?               @relation(fields: [playerId], references: [id])
+  transfer     Transfer?             @relation(fields: [transferId], references: [id])
+
+  @@index([clubId])
+  @@index([clubId, createdAt])
+  @@index([transferId])
+}
+
+model Season {
+  id              String                  @id @default(cuid())
+  name            String
+  leagueId        String
+  startDate       DateTime?
+  endDate         DateTime?
+  status          SeasonStatus             @default(DRAFT)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  league          League                  @relation(fields: [leagueId], references: [id])
+  classifications SeasonClassification[]
+
+  @@unique([leagueId, name])
+  @@index([leagueId])
+  @@index([status])
+}
+
+model SeasonClassification {
+  id             String   @id @default(cuid())
+  seasonId       String
+  clubId         String
+  position       Int
+  points         Int?
+  played         Int?
+  wins           Int?
+  draws          Int?
+  losses         Int?
+  goalDifference Int?
+  goalsFor       Int?
+  goalsAgainst   Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  season         Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  club           Club     @relation(fields: [clubId], references: [id])
+
+  @@unique([seasonId, clubId])
+  @@unique([seasonId, position])
+  @@index([seasonId])
+  @@index([clubId])
+}
+
+model PlayerLoan {
+  id                               String     @id
+  playerId                         String
+  fromClubId                       String
+  toClubId                         String
+  transferId                       String     @unique
+  startDate                        DateTime
+  endDate                          DateTime
+  status                           LoanStatus @default(ACTIVE)
+  createdAt                        DateTime   @default(now())
+  updatedAt                        DateTime
+  durationDays                     Int        @default(40)
+
+  Club_PlayerLoan_fromClubIdToClub Club       @relation("PlayerLoan_fromClubIdToClub", fields: [fromClubId], references: [id])
+  Player                           Player     @relation(fields: [playerId], references: [id])
+  Club_PlayerLoan_toClubIdToClub   Club       @relation("PlayerLoan_toClubIdToClub", fields: [toClubId], references: [id])
+  Transfer                         Transfer   @relation(fields: [transferId], references: [id])
+
+  @@index([endDate])
+  @@index([fromClubId])
+  @@index([playerId])
+  @@index([status])
+  @@index([toClubId])
+}
+model ClubPowerRating {
+  id            String   @id @default(cuid())
+  clubId        String   @unique
+  rating        Int      @default(1000)
+  seasonsPlayed Int      @default(0)
+  titles        Int      @default(0)
+  topThree      Int      @default(0)
+  topFive       Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id])
+
+  @@index([rating])
+}
+enum Role {
+  ADMINISTRATOR
+  CLUB_MANAGER
+}
+
+enum PlayerStatus {
+  AVAILABLE
+  REGISTERED
+}
+
+enum TransferStatus {
+  PENDING_SELLER_APPROVAL
+  APPROVED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum TransferType {
+  PERMANENT
+  LOAN
+  SWAP
+  FREE_TRANSFER
+}
+
+enum TransferWindowAction {
+  OPENED
+  CLOSED
+}
+
+enum NotificationType {
+  TRANSFER_REQUESTED
+  TRANSFER_ACCEPTED
+  TRANSFER_REJECTED
+  TRANSFER_CANCELLED
+  TRANSFER_COMPLETED
+  TRANSFER_WINDOW_OPENED
+  TRANSFER_WINDOW_CLOSED
+}
+
+enum BudgetTransactionType {
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADMIN_ADJUSTMENT
+}
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum SeasonStatus {
+  DRAFT
+  ACTIVE
+  FINISHED
 }

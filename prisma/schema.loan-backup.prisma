@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String         @id @default(cuid())
+  username           String         @unique
+  password           String
+  role               Role
+  clubId             String?        @unique
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  activityLogs       ActivityLog[]
+  notifications      Notification[]
+  transfersInitiated Transfer[]     @relation("TransferInitiatedBy")
+  transfersResponded Transfer[]     @relation("TransferRespondedBy")
+  club               Club?          @relation("UserManagesClub", fields: [clubId], references: [id])
+
+  @@index([role])
+}
+
+model League {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  country   String
+  logo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clubs     Club[]
+}
+
+model Club {
+  id           String       @id @default(cuid())
+  name         String
+  logo         String?
+  leagueId     String
+  managerId    String?      @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  league       League       @relation(fields: [leagueId], references: [id])
+  players      Player[]
+  transfersOut Transfer[]   @relation("TransferFromClub")
+  transfersIn  Transfer[]   @relation("TransferToClub")
+  loansFrom    PlayerLoan[] @relation("LoanFromClub")
+  loansTo      PlayerLoan[] @relation("LoanToClub")
+  manager      User?        @relation("UserManagesClub")
+
+  @@unique([name, leagueId])
+  @@index([leagueId])
+}
+
+model Player {
+  id            String       @id @default(uuid())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  dateOfBirth   DateTime?
+  fullName      String
+  marketValue   Decimal?     @db.Decimal(12, 2)
+  nationality   String
+  overallRating Int?
+  photo         String?
+  playerId      Int          @unique @default(autoincrement())
+  pmbClubId     String?
+  position      String
+  realClub      String
+  status        PlayerStatus @default(AVAILABLE)
+  pmbClub       Club?        @relation(fields: [pmbClubId], references: [id])
+  transfers     Transfer[]
+  loans         PlayerLoan[]
+
+  @@index([fullName])
+  @@index([position])
+  @@index([realClub])
+  @@index([nationality])
+  @@index([status])
+  @@index([pmbClubId])
+}
+
+model Transfer {
+  id                String         @id @default(uuid())
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  completedAt       DateTime?
+  currency          String         @default("EUR")
+  fee               Decimal?       @db.Decimal(12, 2)
+  fromClubId        String
+  fromClubName      String
+  initiatedByUserId String
+  notes             String?
+  playerId          String
+  playerName        String
+  respondedAt       DateTime?
+  respondedByUserId String?
+  season            String
+  status            TransferStatus @default(PENDING_SELLER_APPROVAL)
+  toClubId          String
+  toClubName        String
+  type              TransferType   @default(PERMANENT)
+  notifications     Notification[]
+  fromClub          Club           @relation("TransferFromClub", fields: [fromClubId], references: [id])
+  initiatedBy       User           @relation("TransferInitiatedBy", fields: [initiatedByUserId], references: [id])
+  player            Player         @relation(fields: [playerId], references: [id])
+  respondedBy       User?          @relation("TransferRespondedBy", fields: [respondedByUserId], references: [id])
+  toClub            Club           @relation("TransferToClub", fields: [toClubId], references: [id])
+  loan PlayerLoan?
+
+  @@index([playerId])
+  @@index([fromClubId])
+  @@index([toClubId])
+  @@index([status])
+  @@index([playerId, status])
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  message    String
+  read       Boolean          @default(false)
+  transferId String?
+  type       NotificationType
+  userId     String
+  transfer   Transfer?        @relation(fields: [transferId], references: [id])
+  user       User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([transferId])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  action      String
+  actorUserId String?
+  entityId    String?
+  entityType  String?
+  metadata    Json?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
+}
+
+model TransferWindow {
+  id        String   @id @default("singleton")
+  isOpen    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMINISTRATOR
+  CLUB_MANAGER
+}
+
+enum PlayerStatus {
+  AVAILABLE
+  REGISTERED
+}
+
+enum TransferStatus {
+  PENDING_SELLER_APPROVAL
+  APPROVED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum TransferType {
+  PERMANENT
+  LOAN
+  SWAP
+  FREE_TRANSFER
+}
+
+enum NotificationType {
+  TRANSFER_REQUESTED
+  TRANSFER_ACCEPTED
+  TRANSFER_REJECTED
+  TRANSFER_CANCELLED
+  TRANSFER_COMPLETED
+  TRANSFER_WINDOW_OPENED
+  TRANSFER_WINDOW_CLOSED
+}
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model PlayerLoan {
+  id String @id @default(uuid())
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id])
+
+  // Permanent owner of the player
+  fromClubId String
+  fromClub   Club   @relation("LoanFromClub", fields: [fromClubId], references: [id])
+
+  // Club temporarily receiving the player
+  toClubId String
+  toClub   Club   @relation("LoanToClub", fields: [toClubId], references: [id])
+
+  // Transfer that created this loan
+  transferId String   @unique
+  transfer   Transfer @relation(fields: [transferId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+
+  status LoanStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([playerId])
+  @@index([fromClubId])
+  @@index([toClubId])
+  @@index([status])
+  @@index([endDate])
+}
