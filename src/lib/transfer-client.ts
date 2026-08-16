@@ -98,15 +98,15 @@ export function fetchTransferById(id: string) {
 }
 
 export type CreateTransferPayload = {
-  playerId: string;
-  toClubId: string;
-  season: string;
+  playerId?: string;
+  toClubId?: string;
+  season?: string;
   type?: "PERMANENT" | "LOAN" | "SWAP" | "FREE_TRANSFER";
   fee?: number;
   currency?: string;
   notes?: string;
   durationDays?: number;
-  swapPlayerName?: string;
+  swapPlayerId?: string;
 };
 
 export function createTransferRequest(payload: CreateTransferPayload) {

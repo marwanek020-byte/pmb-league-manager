@@ -196,21 +196,22 @@ export function CreateTransferModal({
     setSubmitting(true);
     try {
       const { transfer } = await createTransferRequest({
-      playerId: selectedPlayer.id,
-      toClubId: clubId,
-      season: season.trim(),
-      type,
-      fee: fee ? Number(fee) : undefined,
-      currency,
-      notes: notes.trim() || undefined,
-      swapPlayerName: type === "SWAP" ? selectedSwapPlayer?.fullName?.trim() || undefined : undefined,
-      durationDays:
-        type === "LOAN"
-          ? loanDuration === "HALF_SEASON"
-            ? 20
-            : 40
-          : undefined,
-    });
+  playerId: selectedPlayer.id,
+  toClubId: clubId,
+  season: season.trim(),
+  type,
+  fee: fee ? Number(fee) : undefined,
+  currency,
+  notes: notes.trim() || undefined,
+  swapPlayerId:
+    type === "SWAP" ? selectedSwapPlayer?.id || undefined : undefined,
+  durationDays:
+    type === "LOAN"
+      ? loanDuration === "HALF_SEASON"
+        ? 20
+        : 40
+      : undefined,
+});
       onCreated(transfer);
       onClose();
     } catch (err) {

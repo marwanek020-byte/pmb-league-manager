@@ -111,6 +111,7 @@ model Transfer {
   type                 TransferType            @default(PERMANENT)
   durationDays         Int?
   swapPlayerName       String?
+  swapPlayerId   String?
   budgetTransactions   ClubBudgetTransaction[]
   notifications        Notification[]
   PlayerLoan           PlayerLoan?

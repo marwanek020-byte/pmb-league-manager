@@ -47,7 +47,7 @@ type CreateTransferInput = {
   currency?: string;
   notes?: string;
   durationDays?: number;
-  swapPlayerName?: string;
+  swapPlayerId?: string;
 };
 
 function isTransferType(value: unknown): value is TransferType {
@@ -184,7 +184,60 @@ export async function createTransferRequest(
         "DUPLICATE_TRANSFER"
       );
     }
+    
+    let swapPlayer: {
+  id: string;
+  fullName: string;
+  pmbClubId: string | null;
+  status: string;
+} | null = null;
 
+if (type === "SWAP") {
+  if (!input.swapPlayerId) {
+    throw new TransferServiceError(
+      "A swap player is required.",
+      "INVALID_VALUE"
+    );
+  }
+
+  swapPlayer = await tx.player.findUnique({
+  where: { id: input.swapPlayerId },
+  select: {
+    id: true,
+    fullName: true,
+    pmbClubId: true,
+    status: true,
+  },
+});
+
+  if (!swapPlayer) {
+    throw new TransferServiceError(
+      "Swap player not found.",
+      "PLAYER_NOT_FOUND"
+    );
+  }
+
+  if (swapPlayer.pmbClubId !== input.toClubId) {
+    throw new TransferServiceError(
+      "The swap player must belong to your club.",
+      "OWNERSHIP_CONFLICT"
+    );
+  }
+
+  if (swapPlayer.id === player.id) {
+    throw new TransferServiceError(
+      "The player cannot be swapped for himself.",
+      "INVALID_VALUE"
+    );
+  }
+
+  if (swapPlayer.status !== "REGISTERED") {
+    throw new TransferServiceError(
+      "The swap player is not registered.",
+      "PLAYER_NOT_REGISTERED"
+    );
+  }
+}
     const transferData = {
       playerId: player.id,
       fromClubId,
@@ -198,12 +251,11 @@ export async function createTransferRequest(
       fromClubName: player.pmbClub.name,
       toClubName: toClub.name,
       fee,
-      swapPlayerName: type === "SWAP" ? input.swapPlayerName?.trim() : null,
+      swapPlayerId: type === "SWAP" ? swapPlayer?.id ?? null : null,
+  swapPlayerName: type === "SWAP" ? swapPlayer?.fullName ?? null : null,
       ...(type === "LOAN" ? { durationDays: input.durationDays ?? null } : {}),
       initiatedByUserId: user.id,
-    } as Prisma.TransferUncheckedCreateInput & {
-      swapPlayerName?: string | null;
-    };
+    } as Prisma.TransferUncheckedCreateInput;
 
     const transfer = await tx.transfer.create({
       data: transferData,
@@ -399,7 +451,68 @@ export async function completeTransfer(userId: string, transferId: string) {
     if (transfer.status !== TransferStatus.APPROVED) {
       throw new TransferServiceError("Only approved transfers can be completed.", "INVALID_STATE");
     }
+    if (transfer.type === TransferType.SWAP) {
+  if (!transfer.swapPlayerId) {
+    throw new TransferServiceError(
+      "Swap player is missing from this transfer.",
+      "PLAYER_NOT_FOUND"
+    );
+  }
 
+  const swapPlayers = await tx.$queryRaw<Player[]>(
+    Prisma.sql`
+      SELECT *
+      FROM "Player"
+      WHERE "id" IN (${transfer.playerId}, ${transfer.swapPlayerId})
+      FOR UPDATE
+    `
+  );
+
+  const player = swapPlayers.find((p) => p.id === transfer.playerId);
+  const swapPlayer = swapPlayers.find((p) => p.id === transfer.swapPlayerId);
+
+  if (!player) {
+    throw new TransferServiceError(
+      "Player not found.",
+      "PLAYER_NOT_FOUND"
+    );
+  }
+
+  if (!swapPlayer) {
+    throw new TransferServiceError(
+      "Swap player not found.",
+      "PLAYER_NOT_FOUND"
+    );
+  }
+
+  if (player.pmbClubId !== transfer.fromClubId) {
+    throw new TransferServiceError(
+      "The player is no longer owned by the transfer's selling club.",
+      "OWNERSHIP_CONFLICT"
+    );
+  }
+
+  if (swapPlayer.pmbClubId !== transfer.toClubId) {
+    throw new TransferServiceError(
+      "The swap player is no longer owned by the requesting club.",
+      "OWNERSHIP_CONFLICT"
+    );
+  }
+
+  await tx.player.update({
+    where: { id: player.id },
+    data: {
+      pmbClubId: transfer.toClubId,
+    },
+  });
+
+  await tx.player.update({
+    where: { id: swapPlayer.id },
+    data: {
+      pmbClubId: transfer.fromClubId,
+    },
+  });
+}
     const changesOwnership =
       transfer.type === TransferType.PERMANENT ||
       transfer.type === TransferType.FREE_TRANSFER;

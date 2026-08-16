@@ -8,7 +8,6 @@ import { serializeTransfer } from "@/lib/serialize-transfer";
 
 type CreateTransferBody = {
   playerId?: string;
-  swapPlayerName?: string;
   toClubId?: string;
   season?: string;
   type?: "PERMANENT" | "LOAN" | "SWAP" | "FREE_TRANSFER";
@@ -16,6 +15,7 @@ type CreateTransferBody = {
   currency?: string;
   notes?: string;
   durationDays?: number;
+  swapPlayerId?: string;
 };
 
 export async function POST(req: Request) {
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
       currency: body.currency,
       notes: body.notes,
       durationDays: body.durationDays,
-      swapPlayerName: body.swapPlayerName?.trim(),
+      swapPlayerId: body.swapPlayerId?.trim(),
     });
 
     return NextResponse.json(
