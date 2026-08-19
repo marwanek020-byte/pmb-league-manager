@@ -69,15 +69,94 @@ body {
   }
 }
 @keyframes liveFeedIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-@media (prefers-reduced-motion: reduce) { *,::before,::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
+/* ─── Competition Engine ─────────────────────────────────────────────── */
+
+.competition-header {
+  background:
+    radial-gradient(ellipse at 30% 0%,  rgba(212,175,55,.18), transparent 50%),
+    radial-gradient(ellipse at 70% 100%, rgba(212,175,55,.10), transparent 50%),
+    linear-gradient(160deg, #0d0d0a 0%, #121009 50%, #0a0908 100%);
+  position: relative;
+}
+
+.competition-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .14;
+  background-image:
+    repeating-linear-gradient(0deg,   transparent 0 62px, rgba(212,175,55,.3) 63px 64px),
+    repeating-linear-gradient(90deg,  transparent 0 88px, rgba(212,175,55,.15) 89px 90px);
+  border-radius: inherit;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-120%) skewX(-20deg); }
+  100% { transform: translateX(220%) skewX(-20deg); }
+}
+
+.competition-shimmer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+.competition-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(212,175,55,.06), transparent);
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+.competition-badge-ring {
+  position: relative;
+  display: inline-block;
+}
+
+.competition-badge-ring::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(212,175,55,.35);
+  animation: pulse-ring 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%,100% { opacity: .35; transform: scale(1); }
+  50%      { opacity: .7;  transform: scale(1.06); }
+}
+
+@keyframes matchday-next-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,.4); }
+  50%      { box-shadow: 0 0 0 5px rgba(212,175,55,0); }
+}
+
+.matchday-next {
+  animation: matchday-next-pulse 1.8s ease-in-out infinite;
+}
+
+/* Subtle gold tinted row background for manager's own club */
+.bg-pmb-gold\/8 { background-color: rgba(212,175,55,0.08) !important; }
+
+/* Hover utility for public/standings tables */
+.hover\:bg-white\/3:hover { background-color: rgba(255,255,255,0.03); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,::before,::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

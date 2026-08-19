@@ -19,11 +19,12 @@ export function ClubBadge({
 }: {
   name: string;
   logo?: string | null;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 }) {
   const [imageError, setImageError] = useState(false);
 
   const dims = {
+    xs: "h-5 w-5 text-[8px]",
     sm: "h-8 w-8 text-xs",
     md: "h-12 w-12 text-sm",
     lg: "h-20 w-20 text-xl",

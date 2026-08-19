@@ -25,6 +25,19 @@ model User {
   @@index([role])
 }
 
+model CompetitionSeason {
+  id        String                  @id @default(cuid())
+  name      String                  @unique
+  status    CompetitionSeasonStatus @default(DRAFT)
+  format    MatchFormat             @default(DOUBLE_ROUND_ROBIN)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  seasons   Season[]
+  matches   Match[]
+
+  @@index([status])
+}
+
 model League {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -34,6 +47,7 @@ model League {
   updatedAt DateTime @updatedAt
   clubs     Club[]
   seasons   Season[]
+  matches   Match[]
 }
 
 model Club {
@@ -48,7 +62,7 @@ model Club {
 
   league                                 League                  @relation(fields: [leagueId], references: [id])
   seasonClassifications                  SeasonClassification[]
-  powerRating                          ClubPowerRating?
+  powerRating                            ClubPowerRating?
   budgetTransactions                     ClubBudgetTransaction[]
   players                                Player[]
   PlayerLoan_PlayerLoan_fromClubIdToClub PlayerLoan[]            @relation("PlayerLoan_fromClubIdToClub")
@@ -56,6 +70,8 @@ model Club {
   transfersOut                           Transfer[]              @relation("TransferFromClub")
   transfersIn                            Transfer[]              @relation("TransferToClub")
   manager                                User?                   @relation("UserManagesClub")
+  homeMatches                            Match[]                 @relation("HomeMatches")
+  awayMatches                            Match[]                 @relation("AwayMatches")
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -200,21 +216,25 @@ model ClubBudgetTransaction {
 }
 
 model Season {
-  id              String                  @id @default(cuid())
-  name            String
-  leagueId        String
-  startDate       DateTime?
-  endDate         DateTime?
-  status          SeasonStatus             @default(DRAFT)
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id                  String                  @id @default(cuid())
+  name                String
+  leagueId            String
+  startDate           DateTime?
+  endDate             DateTime?
+  status              SeasonStatus            @default(DRAFT)
+  competitionSeasonId String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
 
-  league          League                  @relation(fields: [leagueId], references: [id])
-  classifications SeasonClassification[]
+  league              League                  @relation(fields: [leagueId], references: [id])
+  classifications     SeasonClassification[]
+  competitionSeason   CompetitionSeason?      @relation(fields: [competitionSeasonId], references: [id])
+  matches             Match[]
 
   @@unique([leagueId, name])
   @@index([leagueId])
   @@index([status])
+  @@index([competitionSeasonId])
 }
 
 model SeasonClassification {
@@ -266,6 +286,37 @@ model PlayerLoan {
   @@index([status])
   @@index([toClubId])
 }
+model Match {
+  id                  String      @id @default(cuid())
+  competitionSeasonId String
+  seasonId            String
+  leagueId            String
+  matchday            Int
+  homeClubId          String
+  awayClubId          String
+  homeGoals           Int?
+  awayGoals           Int?
+  status              MatchStatus @default(UPCOMING)
+  playedAt            DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  competitionSeason CompetitionSeason @relation(fields: [competitionSeasonId], references: [id])
+  season            Season            @relation(fields: [seasonId], references: [id])
+  league            League            @relation(fields: [leagueId], references: [id])
+  homeClub          Club              @relation("HomeMatches", fields: [homeClubId], references: [id])
+  awayClub          Club              @relation("AwayMatches", fields: [awayClubId], references: [id])
+
+  @@index([competitionSeasonId])
+  @@index([seasonId])
+  @@index([leagueId])
+  @@index([homeClubId])
+  @@index([awayClubId])
+  @@index([status])
+  @@index([matchday])
+  @@index([seasonId, matchday])
+}
+
 model ClubPowerRating {
   id            String   @id @default(cuid())
   clubId        String   @unique
@@ -336,4 +387,20 @@ enum SeasonStatus {
   DRAFT
   ACTIVE
   FINISHED
+}
+
+enum CompetitionSeasonStatus {
+  DRAFT
+  ACTIVE
+  FINISHED
+}
+
+enum MatchFormat {
+  SINGLE_ROUND_ROBIN
+  DOUBLE_ROUND_ROBIN
+}
+
+enum MatchStatus {
+  UPCOMING
+  COMPLETED
 }

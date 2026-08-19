@@ -134,6 +134,32 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Competition Control Center */}
+      <div className="space-y-4 rounded-xl border border-pmb-gold/30 bg-gradient-to-br from-pmb-charcoal/70 to-pmb-black/50 p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[.2em] text-pmb-gold">
+              Competition Engine
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-white">
+              Competition Control Center
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-400">
+              Generate fixtures, enter match results and let the system
+              automatically calculate standings across all 7 leagues.
+            </p>
+          </div>
+
+          <Link
+            href="/admin/competition"
+            className="pmb-btn-primary rounded-full px-6 py-3 text-sm font-semibold whitespace-nowrap"
+          >
+            Open Control Center →
+          </Link>
+        </div>
+      </div>
+
       {/* Club Power Rating */}
       <div className="space-y-4 rounded-xl border border-pmb-border bg-pmb-charcoal/70 p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

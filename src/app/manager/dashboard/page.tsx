@@ -175,6 +175,12 @@ export default async function ManagerDashboardPage() {
             title="Club Information"
             description="View your club's profile and league details."
           />
+
+          <DashboardCard
+            href="/manager/competition"
+            title="My Competition"
+            description="Live standings, fixtures, results and your season journey."
+          />
         </div>
       </section>
     </div>
