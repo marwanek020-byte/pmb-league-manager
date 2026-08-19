@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createAuction, getLiveAuctions } from "@/lib/services/auction-service";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const session = await auth();
   if (!session || session.user.role !== "ADMINISTRATOR") {
