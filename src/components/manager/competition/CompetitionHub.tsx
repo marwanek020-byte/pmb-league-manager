@@ -131,90 +131,111 @@ export function CompetitionHub({
     <div className="space-y-0">
       {/* ─── CINEMATIC MATCH HEADER ─────────────────────────────────────── */}
       {headlineMatch && (
-        <div className="competition-header relative overflow-hidden rounded-2xl border border-pmb-gold/20 p-6 sm:p-10">
+        <div className="competition-header relative overflow-hidden rounded-3xl border border-white/20 p-8 sm:p-12 shadow-2xl">
           {/* Shimmer overlay */}
           <div className="competition-shimmer" aria-hidden />
 
+          {/* Dual Volumetric Spotlight Beams behind clubs */}
+          <div className="pointer-events-none absolute -left-10 top-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-yellow-500/20 blur-[80px]" />
+          <div className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-emerald-500/20 blur-[80px]" />
+
           {/* Season + Matchday label */}
-          <div className="relative z-10 mb-6 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[.35em] text-pmb-gold">
-              {leagueName}
-            </p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-[.2em] text-gray-400">
-              {headlineMatch.status === "UPCOMING" ? "Upcoming Match" : "Last Result"}{" "}
-              · Matchday {headlineMatch.matchday}
+          <div className="relative z-10 mb-8 text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-pmb-gold/30 bg-black/60 px-4 py-1 backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-pmb-gold animate-ping" />
+              <span className="text-[10px] font-black uppercase tracking-[.3em] text-pmb-gold">
+                {leagueName}
+              </span>
+            </span>
+            <p className="mt-2 text-xs font-black uppercase tracking-[.25em] text-gray-300">
+              {headlineMatch.status === "UPCOMING" ? "⚡ UPCOMING MATCHDAY CLASH" : "🏆 OFFICIAL MATCH RESULT"}{" "}
+              · MATCHDAY {headlineMatch.matchday}
             </p>
           </div>
 
           {/* Match presentation */}
-          <div className="relative z-10 flex items-center justify-between gap-4 sm:gap-10">
+          <div className="relative z-10 flex items-center justify-between gap-4 sm:gap-12">
             {/* Home club */}
             <div className="flex flex-1 flex-col items-center gap-3 text-center">
-              <div className="competition-badge-ring">
+              <div className="relative flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-3xl border-2 border-white/20 bg-black/60 p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-md transition-transform duration-300 hover:scale-105">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
                 <ClubBadge
                   name={headlineMatch.homeClub.name}
                   logo={headlineMatch.homeClub.logo}
                   size="lg"
                 />
               </div>
-              <p className="text-sm font-bold uppercase tracking-wide text-white sm:text-base">
-                {headlineMatch.homeClub.name}
-              </p>
+              <div>
+                <p className="text-base font-black uppercase tracking-wide text-white sm:text-xl drop-shadow-md">
+                  {headlineMatch.homeClub.name}
+                </p>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  Home Side
+                </span>
+              </div>
               {headlineMatch.homeClub.id === myClubId && (
-                <span className="pmb-badge text-[9px]">YOUR CLUB</span>
+                <span className="pmb-badge text-[9px] shadow-gold">YOUR CLUB</span>
               )}
             </div>
 
-            {/* VS / Score */}
-            <div className="flex flex-col items-center gap-1 text-center shrink-0">
-              {headlineMatch.status === "COMPLETED" ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span className="text-4xl font-black text-white sm:text-5xl">
-                      {headlineMatch.homeGoals}
+            {/* VS / Score Broadcast Center */}
+            <div className="flex flex-col items-center gap-1.5 text-center shrink-0">
+              <div className="rounded-2xl border border-white/20 bg-black/75 px-6 py-4 shadow-[0_0_40px_rgba(0,0,0,0.9)] backdrop-blur-md">
+                {headlineMatch.status === "COMPLETED" ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <span className="text-4xl font-black text-white sm:text-6xl tracking-tight">
+                        {headlineMatch.homeGoals}
+                      </span>
+                      <span className="text-2xl font-bold text-gray-500">—</span>
+                      <span className="text-4xl font-black text-white sm:text-6xl tracking-tight">
+                        {headlineMatch.awayGoals}
+                      </span>
+                    </div>
+                    <span className="mt-1 block text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                      Full Time
                     </span>
-                    <span className="text-2xl font-bold text-gray-600">—</span>
-                    <span className="text-4xl font-black text-white sm:text-5xl">
-                      {headlineMatch.awayGoals}
+                  </>
+                ) : (
+                  <>
+                    <span className="text-4xl font-black tracking-tighter text-pmb-gold sm:text-6xl drop-shadow-[0_0_20px_rgba(212,175,55,0.4)]">
+                      VS
                     </span>
-                  </div>
-                  <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400">
-                    Full Time
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-4xl font-black text-pmb-gold sm:text-5xl">
-                    VS
-                  </span>
-                  <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-yellow-500">
-                    Upcoming
-                  </span>
-                </>
-              )}
+                    <span className="mt-1 block text-[10px] font-black uppercase tracking-widest text-amber-400 animate-pulse">
+                      Upcoming
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Away club */}
             <div className="flex flex-1 flex-col items-center gap-3 text-center">
-              <div className="competition-badge-ring">
+              <div className="relative flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-3xl border-2 border-white/20 bg-black/60 p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-md transition-transform duration-300 hover:scale-105">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
                 <ClubBadge
                   name={headlineMatch.awayClub.name}
                   logo={headlineMatch.awayClub.logo}
                   size="lg"
                 />
               </div>
-              <p className="text-sm font-bold uppercase tracking-wide text-white sm:text-base">
-                {headlineMatch.awayClub.name}
-              </p>
+              <div>
+                <p className="text-base font-black uppercase tracking-wide text-white sm:text-xl drop-shadow-md">
+                  {headlineMatch.awayClub.name}
+                </p>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  Away Side
+                </span>
+              </div>
               {headlineMatch.awayClub.id === myClubId && (
-                <span className="pmb-badge text-[9px]">YOUR CLUB</span>
+                <span className="pmb-badge text-[9px] shadow-gold">YOUR CLUB</span>
               )}
             </div>
           </div>
 
           {/* Season name */}
           <div className="relative z-10 mt-8 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[.3em] text-pmb-gold/60">
+            <p className="text-[10px] font-black uppercase tracking-[.35em] text-pmb-gold/80">
               {seasonName}
             </p>
           </div>
@@ -314,77 +335,105 @@ export function CompetitionHub({
                   <div
                     key={match.id}
                     className={[
-                      "pmb-card p-4 transition",
-                      isMyMatch ? "border-pmb-gold/30 shadow-gold" : "",
+                      "relative overflow-hidden rounded-xl border transition-all duration-300 p-4",
+                      isMyMatch
+                        ? "border-pmb-gold bg-gradient-to-r from-pmb-gold/10 via-black/80 to-pmb-gold/10 shadow-[0_0_25px_rgba(212,175,55,0.2)]"
+                        : "border-pmb-border bg-gradient-to-r from-[#121214] via-black to-[#121214] hover:border-white/20",
                     ].join(" ")}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-1 items-center gap-2 overflow-hidden">
+                    {/* Left & Right Team Accent Strips */}
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-pmb-gold/40" />
+                    <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/20" />
+
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Home Club */}
+                      <div className="flex flex-1 items-center gap-3 overflow-hidden">
                         <ClubBadge
                           name={match.homeClub.name}
                           logo={match.homeClub.logo}
-                          size="sm"
+                          size="md"
                         />
-                        <span
-                          className={[
-                            "truncate text-sm font-semibold",
-                            match.homeClub.id === myClubId
-                              ? "text-pmb-gold"
-                              : "text-white",
-                          ].join(" ")}
-                        >
-                          {match.homeClub.name}
-                        </span>
+                        <div className="overflow-hidden">
+                          <span
+                            className={[
+                              "truncate text-sm font-black tracking-tight block",
+                              match.homeClub.id === myClubId
+                                ? "text-pmb-gold"
+                                : "text-white",
+                            ].join(" ")}
+                          >
+                            {match.homeClub.name}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase text-gray-500">
+                            Home
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="shrink-0 text-center">
+                      {/* Broadcast Score / VS Pill */}
+                      <div className="shrink-0 flex flex-col items-center justify-center rounded-xl border border-white/10 bg-black/60 px-4 py-2 shadow-inner">
                         {match.status === "COMPLETED" ? (
-                          <span className="text-base font-black text-white">
-                            {match.homeGoals} — {match.awayGoals}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl font-black text-white">
+                              {match.homeGoals}
+                            </span>
+                            <span className="text-xs font-bold text-gray-500">—</span>
+                            <span className="text-xl font-black text-white">
+                              {match.awayGoals}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                            vs
+                          <span className="text-xs font-black uppercase tracking-widest text-pmb-gold">
+                            VS
                           </span>
                         )}
-                      </div>
-
-                      <div className="flex flex-1 items-center justify-end gap-2 overflow-hidden">
                         <span
                           className={[
-                            "truncate text-right text-sm font-semibold",
-                            match.awayClub.id === myClubId
-                              ? "text-pmb-gold"
-                              : "text-white",
+                            "text-[8px] font-black uppercase tracking-widest mt-0.5",
+                            match.status === "COMPLETED"
+                              ? "text-emerald-400"
+                              : "text-amber-400",
                           ].join(" ")}
                         >
-                          {match.awayClub.name}
+                          {match.status === "COMPLETED" ? "FULL TIME" : "UPCOMING"}
                         </span>
+                      </div>
+
+                      {/* Away Club */}
+                      <div className="flex flex-1 items-center justify-end gap-3 overflow-hidden text-right">
+                        <div className="overflow-hidden">
+                          <span
+                            className={[
+                              "truncate text-sm font-black tracking-tight block",
+                              match.awayClub.id === myClubId
+                                ? "text-pmb-gold"
+                                : "text-white",
+                            ].join(" ")}
+                          >
+                            {match.awayClub.name}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase text-gray-500">
+                            Away
+                          </span>
+                        </div>
                         <ClubBadge
                           name={match.awayClub.name}
                           logo={match.awayClub.logo}
-                          size="sm"
+                          size="md"
                         />
                       </div>
                     </div>
 
-                    <div className="mt-2 flex items-center justify-between">
-                      <span
-                        className={[
-                          "text-[10px] font-bold uppercase tracking-widest",
-                          match.status === "COMPLETED"
-                            ? "text-emerald-400"
-                            : "text-yellow-500",
-                        ].join(" ")}
-                      >
-                        {match.status === "COMPLETED" ? "Completed" : "Upcoming"}
-                      </span>
-                      {isMyMatch && (
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-pmb-gold">
-                          YOUR MATCH
+                    {isMyMatch && (
+                      <div className="mt-3 border-t border-pmb-gold/20 pt-2 flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-pmb-gold flex items-center gap-1">
+                          ★ YOUR MATCHDAY FIXTURE
                         </span>
-                      )}
-                    </div>
+                        <span className="text-[9px] text-gray-400">
+                          {match.status === "COMPLETED" ? "Result Confirmed" : "Preparation Complete"}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -395,13 +444,28 @@ export function CompetitionHub({
         {/* TABLE TAB */}
         {activeTab === "TABLE" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white">League Table</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="text-xl font-black uppercase tracking-tight text-white">
+                Official Championship Standings
+              </h2>
+              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <span className="flex items-center gap-1 text-yellow-400">
+                  <span className="h-2 w-2 rounded-full bg-yellow-400" /> 1st: Champion
+                </span>
+                <span className="flex items-center gap-1 text-sky-400">
+                  <span className="h-2 w-2 rounded-full bg-sky-400" /> 2nd-3rd: Continental
+                </span>
+                <span className="flex items-center gap-1 text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-400" /> Relegation
+                </span>
+              </div>
+            </div>
 
             <div className="pmb-card overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2rem_1fr_2rem_2rem_2rem_2rem_2rem_2rem_3rem_3rem] gap-x-1 border-b border-pmb-border px-3 py-2 text-center text-[9px] font-bold uppercase tracking-widest text-gray-600 sm:px-5">
-                <span>#</span>
-                <span className="text-left">Club</span>
+              <div className="grid grid-cols-[2.5rem_1fr_2rem_2rem_2rem_2rem_2rem_2rem_3rem_3.5rem] gap-x-1 border-b border-pmb-border bg-black/60 px-3 py-3 text-center text-[9px] font-black uppercase tracking-widest text-gray-400 sm:px-5">
+                <span>POS</span>
+                <span className="text-left">CLUB</span>
                 <span>P</span>
                 <span>W</span>
                 <span>D</span>
@@ -409,34 +473,54 @@ export function CompetitionHub({
                 <span>GF</span>
                 <span>GA</span>
                 <span>GD</span>
-                <span>PTS</span>
+                <span className="text-pmb-gold">PTS</span>
               </div>
 
               <div className="divide-y divide-pmb-border/40">
                 {standings.map((row) => {
                   const isMe = row.clubId === myClubId;
-                  const isTop = row.position === 1;
+                  const isChampion = row.position === 1;
+                  const isContinental = row.position >= 2 && row.position <= 3;
+                  const isRelegation = row.position > Math.max(3, standings.length - 2);
+
+                  const zoneClass = isChampion
+                    ? "border-l-4 border-l-yellow-400 bg-yellow-500/10 shadow-[inset_0_0_20px_rgba(234,179,8,0.06)]"
+                    : isContinental
+                    ? "border-l-4 border-l-sky-400 bg-sky-500/5"
+                    : isRelegation
+                    ? "border-l-4 border-l-red-500 bg-red-500/5"
+                    : isMe
+                    ? "border-l-4 border-l-pmb-gold bg-pmb-gold/10"
+                    : "border-l-4 border-l-transparent hover:bg-white/5";
 
                   return (
                     <div
                       key={row.clubId}
                       className={[
-                        "grid grid-cols-[2rem_1fr_2rem_2rem_2rem_2rem_2rem_2rem_3rem_3rem] items-center gap-x-1 px-3 py-2.5 text-center text-xs sm:px-5 transition",
-                        isMe
-                          ? "bg-pmb-gold/8 border-l-2 border-l-pmb-gold"
-                          : "hover:bg-white/3",
+                        "grid grid-cols-[2.5rem_1fr_2rem_2rem_2rem_2rem_2rem_2rem_3rem_3.5rem] items-center gap-x-1 px-3 py-3 text-center text-xs sm:px-5 transition",
+                        zoneClass,
                       ].join(" ")}
                     >
-                      <span
-                        className={[
-                          "font-bold text-sm",
-                          isTop ? "text-pmb-gold" : isMe ? "text-pmb-gold" : "text-gray-500",
-                        ].join(" ")}
-                      >
-                        {row.position}
-                      </span>
+                      <div className="flex items-center justify-center gap-1 font-black">
+                        {isChampion && <span className="text-xs">👑</span>}
+                        <span
+                          className={
+                            isChampion
+                              ? "text-yellow-400 text-sm font-black"
+                              : isContinental
+                              ? "text-sky-400 font-bold"
+                              : isRelegation
+                              ? "text-red-400 font-bold"
+                              : isMe
+                              ? "text-pmb-gold font-bold"
+                              : "text-gray-400"
+                          }
+                        >
+                          {row.position}
+                        </span>
+                      </div>
 
-                      <div className="flex items-center gap-2 text-left overflow-hidden">
+                      <div className="flex items-center gap-2.5 text-left overflow-hidden">
                         <ClubBadge
                           name={row.clubName}
                           logo={row.clubLogo}
@@ -444,16 +528,16 @@ export function CompetitionHub({
                         />
                         <span
                           className={[
-                            "truncate font-semibold",
-                            isMe ? "text-pmb-gold" : "text-white",
+                            "truncate font-bold",
+                            isMe ? "text-pmb-gold" : isChampion ? "text-yellow-300" : "text-white",
                           ].join(" ")}
                         >
                           {row.clubName}
                         </span>
                       </div>
 
-                      <span className="text-gray-400">{row.played}</span>
-                      <span className="text-gray-400">{row.wins}</span>
+                      <span className="text-gray-400 font-semibold">{row.played}</span>
+                      <span className="text-gray-300 font-semibold">{row.wins}</span>
                       <span className="text-gray-400">{row.draws}</span>
                       <span className="text-gray-400">{row.losses}</span>
                       <span className="text-gray-400">{row.goalsFor}</span>
@@ -461,7 +545,7 @@ export function CompetitionHub({
                       <span
                         className={
                           row.goalDifference > 0
-                            ? "text-emerald-400 font-semibold"
+                            ? "text-emerald-400 font-black"
                             : row.goalDifference < 0
                             ? "text-red-400 font-semibold"
                             : "text-gray-500"
@@ -470,12 +554,54 @@ export function CompetitionHub({
                         {row.goalDifference > 0 ? "+" : ""}
                         {row.goalDifference}
                       </span>
-                      <span className={["font-bold text-sm", isMe ? "text-pmb-gold" : "text-white"].join(" ")}>
+                      <span
+                        className={[
+                          "font-black text-sm",
+                          isChampion
+                            ? "text-yellow-400 text-base"
+                            : isMe
+                            ? "text-pmb-gold"
+                            : "text-white",
+                        ].join(" ")}
+                      >
                         {row.points}
                       </span>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Interactive Zone Legend Card */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-3 flex items-center gap-3">
+                <span className="text-2xl">🏆</span>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-yellow-400 block">
+                    Gold Champion Zone
+                  </span>
+                  <span className="text-xs text-gray-400">Position 1: League Title & PMB Trophy</span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 flex items-center gap-3">
+                <span className="text-2xl">🌟</span>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-sky-400 block">
+                    Continental Cup Zone
+                  </span>
+                  <span className="text-xs text-gray-400">Positions 2–3: Elite Cup Qualification</span>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 flex items-center gap-3">
+                <span className="text-2xl">🔻</span>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-red-400 block">
+                    Relegation Danger
+                  </span>
+                  <span className="text-xs text-gray-400">Bottom 2: Relegation Playoff Round</span>
+                </div>
               </div>
             </div>
 

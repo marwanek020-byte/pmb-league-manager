@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Navbar } from "@/components/Navbar";
 import { LiveFeed } from "@/components/LiveFeed";
+import { UnreadMessageNotifier } from "@/components/UnreadMessageNotifier";
 
 export default async function AdminLayout({
   children,
@@ -24,6 +25,9 @@ export default async function AdminLayout({
 
       {/* PMB animated live feed */}
       <LiveFeed />
+
+      {/* Real-time Unread Direct Message Toast */}
+      <UnreadMessageNotifier isAdmin />
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {children}

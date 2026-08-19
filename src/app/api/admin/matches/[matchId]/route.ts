@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { applyMatchRewards } from "@/lib/services/match-reward-service";
 
 async function requireAdmin() {
   const session = await auth();
@@ -88,20 +89,35 @@ export async function PATCH(
     );
   }
 
-  // Allow result entry/correction — standings are always derived from all Match records,
-  // so correcting a result is just updating the score; no extra recalculation needed.
-  const updated = await prisma.match.update({
-    where: { id: params.matchId },
-    data: {
+  // Wrap match update + budget rewards in a single atomic transaction.
+  // If the reward application fails, the match update is also rolled back.
+  const updated = await prisma.$transaction(async (tx) => {
+    const updatedMatch = await tx.match.update({
+      where: { id: params.matchId },
+      data: {
+        homeGoals,
+        awayGoals,
+        status: "COMPLETED",
+        playedAt: match.status === "UPCOMING" ? new Date() : match.playedAt,
+      },
+      include: {
+        homeClub: { select: { id: true, name: true, logo: true } },
+        awayClub: { select: { id: true, name: true, logo: true } },
+      },
+    });
+
+    // Apply (or re-apply) budget rewards — handles reversals for result
+    // corrections automatically.
+    await applyMatchRewards(
+      tx,
+      params.matchId,
+      match.homeClubId,
+      match.awayClubId,
       homeGoals,
       awayGoals,
-      status: "COMPLETED",
-      playedAt: match.status === "UPCOMING" ? new Date() : match.playedAt,
-    },
-    include: {
-      homeClub: { select: { id: true, name: true, logo: true } },
-      awayClub: { select: { id: true, name: true, logo: true } },
-    },
+    );
+
+    return updatedMatch;
   });
 
   return NextResponse.json({ success: true, match: updated });

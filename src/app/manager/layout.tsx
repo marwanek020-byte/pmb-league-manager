@@ -6,6 +6,8 @@ import { Navbar } from "@/components/Navbar";
 import { LiveFeed } from "@/components/LiveFeed";
 import { ClubThemeShell } from "@/components/ClubThemeShell";
 
+import { UnreadMessageNotifier } from "@/components/UnreadMessageNotifier";
+
 export default async function ManagerLayout({
   children,
 }: {
@@ -21,20 +23,24 @@ export default async function ManagerLayout({
   const club = session.user.clubId
     ? await prisma.club.findUnique({
         where: { id: session.user.clubId },
-        select: { budget: true, name: true, league: { select: { name: true } } },
+        select: { budget: true, name: true, logo: true, league: { select: { name: true } } },
       })
     : null;
 
   const budgetDisplay = club
     ? new Intl.NumberFormat("en-GB", {
         style: "currency",
-        currency: "GBP",
+        currency: "EUR",
         maximumFractionDigits: 0,
       }).format(Number(club.budget.toFixed(2)))
     : null;
 
   return (
-    <ClubThemeShell clubName={club?.name ?? session.user.clubName ?? "PMB"} leagueName={club?.league.name ?? session.user.leagueName ?? "VIP League"}>
+    <ClubThemeShell
+      clubName={club?.name ?? session.user.clubName ?? "PMB"}
+      clubLogo={club?.logo}
+      leagueName={club?.league.name ?? session.user.leagueName ?? "VIP League"}
+    >
     <div className="min-h-screen">
       <Navbar
         homeHref="/manager/dashboard"
@@ -54,6 +60,9 @@ export default async function ManagerLayout({
 
       {/* PMB animated live feed */}
       <LiveFeed />
+
+      {/* Real-time Unread Direct Message Toast */}
+      <UnreadMessageNotifier />
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {children}

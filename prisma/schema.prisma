@@ -21,6 +21,13 @@ model User {
   transfersInitiated    Transfer[]              @relation("TransferInitiatedBy")
   transfersResponded    Transfer[]              @relation("TransferRespondedBy")
   club                  Club?                   @relation("UserManagesClub", fields: [clubId], references: [id])
+  auctionsCreated       Auction[]               @relation("AuctionsCreated")
+  auctionBids           AuctionBid[]
+  posts                 Post[]
+  postComments          PostComment[]
+  postReactions         PostReaction[]
+  sentMessages          DirectMessage[]         @relation("SentMessages")
+  receivedMessages      DirectMessage[]         @relation("ReceivedMessages")
 
   @@index([role])
 }
@@ -72,6 +79,10 @@ model Club {
   manager                                User?                   @relation("UserManagesClub")
   homeMatches                            Match[]                 @relation("HomeMatches")
   awayMatches                            Match[]                 @relation("AwayMatches")
+  wonAuctions                            Auction[]               @relation("WinningClubAuctions")
+  auctionBids                            AuctionBid[]
+  posts                                  Post[]
+  postComments                           PostComment[]
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -96,6 +107,7 @@ model Player {
   pmbClub            Club?                  @relation(fields: [pmbClubId], references: [id])
   PlayerLoan         PlayerLoan[]
   transfers          Transfer[]
+  auctions           Auction[]
 
   @@index([fullName])
   @@index([position])
@@ -204,15 +216,18 @@ model ClubBudgetTransaction {
   description  String?
   transferId   String?
   playerId     String?
+  matchId      String?
   createdAt    DateTime              @default(now())
 
   club         Club                  @relation(fields: [clubId], references: [id])
   player       Player?               @relation(fields: [playerId], references: [id])
   transfer     Transfer?             @relation(fields: [transferId], references: [id])
+  match        Match?                @relation(fields: [matchId], references: [id])
 
   @@index([clubId])
   @@index([clubId, createdAt])
   @@index([transferId])
+  @@index([matchId])
 }
 
 model Season {
@@ -301,11 +316,12 @@ model Match {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  competitionSeason CompetitionSeason @relation(fields: [competitionSeasonId], references: [id])
-  season            Season            @relation(fields: [seasonId], references: [id])
-  league            League            @relation(fields: [leagueId], references: [id])
-  homeClub          Club              @relation("HomeMatches", fields: [homeClubId], references: [id])
-  awayClub          Club              @relation("AwayMatches", fields: [awayClubId], references: [id])
+  competitionSeason   CompetitionSeason      @relation(fields: [competitionSeasonId], references: [id])
+  season              Season                 @relation(fields: [seasonId], references: [id])
+  league              League                 @relation(fields: [leagueId], references: [id])
+  homeClub            Club                   @relation("HomeMatches", fields: [homeClubId], references: [id])
+  awayClub            Club                   @relation("AwayMatches", fields: [awayClubId], references: [id])
+  budgetTransactions  ClubBudgetTransaction[]
 
   @@index([competitionSeasonId])
   @@index([seasonId])
@@ -369,12 +385,65 @@ enum NotificationType {
   TRANSFER_COMPLETED
   TRANSFER_WINDOW_OPENED
   TRANSFER_WINDOW_CLOSED
+  POST_COMMENT
+  POST_REACTION
 }
 
 enum BudgetTransactionType {
   TRANSFER_IN
   TRANSFER_OUT
   ADMIN_ADJUSTMENT
+  COMPETITION_REWARD
+  AUCTION_WIN
+}
+
+enum AuctionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+model Auction {
+  id                  String        @id @default(cuid())
+  playerId            String
+  adminUserId         String
+  startingPrice       Decimal       @db.Decimal(14, 2)
+  minIncrement        Decimal       @default(500000) @db.Decimal(14, 2)
+  currentBid          Decimal       @db.Decimal(14, 2)
+  currentWinnerClubId String?
+  status              AuctionStatus @default(ACTIVE)
+  startsAt            DateTime      @default(now())
+  expiresAt           DateTime
+  completedAt         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  player            Player       @relation(fields: [playerId], references: [id])
+  admin             User         @relation("AuctionsCreated", fields: [adminUserId], references: [id])
+  currentWinnerClub Club?        @relation("WinningClubAuctions", fields: [currentWinnerClubId], references: [id])
+  bids              AuctionBid[]
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([playerId])
+  @@index([currentWinnerClubId])
+}
+
+model AuctionBid {
+  id        String   @id @default(cuid())
+  auctionId String
+  clubId    String
+  userId    String
+  amount    Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  club    Club    @relation(fields: [clubId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([auctionId, createdAt])
+  @@index([clubId])
 }
 
 enum LoanStatus {
@@ -403,4 +472,76 @@ enum MatchFormat {
 enum MatchStatus {
   UPCOMING
   COMPLETED
+}
+
+enum PostTag {
+  STATEMENT
+  TRANSFER
+  BANTER
+  VICTORY
+  GENERAL
+}
+
+model Post {
+  id        String         @id @default(cuid())
+  content   String         @db.Text
+  tag       PostTag        @default(GENERAL)
+  mediaUrl  String?
+  userId    String
+  clubId    String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club?          @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  comments  PostComment[]
+  reactions PostReaction[]
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([clubId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  clubId    String?
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
+
+  @@index([postId, createdAt])
+}
+
+model PostReaction {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  reaction  String   // "GOAL", "FIRE", "TROPHY", "CLAP", "POPCORN"
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, reaction])
+  @@index([postId])
+}
+
+model DirectMessage {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String   @db.Text
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, read])
 }

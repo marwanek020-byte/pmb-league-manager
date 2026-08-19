@@ -5,7 +5,7 @@ export default async function HomePage() {
   const session = await auth();
 
   if (!session) {
-    redirect("/login");
+    redirect("/welcome");
   }
 
   if (session.user.role === "ADMINISTRATOR") {

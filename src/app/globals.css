@@ -17,22 +17,54 @@ body {
 }
 
 .admin-world { background: radial-gradient(ellipse at 85% 0%, rgba(176,116,34,.18), transparent 38%), linear-gradient(135deg,#070706,#11100c); }
-.admin-world::before,.club-world::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.16; background-image:linear-gradient(30deg,transparent 24%,rgba(212,175,55,.25) 25%,transparent 26%),linear-gradient(150deg,transparent 24%,rgba(212,175,55,.25) 25%,transparent 26%); background-size:58px 100px; mask-image:linear-gradient(90deg,#000,transparent 74%); }
-.admin-world > *,.club-world > * { position:relative; z-index:1; }
-.club-world { background: radial-gradient(ellipse at 88% 1%,color-mix(in srgb,var(--club-primary) 28%,transparent),transparent 35%),radial-gradient(ellipse at 1% 100%,color-mix(in srgb,var(--club-secondary) 28%,transparent),transparent 42%),var(--club-background); transition:background .7s ease; }
-.club-world::before { background-image:repeating-linear-gradient(135deg,transparent 0 52px,color-mix(in srgb,var(--club-primary) 30%,transparent) 53px 54px); opacity:.32; }
-.club-world .pmb-card { border-color:color-mix(in srgb,var(--club-primary) 33%,rgba(255,255,255,.12)); background:linear-gradient(145deg,color-mix(in srgb,var(--club-primary) 13%,#151515),rgba(12,14,16,.84)); }
-.club-world .pmb-btn-primary { background:linear-gradient(110deg,var(--club-primary),var(--club-accent)); color:#111; }
-.club-world .pmb-badge { color:var(--club-accent); border-color:color-mix(in srgb,var(--club-accent) 45%,transparent); background:color-mix(in srgb,var(--club-primary) 18%,transparent); }
-.club-world .text-pmb-gold { color:var(--club-accent)!important; }
-.club-world header { border-color:color-mix(in srgb,var(--club-primary) 32%,rgba(255,255,255,.12)); background:color-mix(in srgb,var(--club-background) 82%,black); }
-.pmb-login { position:relative; overflow:hidden; background:radial-gradient(ellipse at 50% 0%,rgba(212,175,55,.2),transparent 30%),linear-gradient(135deg,#050504,#12100a); }
-.pmb-login::before { content:""; position:absolute; width:min(75vw,680px); aspect-ratio:1; background:url('/branding/pmb-lion.jpg') center/cover; opacity:.07; filter:grayscale(1); top:-14%; left:50%; transform:translateX(-50%); border-radius:50%; }
-.pmb-login > div { position:relative; z-index:1; border-color:rgba(212,175,55,.35)!important; box-shadow:0 30px 70px rgba(0,0,0,.5); }
-.admin-hero { background:radial-gradient(circle at 86% 32%,rgba(212,175,55,.22),transparent 24%),linear-gradient(120deg,#0c0b08,rgba(104,69,22,.5),#100e09); box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 55px rgba(0,0,0,.28); }
-.admin-hero::before,.manager-hero::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.25; background:repeating-linear-gradient(0deg,transparent 0 46px,rgba(212,175,55,.18) 47px 48px),repeating-linear-gradient(90deg,transparent 0 68px,rgba(212,175,55,.1) 69px 70px); mask-image:linear-gradient(90deg,transparent 30%,#000); }
-.manager-hero { border-color:color-mix(in srgb,var(--club-primary) 55%,rgba(255,255,255,.15))!important; background:linear-gradient(120deg,color-mix(in srgb,var(--club-background) 90%,black),color-mix(in srgb,var(--club-primary) 38%,black),color-mix(in srgb,var(--club-secondary) 32%,black))!important; box-shadow:0 24px 60px rgba(0,0,0,.28); }
-.manager-hero > * { position:relative; z-index:1; }
+.admin-world::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.16; background-image:linear-gradient(30deg,transparent 24%,rgba(212,175,55,.25) 25%,transparent 26%),linear-gradient(150deg,transparent 24%,rgba(212,175,55,.25) 25%,transparent 26%); background-size:58px 100px; mask-image:linear-gradient(90deg,#000,transparent 74%); }
+.admin-world > * { position:relative; z-index:1; }
+
+.club-world {
+  background-color: var(--club-background);
+  transition: background 0.7s ease;
+}
+.club-world::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.club-world .pmb-card {
+  border-color: color-mix(in srgb, var(--club-primary) 40%, rgba(255, 255, 255, 0.15));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--club-primary) 12%, #121212), rgba(10, 12, 15, 0.92));
+}
+.club-world .pmb-btn-primary { 
+  background: linear-gradient(110deg, var(--club-primary), var(--club-accent)); 
+  color: #111; 
+  box-shadow: 0 0 15px color-mix(in srgb, var(--club-primary) 40%, transparent);
+}
+.club-world .pmb-badge { 
+  color: var(--club-accent); 
+  border-color: color-mix(in srgb, var(--club-primary) 50%, transparent); 
+  background: color-mix(in srgb, var(--club-primary) 25%, transparent); 
+}
+.club-world .text-pmb-gold { color: var(--club-accent)!important; }
+.club-world header { 
+  border-color: color-mix(in srgb, var(--club-primary) 40%, rgba(255, 255, 255, 0.15)); 
+  background: color-mix(in srgb, var(--club-background) 90%, black); 
+}
+.pmb-login { position: relative; overflow: hidden; background: radial-gradient(ellipse at 50% 0%, rgba(212,175,55,.2), transparent 30%), linear-gradient(135deg, #050504, #12100a); }
+.pmb-login::before { content: ""; position: absolute; width: min(75vw,680px); aspect-ratio: 1; background: url('/branding/pmb-lion.jpg') center/cover; opacity: .07; filter: grayscale(1); top: -14%; left: 50%; transform: translateX(-50%); border-radius: 50%; }
+.pmb-login > div { position: relative; z-index: 1; border-color: rgba(212,175,55,.35)!important; box-shadow: 0 30px 70px rgba(0,0,0,.5); }
+.admin-hero::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .25; background: repeating-linear-gradient(0deg, transparent 0 46px, rgba(212,175,55,.18) 47px 48px), repeating-linear-gradient(90deg, transparent 0 68px, rgba(212,175,55,.1) 69px 70px); mask-image: linear-gradient(90deg, transparent 30%, #000); }
+.manager-hero {
+  border-color: color-mix(in srgb, var(--club-primary) 70%, rgba(255,255,255,0.2))!important;
+  background: 
+    radial-gradient(circle at 85% 50%, color-mix(in srgb, var(--club-primary) 50%, transparent), transparent 60%),
+    radial-gradient(circle at 15% 80%, color-mix(in srgb, var(--club-secondary) 40%, transparent), transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--club-primary) 20%, #0d0d10), #08080a)!important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 50px color-mix(in srgb, var(--club-primary) 30%, transparent);
+}
 
 @layer components {
   .pmb-card {
@@ -77,9 +109,9 @@ body {
 
 .competition-header {
   background:
-    radial-gradient(ellipse at 30% 0%,  rgba(212,175,55,.18), transparent 50%),
-    radial-gradient(ellipse at 70% 100%, rgba(212,175,55,.10), transparent 50%),
-    linear-gradient(160deg, #0d0d0a 0%, #121009 50%, #0a0908 100%);
+    linear-gradient(to bottom, rgba(5, 5, 8, 0.75) 0%, rgba(5, 5, 8, 0.85) 60%, rgba(3, 3, 5, 0.98) 100%),
+    url('/dashboard/match-clash.jpg') center/cover no-repeat;
+  box-shadow: 0 25px 65px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   position: relative;
 }
 
@@ -89,10 +121,11 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: .14;
-  background-image:
-    repeating-linear-gradient(0deg,   transparent 0 62px, rgba(212,175,55,.3) 63px 64px),
-    repeating-linear-gradient(90deg,  transparent 0 88px, rgba(212,175,55,.15) 89px 90px);
+  opacity: 0.15;
+  background-image: 
+    radial-gradient(circle, rgba(212,175,55,0.4) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 49%, rgba(212,175,55,0.2) 50%, transparent 51%);
+  background-size: 24px 24px, 120px 100%;
   border-radius: inherit;
 }
 
@@ -147,11 +180,51 @@ body {
   animation: matchday-next-pulse 1.8s ease-in-out infinite;
 }
 
-/* Subtle gold tinted row background for manager's own club */
-.bg-pmb-gold\/8 { background-color: rgba(212,175,55,0.08) !important; }
+/* ── eFootball & FUT Holographic Card Styles ───────────────────────── */
+.card-efootball-epic {
+  background: radial-gradient(circle at 50% 0%, rgba(234,179,8,0.25), transparent 70%), linear-gradient(145deg, #1c1507 0%, #0d0b06 60%, #060503 100%);
+  border: 2px solid rgba(234, 179, 8, 0.7);
+  box-shadow: 0 0 40px rgba(234, 179, 8, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
 
-/* Hover utility for public/standings tables */
-.hover\:bg-white\/3:hover { background-color: rgba(255,255,255,0.03); }
+.card-efootball-bigtime {
+  background: radial-gradient(circle at 50% 0%, rgba(192,132,252,0.3), transparent 70%), linear-gradient(145deg, #1a0826 0%, #0c0617 60%, #04020a 100%);
+  border: 2px solid rgba(192, 132, 252, 0.7);
+  box-shadow: 0 0 40px rgba(192, 132, 252, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.card-efootball-gold {
+  background: radial-gradient(circle at 50% 0%, rgba(212,175,55,0.2), transparent 70%), linear-gradient(145deg, #14120c 0%, #0a0907 60%, #050505 100%);
+  border: 2px solid rgba(212, 175, 55, 0.5);
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.holographic-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.05) 35%, rgba(255, 215, 0, 0.22) 48%, rgba(255, 255, 255, 0.35) 50%, rgba(56, 189, 248, 0.22) 52%, rgba(255, 255, 255, 0.05) 65%, transparent 80%);
+  background-size: 250% 250%;
+  animation: holo-sweep 4.5s ease-in-out infinite;
+  mix-blend-mode: color-dodge;
+  opacity: 0.85;
+}
+
+@keyframes holo-sweep {
+  0% { background-position: -150% -150%; }
+  50% { background-position: 150% 150%; }
+  100% { background-position: -150% -150%; }
+}
+
+@keyframes bid-shockwave {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.8); }
+  50% { transform: scale(1.02); box-shadow: 0 0 50px 15px rgba(234, 179, 8, 0.5); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+}
+
+.animate-bid-pulse {
+  animation: bid-shockwave 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,::before,::after {
@@ -160,3 +233,61 @@ body {
     transition-duration: .01ms !important;
   }
 }
+
+/* ═══ Landing Page Styles ═══ */
+.landing-page * { box-sizing: border-box; }
+.font-montserrat { font-family: 'Montserrat', sans-serif; }
+.font-jetbrains { font-family: 'JetBrains Mono', monospace; }
+.font-inter { font-family: 'Inter', sans-serif; }
+
+.gold-glow {
+  box-shadow: 0 0 15px 2px rgba(233, 195, 73, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+.gold-glow:hover {
+  box-shadow: 0 0 25px 5px rgba(233, 195, 73, 0.5);
+}
+
+.hero-pattern-bg {
+  background-image:
+    radial-gradient(circle at 50% 30%, rgba(233, 195, 73, 0.1) 0%, transparent 50%),
+    linear-gradient(0deg, #121414 0%, transparent 100%);
+  background-size: 100% 100%, 100% 100%;
+}
+
+.pitch-lines {
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 120px 120px;
+  transform: perspective(500px) rotateX(60deg) scale(2);
+  transform-origin: bottom center;
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.landing-img-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.landing-team-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+  filter: grayscale(100%);
+  opacity: 0.8;
+  transition: all 0.7s ease;
+}
+.landing-team-photo:hover {
+  filter: grayscale(0%);
+  opacity: 1;
+  transform: scale(1.05);
+}
+

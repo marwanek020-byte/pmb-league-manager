@@ -83,6 +83,7 @@ export type ApplyBudgetTransactionInput = {
   description?: string;
   transferId?: string;
   playerId?: string;
+  matchId?: string;
 };
 
 /**
@@ -120,6 +121,7 @@ export async function applyBudgetTransaction(tx: TxClient, input: ApplyBudgetTra
       description: input.description,
       transferId: input.transferId,
       playerId: input.playerId,
+      matchId: input.matchId,
     },
   });
 
