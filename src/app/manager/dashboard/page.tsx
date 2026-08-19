@@ -123,6 +123,12 @@ export default async function ManagerDashboardPage() {
   // ── Quick Access cards ────────────────────────────────────────────────
   const quickCards = [
     {
+      href: "/manager/social",
+      title: "Dugout Social",
+      sub: "Manager discussions & chat",
+      img: "/dashboard/login-stadium.jpg",
+    },
+    {
       href: "/manager/players",
       title: "Players",
       sub: "Manage squad",
@@ -155,7 +161,7 @@ export default async function ManagerDashboardPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-16 sm:pb-8">
       {/* ─── WELCOME HEADER ──────────────────────────────────────────── */}
       <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -172,24 +178,41 @@ export default async function ManagerDashboardPage() {
           </div>
         </div>
 
-        {/* Live Auction Quick Jump */}
-        <Link
-          href="/manager/auctions"
-          className="flex items-center gap-3 rounded-2xl border border-red-500/40 bg-gradient-to-r from-red-950/40 to-black p-3.5 transition hover:border-red-500 hover:shadow-[0_0_25px_rgba(239,68,68,0.25)]"
-        >
-          <span className="flex h-3 w-3 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-          </span>
-          <div className="text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest text-red-400 block">
-              {liveAuction ? "Live Bidding War" : "Free Agent Auctions"}
+        {/* Action Header Pills */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Dugout Quick Button */}
+          <Link
+            href="/manager/social"
+            className="flex items-center gap-2 rounded-2xl border border-pmb-gold/40 bg-gradient-to-r from-pmb-gold/20 via-black to-black p-3 transition hover:border-pmb-gold hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]"
+          >
+            <span className="text-base">💬</span>
+            <div className="text-left">
+              <span className="block text-[9px] font-black uppercase tracking-widest text-pmb-gold">
+                The Dugout
+              </span>
+              <span className="text-xs font-bold text-white">Social Hub & Chat →</span>
+            </div>
+          </Link>
+
+          {/* Live Auction Quick Jump */}
+          <Link
+            href="/manager/auctions"
+            className="flex items-center gap-3 rounded-2xl border border-red-500/40 bg-gradient-to-r from-red-950/40 to-black p-3 transition hover:border-red-500 hover:shadow-[0_0_25px_rgba(239,68,68,0.25)]"
+          >
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
             </span>
-            <p className="text-xs font-bold text-white">
-              {liveAuction ? `Bid on ${liveAuction.player.fullName} (€${Number(liveAuction.currentBid).toLocaleString()})` : "Enter Auction Arena →"}
-            </p>
-          </div>
-        </Link>
+            <div className="text-left">
+              <span className="block text-[9px] font-black uppercase tracking-widest text-red-400">
+                Live Auctions
+              </span>
+              <span className="text-xs font-bold text-white">
+                {liveAuction ? "Active Bidding War →" : "Auction Arena →"}
+              </span>
+            </div>
+          </Link>
+        </div>
       </section>
 
       {/* ─── MAIN BENTO GRID ─────────────────────────────────────────── */}

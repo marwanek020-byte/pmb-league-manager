@@ -198,9 +198,9 @@ export function LandingPage() {
           {/* ─── FOUNDER: MARWANE (COMPACT SIZED) ─── */}
           <div className="flex flex-col sm:flex-row items-center gap-8 mx-auto p-6 rounded-2xl border border-white/10 bg-black/40 shadow-xl" style={{ maxWidth: 760, marginBottom: 48 }}>
             {/* Photo Container */}
-            <div className="shrink-0 relative overflow-hidden rounded-xl border border-[#e9c349]/40 gold-glow" style={{ width: 200, height: 220 }}>
+            <div className="shrink-0 relative overflow-hidden rounded-xl border border-[#e9c349]/40 gold-glow" style={{ width: 220, height: 250 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt="MARWANE" src={MARWANE_PHOTO} className="landing-team-photo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img alt="MARWANE" src={MARWANE_PHOTO} className="landing-team-photo" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%" }} />
             </div>
 
             {/* Info */}
@@ -225,9 +225,9 @@ export function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mx-auto" style={{ maxWidth: 860, marginBottom: 48 }}>
             {STAFF.map((member) => (
               <div key={member.name} className="group p-4 rounded-xl border border-white/5 bg-black/30 hover:border-[#e9c349]/30 transition-all">
-                <div className="relative overflow-hidden rounded-lg mb-3 border border-white/10" style={{ height: 190 }}>
+                <div className="relative overflow-hidden rounded-lg mb-3 border border-white/10" style={{ height: 230 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt={member.name} src={member.photo} className="landing-team-photo" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+                  <img alt={member.name} src={member.photo} className="landing-team-photo" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 20%" }} />
                 </div>
                 <div className="space-y-1">
                   <h5 className="font-jetbrains" style={{ fontSize: 9, letterSpacing: "0.12em", color: "#e9c349", textTransform: "uppercase" }}>{member.number}</h5>

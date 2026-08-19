@@ -154,54 +154,54 @@ export function CompetitionHub({
           </div>
 
           {/* Match presentation */}
-          <div className="relative z-10 flex items-center justify-between gap-4 sm:gap-12">
+          <div className="relative z-10 flex items-center justify-between gap-2 sm:gap-12 w-full">
             {/* Home club */}
-            <div className="flex flex-1 flex-col items-center gap-3 text-center">
-              <div className="relative flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-3xl border-2 border-white/20 bg-black/60 p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-md transition-transform duration-300 hover:scale-105">
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+            <div className="flex flex-1 flex-col items-center gap-1.5 sm:gap-3 text-center min-w-0">
+              <div className="relative flex h-16 w-16 sm:h-32 sm:w-32 items-center justify-center rounded-2xl sm:rounded-3xl border-2 border-white/20 bg-black/60 p-2 sm:p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-md transition-transform duration-300 hover:scale-105">
+                <div className="absolute inset-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
                 <ClubBadge
                   name={headlineMatch.homeClub.name}
                   logo={headlineMatch.homeClub.logo}
-                  size="lg"
+                  size="md"
                 />
               </div>
-              <div>
-                <p className="text-base font-black uppercase tracking-wide text-white sm:text-xl drop-shadow-md">
+              <div className="w-full">
+                <p className="text-xs font-black uppercase tracking-wide text-white sm:text-xl drop-shadow-md truncate sm:whitespace-normal">
                   {headlineMatch.homeClub.name}
                 </p>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-gray-400 block">
                   Home Side
                 </span>
               </div>
               {headlineMatch.homeClub.id === myClubId && (
-                <span className="pmb-badge text-[9px] shadow-gold">YOUR CLUB</span>
+                <span className="pmb-badge text-[8px] sm:text-[9px] shadow-gold">YOUR CLUB</span>
               )}
             </div>
 
             {/* VS / Score Broadcast Center */}
-            <div className="flex flex-col items-center gap-1.5 text-center shrink-0">
-              <div className="rounded-2xl border border-white/20 bg-black/75 px-6 py-4 shadow-[0_0_40px_rgba(0,0,0,0.9)] backdrop-blur-md">
+            <div className="flex flex-col items-center gap-1 text-center shrink-0">
+              <div className="rounded-xl sm:rounded-2xl border border-white/20 bg-black/75 px-3 py-2 sm:px-6 sm:py-4 shadow-[0_0_40px_rgba(0,0,0,0.9)] backdrop-blur-md">
                 {headlineMatch.status === "COMPLETED" ? (
                   <>
-                    <div className="flex items-center gap-3">
-                      <span className="text-4xl font-black text-white sm:text-6xl tracking-tight">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <span className="text-2xl font-black text-white sm:text-6xl tracking-tight">
                         {headlineMatch.homeGoals}
                       </span>
-                      <span className="text-2xl font-bold text-gray-500">—</span>
-                      <span className="text-4xl font-black text-white sm:text-6xl tracking-tight">
+                      <span className="text-lg sm:text-2xl font-bold text-gray-500">—</span>
+                      <span className="text-2xl font-black text-white sm:text-6xl tracking-tight">
                         {headlineMatch.awayGoals}
                       </span>
                     </div>
-                    <span className="mt-1 block text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                    <span className="mt-0.5 block text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-emerald-400">
                       Full Time
                     </span>
                   </>
                 ) : (
                   <>
-                    <span className="text-4xl font-black tracking-tighter text-pmb-gold sm:text-6xl drop-shadow-[0_0_20px_rgba(212,175,55,0.4)]">
+                    <span className="text-2xl font-black tracking-tighter text-pmb-gold sm:text-6xl drop-shadow-[0_0_20px_rgba(212,175,55,0.4)]">
                       VS
                     </span>
-                    <span className="mt-1 block text-[10px] font-black uppercase tracking-widest text-amber-400 animate-pulse">
+                    <span className="mt-0.5 block text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-400 animate-pulse">
                       Upcoming
                     </span>
                   </>
@@ -210,25 +210,25 @@ export function CompetitionHub({
             </div>
 
             {/* Away club */}
-            <div className="flex flex-1 flex-col items-center gap-3 text-center">
-              <div className="relative flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-3xl border-2 border-white/20 bg-black/60 p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-md transition-transform duration-300 hover:scale-105">
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+            <div className="flex flex-1 flex-col items-center gap-1.5 sm:gap-3 text-center min-w-0">
+              <div className="relative flex h-16 w-16 sm:h-32 sm:w-32 items-center justify-center rounded-2xl sm:rounded-3xl border-2 border-white/20 bg-black/60 p-2 sm:p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-md transition-transform duration-300 hover:scale-105">
+                <div className="absolute inset-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
                 <ClubBadge
                   name={headlineMatch.awayClub.name}
                   logo={headlineMatch.awayClub.logo}
-                  size="lg"
+                  size="md"
                 />
               </div>
-              <div>
-                <p className="text-base font-black uppercase tracking-wide text-white sm:text-xl drop-shadow-md">
+              <div className="w-full">
+                <p className="text-xs font-black uppercase tracking-wide text-white sm:text-xl drop-shadow-md truncate sm:whitespace-normal">
                   {headlineMatch.awayClub.name}
                 </p>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-gray-400 block">
                   Away Side
                 </span>
               </div>
               {headlineMatch.awayClub.id === myClubId && (
-                <span className="pmb-badge text-[9px] shadow-gold">YOUR CLUB</span>
+                <span className="pmb-badge text-[8px] sm:text-[9px] shadow-gold">YOUR CLUB</span>
               )}
             </div>
           </div>
