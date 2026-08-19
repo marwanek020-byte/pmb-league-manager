@@ -441,6 +441,76 @@ export function CompetitionHub({
           </div>
         )}
 
+        {/* ALL FIXTURES TAB */}
+        {activeTab === "FIXTURES" && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-black uppercase tracking-tight text-white">
+              All Fixtures
+            </h2>
+
+            {Array.from({ length: totalMatchdays }, (_, i) => i + 1).map((mday) => {
+              const mdayMatches = allMatches.filter((m) => m.matchday === mday);
+              if (mdayMatches.length === 0) return null;
+
+              return (
+                <div key={mday} className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-pmb-border/40 pb-1">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-pmb-gold">
+                      Matchday {mday}
+                    </h3>
+                    <span className="text-[10px] text-gray-400">
+                      {mdayMatches.filter((m) => m.status === "COMPLETED").length} / {mdayMatches.length} played
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {mdayMatches.map((match) => {
+                      const isMyMatch = match.homeClub.id === myClubId || match.awayClub.id === myClubId;
+                      return (
+                      <div
+                        key={match.id}
+                        className={[
+                          "relative overflow-hidden rounded-xl border p-3.5 transition",
+                          isMyMatch
+                            ? "border-pmb-gold/80 bg-pmb-gold/5 shadow-[0_0_15px_rgba(212,175,55,0.15)]"
+                            : "border-pmb-border/60 bg-black/40 hover:border-white/20",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex flex-1 items-center gap-2.5 overflow-hidden">
+                            <ClubBadge name={match.homeClub.name} logo={match.homeClub.logo} size="sm" />
+                            <span className="truncate text-xs sm:text-sm font-bold text-white">
+                              {match.homeClub.name}
+                            </span>
+                          </div>
+
+                          <div className="shrink-0 px-2.5 py-1 rounded-lg border border-white/10 bg-black/60 text-center min-w-[54px]">
+                            {match.status === "COMPLETED" ? (
+                              <span className="text-xs font-black text-white">
+                                {match.homeGoals} - {match.awayGoals}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-black text-pmb-gold">VS</span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-1 items-center justify-end gap-2.5 overflow-hidden text-right">
+                            <span className="truncate text-xs sm:text-sm font-bold text-white">
+                              {match.awayClub.name}
+                            </span>
+                            <ClubBadge name={match.awayClub.name} logo={match.awayClub.logo} size="sm" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
         {/* TABLE TAB */}
         {activeTab === "TABLE" && (
           <div className="space-y-4">
@@ -448,7 +518,7 @@ export function CompetitionHub({
               <h2 className="text-xl font-black uppercase tracking-tight text-white">
                 Official Championship Standings
               </h2>
-              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 flex-wrap">
                 <span className="flex items-center gap-1 text-yellow-400">
                   <span className="h-2 w-2 rounded-full bg-yellow-400" /> 1st: Champion
                 </span>
@@ -462,113 +532,106 @@ export function CompetitionHub({
             </div>
 
             <div className="pmb-card overflow-hidden">
-              {/* Table header */}
-              <div className="grid grid-cols-[2.5rem_1fr_2rem_2rem_2rem_2rem_2rem_2rem_3rem_3.5rem] gap-x-1 border-b border-pmb-border bg-black/60 px-3 py-3 text-center text-[9px] font-black uppercase tracking-widest text-gray-400 sm:px-5">
-                <span>POS</span>
-                <span className="text-left">CLUB</span>
-                <span>P</span>
-                <span>W</span>
-                <span>D</span>
-                <span>L</span>
-                <span>GF</span>
-                <span>GA</span>
-                <span>GD</span>
-                <span className="text-pmb-gold">PTS</span>
-              </div>
+              {/* Responsive Standings Table with dedicated horizontal scroll */}
+              <div className="overflow-x-auto">
+                <div className="min-w-[580px]">
+                  {/* Table header */}
+                  <div className="grid grid-cols-[2.5rem_1fr_2.2rem_2.2rem_2.2rem_2.2rem_2.2rem_2.2rem_2.8rem_3.2rem] gap-x-1 border-b border-pmb-border bg-black/60 px-3 py-3 text-center text-[9px] font-black uppercase tracking-widest text-gray-400 sm:px-5">
+                    <span>POS</span>
+                    <span className="text-left min-w-[150px]">CLUB</span>
+                    <span>P</span>
+                    <span>W</span>
+                    <span>D</span>
+                    <span>L</span>
+                    <span>GF</span>
+                    <span>GA</span>
+                    <span>GD</span>
+                    <span className="text-pmb-gold">PTS</span>
+                  </div>
 
-              <div className="divide-y divide-pmb-border/40">
-                {standings.map((row) => {
-                  const isMe = row.clubId === myClubId;
-                  const isChampion = row.position === 1;
-                  const isContinental = row.position >= 2 && row.position <= 3;
-                  const isRelegation = row.position > Math.max(3, standings.length - 2);
+                  <div className="divide-y divide-pmb-border/40">
+                    {standings.map((row) => {
+                      const isMe = row.clubId === myClubId;
+                      const isChampion = row.position === 1;
+                      const isContinental = row.position >= 2 && row.position <= 3;
+                      const isRelegation = row.position > Math.max(3, standings.length - 2);
 
-                  const zoneClass = isChampion
-                    ? "border-l-4 border-l-yellow-400 bg-yellow-500/10 shadow-[inset_0_0_20px_rgba(234,179,8,0.06)]"
-                    : isContinental
-                    ? "border-l-4 border-l-sky-400 bg-sky-500/5"
-                    : isRelegation
-                    ? "border-l-4 border-l-red-500 bg-red-500/5"
-                    : isMe
-                    ? "border-l-4 border-l-pmb-gold bg-pmb-gold/10"
-                    : "border-l-4 border-l-transparent hover:bg-white/5";
+                      const zoneClass = isChampion
+                        ? "border-l-4 border-l-yellow-400 bg-yellow-500/10 shadow-[inset_0_0_20px_rgba(234,179,8,0.06)]"
+                        : isContinental
+                        ? "border-l-4 border-l-sky-400 bg-sky-500/5"
+                        : isRelegation
+                        ? "border-l-4 border-l-red-500 bg-red-500/5"
+                        : isMe
+                        ? "border-l-4 border-l-pmb-gold bg-pmb-gold/10"
+                        : "border-l-4 border-l-transparent hover:bg-white/5";
 
-                  return (
-                    <div
-                      key={row.clubId}
-                      className={[
-                        "grid grid-cols-[2.5rem_1fr_2rem_2rem_2rem_2rem_2rem_2rem_3rem_3.5rem] items-center gap-x-1 px-3 py-3 text-center text-xs sm:px-5 transition",
-                        zoneClass,
-                      ].join(" ")}
-                    >
-                      <div className="flex items-center justify-center gap-1 font-black">
-                        {isChampion && <span className="text-xs">👑</span>}
-                        <span
-                          className={
-                            isChampion
-                              ? "text-yellow-400 text-sm font-black"
-                              : isContinental
-                              ? "text-sky-400 font-bold"
-                              : isRelegation
-                              ? "text-red-400 font-bold"
-                              : isMe
-                              ? "text-pmb-gold font-bold"
-                              : "text-gray-400"
-                          }
-                        >
-                          {row.position}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2.5 text-left overflow-hidden">
-                        <ClubBadge
-                          name={row.clubName}
-                          logo={row.clubLogo}
-                          size="xs"
-                        />
-                        <span
+                      return (
+                        <div
+                          key={row.clubId}
                           className={[
-                            "truncate font-bold",
-                            isMe ? "text-pmb-gold" : isChampion ? "text-yellow-300" : "text-white",
+                            "grid grid-cols-[2.5rem_1fr_2.2rem_2.2rem_2.2rem_2.2rem_2.2rem_2.2rem_2.8rem_3.2rem] items-center gap-x-1 px-3 py-3 text-center text-xs sm:px-5 transition",
+                            zoneClass,
                           ].join(" ")}
                         >
-                          {row.clubName}
-                        </span>
-                      </div>
+                          <div className="flex items-center justify-center gap-1 font-black">
+                            {isChampion && <span className="text-xs">👑</span>}
+                            <span
+                              className={
+                                isChampion
+                                  ? "text-yellow-400 text-sm font-black"
+                                  : isContinental
+                                  ? "text-sky-400 font-bold"
+                                  : isRelegation
+                                  ? "text-red-400 font-bold"
+                                  : isMe
+                                  ? "text-pmb-gold font-bold"
+                                  : "text-gray-400"
+                              }
+                            >
+                              {row.position}
+                            </span>
+                          </div>
 
-                      <span className="text-gray-400 font-semibold">{row.played}</span>
-                      <span className="text-gray-300 font-semibold">{row.wins}</span>
-                      <span className="text-gray-400">{row.draws}</span>
-                      <span className="text-gray-400">{row.losses}</span>
-                      <span className="text-gray-400">{row.goalsFor}</span>
-                      <span className="text-gray-400">{row.goalsAgainst}</span>
-                      <span
-                        className={
-                          row.goalDifference > 0
-                            ? "text-emerald-400 font-black"
-                            : row.goalDifference < 0
-                            ? "text-red-400 font-semibold"
-                            : "text-gray-500"
-                        }
-                      >
-                        {row.goalDifference > 0 ? "+" : ""}
-                        {row.goalDifference}
-                      </span>
-                      <span
-                        className={[
-                          "font-black text-sm",
-                          isChampion
-                            ? "text-yellow-400 text-base"
-                            : isMe
-                            ? "text-pmb-gold"
-                            : "text-white",
-                        ].join(" ")}
-                      >
-                        {row.points}
-                      </span>
-                    </div>
-                  );
-                })}
+                          <div className="flex items-center gap-2.5 text-left min-w-[150px] overflow-hidden">
+                            <ClubBadge
+                              name={row.clubName}
+                              logo={row.clubLogo}
+                              size="xs"
+                            />
+                            <span
+                              className={[
+                                "truncate font-bold text-xs sm:text-sm",
+                                isMe ? "text-pmb-gold" : isChampion ? "text-yellow-300" : "text-white",
+                              ].join(" ")}
+                            >
+                              {row.clubName}
+                            </span>
+                          </div>
+
+                          <span className="text-gray-400 font-semibold">{row.played}</span>
+                          <span className="text-gray-300 font-semibold">{row.wins}</span>
+                          <span className="text-gray-400">{row.draws}</span>
+                          <span className="text-gray-400">{row.losses}</span>
+                          <span className="text-gray-400">{row.goalsFor}</span>
+                          <span className="text-gray-400">{row.goalsAgainst}</span>
+                          <span
+                            className={
+                              row.goalDifference > 0
+                                ? "text-emerald-400 font-black"
+                                : row.goalDifference < 0
+                                ? "text-red-400 font-semibold"
+                                : "text-gray-400"
+                            }
+                          >
+                            {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
+                          </span>
+                          <span className="text-sm font-black text-pmb-gold">{row.points}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
