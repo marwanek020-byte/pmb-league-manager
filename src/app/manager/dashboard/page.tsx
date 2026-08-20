@@ -180,6 +180,29 @@ export default async function ManagerDashboardPage() {
 
         {/* Action Header Pills */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* AI Scout Quick Button */}
+          <Link
+            href="/manager/scouting"
+            className="flex items-center gap-2.5 rounded-2xl border border-pmb-gold/50 bg-gradient-to-r from-pmb-charcoal to-black p-3 transition hover:border-pmb-gold hover:shadow-[0_0_20px_rgba(212,175,55,0.35)]"
+          >
+            <span className="text-base">🤖</span>
+            <div className="text-left">
+              <div className="flex items-center gap-1.5">
+                <span className="block text-[9px] font-black uppercase tracking-widest text-pmb-gold">
+                  Chief Scout AI
+                </span>
+                {club.aiScoutEnabled ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                ) : (
+                  <span className="text-[9px] text-gray-500">🔒</span>
+                )}
+              </div>
+              <span className="text-xs font-bold text-white">
+                {club.aiScoutEnabled ? "Tactical Audit & Scout →" : "VIP Scout Preview →"}
+              </span>
+            </div>
+          </Link>
+
           {/* Dugout Quick Button */}
           <Link
             href="/manager/social"

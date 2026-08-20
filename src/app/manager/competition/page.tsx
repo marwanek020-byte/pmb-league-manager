@@ -131,6 +131,7 @@ export default async function ManagerCompetitionPage() {
 
       {/* Main competition hub */}
       <CompetitionHub
+        seasonId={latestSeason.id}
         myClubId={club.id}
         myClubName={club.name}
         myClubLogo={club.logo}

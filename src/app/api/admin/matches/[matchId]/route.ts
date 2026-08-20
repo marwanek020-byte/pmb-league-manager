@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { applyMatchRewards } from "@/lib/services/match-reward-service";
+import { MatchEventType } from "@prisma/client";
+
+export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
   const session = await auth();
@@ -24,11 +27,40 @@ export async function GET(
   const match = await prisma.match.findUnique({
     where: { id: params.matchId },
     include: {
-      homeClub: { select: { id: true, name: true, logo: true } },
-      awayClub: { select: { id: true, name: true, logo: true } },
+      homeClub: {
+        select: {
+          id: true,
+          name: true,
+          logo: true,
+          players: {
+            select: { id: true, fullName: true, position: true, overallRating: true, photo: true },
+            orderBy: { overallRating: "desc" },
+          },
+        },
+      },
+      awayClub: {
+        select: {
+          id: true,
+          name: true,
+          logo: true,
+          players: {
+            select: { id: true, fullName: true, position: true, overallRating: true, photo: true },
+            orderBy: { overallRating: "desc" },
+          },
+        },
+      },
       league: { select: { id: true, name: true } },
       season: { select: { id: true, name: true, status: true } },
       competitionSeason: { select: { id: true, name: true, status: true } },
+      manOfTheMatch: { select: { id: true, fullName: true, position: true, photo: true } },
+      events: {
+        include: {
+          player: { select: { id: true, fullName: true, position: true } },
+          assistPlayer: { select: { id: true, fullName: true } },
+          club: { select: { id: true, name: true } },
+        },
+        orderBy: { minute: "asc" },
+      },
     },
   });
 
@@ -40,7 +72,7 @@ export async function GET(
 }
 
 // PATCH /api/admin/matches/[matchId]
-// Enter or correct a match result
+// Enter or correct a match result with goals, assists, and MOTM
 export async function PATCH(
   req: Request,
   { params }: RouteContext
@@ -55,6 +87,8 @@ export async function PATCH(
   // Validate scores
   const homeGoals = body?.homeGoals;
   const awayGoals = body?.awayGoals;
+  const manOfTheMatchId = body?.manOfTheMatchId || null;
+  const events = Array.isArray(body?.events) ? body.events : null;
 
   if (
     !Number.isInteger(homeGoals) ||
@@ -89,25 +123,53 @@ export async function PATCH(
     );
   }
 
-  // Wrap match update + budget rewards in a single atomic transaction.
-  // If the reward application fails, the match update is also rolled back.
+  // Wrap match update + budget rewards + match events in a single atomic transaction.
   const updated = await prisma.$transaction(async (tx) => {
     const updatedMatch = await tx.match.update({
       where: { id: params.matchId },
       data: {
         homeGoals,
         awayGoals,
+        manOfTheMatchId,
         status: "COMPLETED",
         playedAt: match.status === "UPCOMING" ? new Date() : match.playedAt,
       },
       include: {
         homeClub: { select: { id: true, name: true, logo: true } },
         awayClub: { select: { id: true, name: true, logo: true } },
+        manOfTheMatch: { select: { id: true, fullName: true, position: true, photo: true } },
       },
     });
 
-    // Apply (or re-apply) budget rewards — handles reversals for result
-    // corrections automatically.
+    // If events array is provided, replace match events
+    if (events !== null) {
+      await tx.matchEvent.deleteMany({
+        where: { matchId: params.matchId },
+      });
+
+      if (events.length > 0) {
+        const eventsData = events.map((ev: {
+          clubId: string;
+          playerId: string;
+          assistPlayerId?: string | null;
+          type?: MatchEventType;
+          minute?: number | null;
+        }) => ({
+          matchId: params.matchId,
+          clubId: ev.clubId,
+          playerId: ev.playerId,
+          assistPlayerId: ev.assistPlayerId || null,
+          type: ev.type ?? MatchEventType.GOAL,
+          minute: typeof ev.minute === "number" ? ev.minute : null,
+        }));
+
+        await tx.matchEvent.createMany({
+          data: eventsData,
+        });
+      }
+    }
+
+    // Apply (or re-apply) budget rewards
     await applyMatchRewards(
       tx,
       params.matchId,

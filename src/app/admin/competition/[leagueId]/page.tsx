@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { MatchdayAdmin } from "@/components/admin/MatchdayAdmin";
 import { computeStandings } from "@/lib/services/standings-service";
+import { TotwPitch } from "@/components/competition/TotwPitch";
+import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 
 export const dynamic = "force-dynamic";
 
@@ -208,6 +210,23 @@ export default async function LeagueMatchdayPage({
           </p>
         </div>
       </div>
+
+      {/* ─── OFFICIAL TEAM OF THE WEEK (TOTW) ───────────────────────── */}
+      <section className="space-y-4 pt-4 border-t border-pmb-border/60">
+        <TotwPitch
+          seasonId={seasonId}
+          isAdmin={true}
+          totalMatchdays={totalMatchdays}
+        />
+      </section>
+
+      {/* ─── LEAGUE STATS & BALLON D'OR AWARDS ─────────────────────── */}
+      <section className="space-y-4 pt-4 border-t border-pmb-border/60">
+        <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
+          <span>👑</span> Season Stats & Ballon d'Or Leaderboards
+        </h2>
+        <SeasonStatsLeaderboards seasonId={seasonId} />
+      </section>
     </div>
   );
 }

@@ -25,6 +25,15 @@ export async function GET(
     include: {
       homeClub: { select: { id: true, name: true, logo: true } },
       awayClub: { select: { id: true, name: true, logo: true } },
+      manOfTheMatch: { select: { id: true, fullName: true, position: true, photo: true } },
+      events: {
+        include: {
+          player: { select: { id: true, fullName: true, position: true, photo: true } },
+          assistPlayer: { select: { id: true, fullName: true } },
+          club: { select: { id: true, name: true, logo: true } },
+        },
+        orderBy: { minute: "asc" },
+      },
     },
   });
 

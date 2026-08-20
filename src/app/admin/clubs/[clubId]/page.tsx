@@ -31,6 +31,8 @@ export default async function AdminClubPage({
       name: true,
       logo: true,
       budget: true,
+      aiScoutEnabled: true,
+      aiScoutTier: true,
       league: {
         select: {
           name: true,
@@ -154,6 +156,29 @@ export default async function AdminClubPage({
             </dt>
             <dd className="mt-1 break-all font-mono text-sm text-gray-300">
               {club.id}
+            </dd>
+          </div>
+
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-gray-500">
+              AI Chief Scout Access
+            </dt>
+            <dd className="mt-1 flex items-center gap-2">
+              {club.aiScoutEnabled ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-pmb-gold/50 bg-pmb-gold/20 px-2.5 py-0.5 text-xs font-bold text-pmb-gold">
+                  🌟 VIP PRO ACTIVE
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium text-gray-400">
+                  🔒 Standard (Disabled)
+                </span>
+              )}
+              <Link
+                href="/admin/ai-scout"
+                className="text-xs font-bold text-pmb-gold hover:underline ml-2"
+              >
+                Manage in AI Hub →
+              </Link>
             </dd>
           </div>
         </dl>

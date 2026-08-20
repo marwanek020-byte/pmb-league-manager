@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ClubBadge } from "@/components/ClubBadge";
+import { ManagerPollWidget } from "@/components/social/ManagerPollWidget";
 
 type User = {
   id: string;
@@ -422,6 +423,9 @@ export function ManagerSocialHub({
 
       {/* ─── CENTER COLUMN: Create Post & Feed Wall ─────────────────── */}
       <div className="space-y-6">
+        {/* Pinned Monthly Manager Poll */}
+        <ManagerPollWidget />
+
         {/* Create Post Box */}
         <div className="pmb-card p-5 border-white/15">
           <form onSubmit={handleCreatePost}>

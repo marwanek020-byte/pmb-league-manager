@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ClubBadge } from "@/components/ClubBadge";
+import { TotwPitch } from "@/components/competition/TotwPitch";
+import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 
 type Club = {
   id: string;
@@ -36,6 +38,7 @@ type StandingRow = {
 };
 
 type Props = {
+  seasonId?: string;
   myClubId: string;
   myClubName: string;
   myClubLogo: string | null;
@@ -44,9 +47,10 @@ type Props = {
   totalMatchdays: number;
   standings: StandingRow[];
   allMatches: Match[];
+  isAdmin?: boolean;
 };
 
-const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "MY CLUB"] as const;
+const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "STATS & AWARDS", "TOTW", "MY CLUB"] as const;
 type Tab = (typeof TABS)[number];
 
 const ordinal = (n: number) => {
@@ -59,6 +63,7 @@ const formColor = (r: "W" | "D" | "L") =>
   ({ W: "bg-emerald-500 text-white", D: "bg-gray-500 text-white", L: "bg-red-600 text-white" }[r]);
 
 export function CompetitionHub({
+  seasonId,
   myClubId,
   myClubName,
   myClubLogo,
@@ -67,6 +72,7 @@ export function CompetitionHub({
   totalMatchdays,
   standings,
   allMatches,
+  isAdmin = false,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("MATCHDAY");
   const [selectedMatchday, setSelectedMatchday] = useState<number>(() => {
@@ -791,6 +797,36 @@ export function CompetitionHub({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* STATS & AWARDS TAB */}
+        {activeTab === "STATS & AWARDS" && (
+          <div className="space-y-6">
+            {seasonId ? (
+              <SeasonStatsLeaderboards seasonId={seasonId} />
+            ) : (
+              <div className="p-8 text-center text-xs text-gray-500 rounded-xl border border-pmb-border bg-pmb-dark-surface">
+                No active season data found for statistics.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TOTW TAB */}
+        {activeTab === "TOTW" && (
+          <div className="space-y-6">
+            {seasonId ? (
+              <TotwPitch
+                seasonId={seasonId}
+                isAdmin={isAdmin}
+                totalMatchdays={totalMatchdays}
+              />
+            ) : (
+              <div className="p-8 text-center text-xs text-gray-500 rounded-xl border border-pmb-border bg-pmb-dark-surface">
+                No active season data found for Team of the Week.
+              </div>
+            )}
           </div>
         )}
 

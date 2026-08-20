@@ -41,6 +41,7 @@ model CompetitionSeason {
   updatedAt DateTime                @updatedAt
   seasons   Season[]
   matches   Match[]
+  totws     TeamOfTheWeek[]
 
   @@index([status])
 }
@@ -55,6 +56,7 @@ model League {
   clubs     Club[]
   seasons   Season[]
   matches   Match[]
+  totws     TeamOfTheWeek[]
 }
 
 model Club {
@@ -66,6 +68,8 @@ model Club {
   createdAt                              DateTime                @default(now())
   updatedAt                              DateTime                @updatedAt
   budget                                 Decimal                 @default(0) @db.Decimal(14, 2)
+  aiScoutEnabled                         Boolean                 @default(false)
+  aiScoutTier                            String                  @default("FREE")
 
   league                                 League                  @relation(fields: [leagueId], references: [id])
   seasonClassifications                  SeasonClassification[]
@@ -83,6 +87,8 @@ model Club {
   auctionBids                            AuctionBid[]
   posts                                  Post[]
   postComments                           PostComment[]
+  matchEvents                            MatchEvent[]
+  totwPlayers                            TotwPlayer[]
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -108,6 +114,10 @@ model Player {
   PlayerLoan         PlayerLoan[]
   transfers          Transfer[]
   auctions           Auction[]
+  motmMatches        Match[]                 @relation("PlayerMotmMatches")
+  matchEvents        MatchEvent[]            @relation("PlayerMatchEvents")
+  assistedEvents     MatchEvent[]            @relation("PlayerAssists")
+  totwSelections     TotwPlayer[]
 
   @@index([fullName])
   @@index([position])
@@ -245,6 +255,7 @@ model Season {
   classifications     SeasonClassification[]
   competitionSeason   CompetitionSeason?      @relation(fields: [competitionSeasonId], references: [id])
   matches             Match[]
+  totws               TeamOfTheWeek[]
 
   @@unique([leagueId, name])
   @@index([leagueId])
@@ -313,6 +324,7 @@ model Match {
   awayGoals           Int?
   status              MatchStatus @default(UPCOMING)
   playedAt            DateTime?
+  manOfTheMatchId     String?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -321,13 +333,16 @@ model Match {
   league              League                 @relation(fields: [leagueId], references: [id])
   homeClub            Club                   @relation("HomeMatches", fields: [homeClubId], references: [id])
   awayClub            Club                   @relation("AwayMatches", fields: [awayClubId], references: [id])
+  manOfTheMatch       Player?                @relation("PlayerMotmMatches", fields: [manOfTheMatchId], references: [id])
   budgetTransactions  ClubBudgetTransaction[]
+  events              MatchEvent[]
 
   @@index([competitionSeasonId])
   @@index([seasonId])
   @@index([leagueId])
   @@index([homeClubId])
   @@index([awayClubId])
+  @@index([manOfTheMatchId])
   @@index([status])
   @@index([matchday])
   @@index([seasonId, matchday])
@@ -544,4 +559,124 @@ model DirectMessage {
 
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, read])
+}
+
+enum MatchEventType {
+  GOAL
+  ASSIST
+  YELLOW_CARD
+  RED_CARD
+  OWN_GOAL
+}
+
+model MatchEvent {
+  id             String         @id @default(cuid())
+  matchId        String
+  clubId         String
+  playerId       String
+  assistPlayerId String?
+  type           MatchEventType @default(GOAL)
+  minute         Int?
+  createdAt      DateTime       @default(now())
+
+  match          Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  club           Club           @relation(fields: [clubId], references: [id])
+  player         Player         @relation("PlayerMatchEvents", fields: [playerId], references: [id])
+  assistPlayer   Player?        @relation("PlayerAssists", fields: [assistPlayerId], references: [id])
+
+  @@index([matchId])
+  @@index([playerId])
+  @@index([clubId])
+  @@index([assistPlayerId])
+}
+
+model TeamOfTheWeek {
+  id                  String            @id @default(cuid())
+  competitionSeasonId String
+  seasonId            String?
+  leagueId            String?
+  matchday            Int
+  formation           String            @default("4-3-3")
+  isPublished         Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  players             TotwPlayer[]
+  competitionSeason   CompetitionSeason @relation(fields: [competitionSeasonId], references: [id], onDelete: Cascade)
+  season              Season?           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  league              League?           @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionSeasonId, leagueId, matchday])
+  @@index([competitionSeasonId])
+  @@index([leagueId])
+  @@index([matchday])
+}
+
+model TotwPlayer {
+  id                String        @id @default(cuid())
+  totwId            String
+  playerId          String
+  clubId            String
+  position          String        // "GK", "LB", "CB1", "CB2", "RB", "DMF", "CMF", "AMF", "LWF", "CF", "RWF"
+  ratingBoost       Int           @default(2)
+  goalsInMatchday   Int           @default(0)
+  assistsInMatchday Int           @default(0)
+  isMotm            Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+
+  totw              TeamOfTheWeek @relation(fields: [totwId], references: [id], onDelete: Cascade)
+  player            Player        @relation(fields: [playerId], references: [id])
+  club              Club          @relation(fields: [clubId], references: [id])
+
+  @@unique([totwId, position])
+  @@index([totwId])
+  @@index([playerId])
+  @@index([clubId])
+}
+
+model ManagerPoll {
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  month       String              // e.g. "2026-08"
+  isActive    Boolean             @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  options     ManagerPollOption[]
+  votes       ManagerPollVote[]
+
+  @@index([isActive])
+}
+
+model ManagerPollOption {
+  id          String            @id @default(cuid())
+  pollId      String
+  managerId   String            // User ID
+  clubName    String
+  clubLogo    String?
+  managerName String
+  statement   String?
+  voteCount   Int               @default(0)
+
+  poll        ManagerPoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes       ManagerPollVote[]
+
+  @@index([pollId])
+}
+
+model ManagerPollVote {
+  id        String            @id @default(cuid())
+  pollId    String
+  optionId  String
+  userId    String            // User ID
+  createdAt DateTime          @default(now())
+
+  poll      ManagerPoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option    ManagerPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@index([pollId])
+  @@index([userId])
 }

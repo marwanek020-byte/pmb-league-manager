@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PlayerDTO } from "@/lib/serialize-player";
 import { ClubBadge } from "@/components/ClubBadge";
 import { Toast } from "@/components/Toast";
@@ -203,6 +204,14 @@ export function PlayerListClient({
               Sort: Player ID
             </option>
           </select>
+
+          <Link
+            href="/manager/scouting"
+            className="flex items-center gap-1.5 rounded-lg border border-pmb-gold/40 bg-pmb-gold/15 px-3 py-2 text-xs font-bold text-pmb-gold hover:bg-pmb-gold hover:text-black transition whitespace-nowrap"
+          >
+            <span>🤖</span>
+            <span>AI Squad Audit</span>
+          </Link>
 
           {!readOnly && (
             <button
