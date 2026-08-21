@@ -83,6 +83,10 @@ export function Navbar({
                   <Link href="/manager/social" className="text-gray-400 hover:text-pmb-gold transition">
                     💬 Dugout
                   </Link>
+                  <Link href="/manager/ultras" className="flex items-center gap-1 text-pmb-gold hover:text-white transition">
+                    <span>🛡️</span>
+                    <span>Curva Ultras</span>
+                  </Link>
                   <Link href="/manager/scouting" className="flex items-center gap-1 rounded-full border border-pmb-gold/40 bg-pmb-gold/10 px-2.5 py-0.5 text-pmb-gold hover:bg-pmb-gold hover:text-black transition">
                     <span>🤖</span>
                     <span>AI Scout</span>

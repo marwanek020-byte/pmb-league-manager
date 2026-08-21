@@ -105,15 +105,21 @@ export async function POST(req: NextRequest) {
 
     // If Gemini is available, generate a tailored prompt
     if (geminiApiKey) {
-      try {
-        const langInstruction =
-          language === "AR"
-            ? "Write in authentic Moroccan Football Darija/Arabic with strong passion, football terms, and hashtags."
-            : language === "FR"
-            ? "Write in professional, passionate French football press style."
-            : "Write in modern English football social media style.";
+      const candidateModels = [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-2.5-flash",
+        "gemini-1.5-pro",
+      ];
 
-        const prompt = `You are the Social Media & Press Officer of "${club.name}" in PMB League.
+      const langInstruction =
+        language === "AR"
+          ? "Write in authentic Moroccan Football Darija/Arabic with strong passion, football terms, and hashtags."
+          : language === "FR"
+          ? "Write in professional, passionate French football press style."
+          : "Write in modern English football social media style.";
+
+      const prompt = `You are the Social Media & Press Officer of "${club.name}" in PMB League.
 Ultras Group: ${ultras.groupName} (${ultras.bannerEmoji}).
 Topic: "${topic}". Tone: "${tone || "PASSIONATE"}".
 ${customNote ? `Additional details to include: "${customNote}"` : ""}
@@ -122,27 +128,30 @@ Draft a high-impact, engaging club post with emojis, chants, and relevant hashta
 ${langInstruction}
 Keep it punchy (between 50 and 120 words).`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
-            }),
-          }
-        );
+      for (const modelName of candidateModels) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.75, maxOutputTokens: 512 },
+              }),
+            }
+          );
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const generated = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (generated && generated.trim()) {
-            return NextResponse.json({ draftedContent: generated.trim() });
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const generated = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (generated && generated.trim()) {
+              return NextResponse.json({ draftedContent: generated.trim() });
+            }
           }
+        } catch (geminiErr) {
+          console.warn(`[SocialAIDraft] Gemini model ${modelName} failed, trying next model...`);
         }
-      } catch (geminiErr) {
-        console.warn("[SocialAIDraft] Gemini failed, falling back to template generator:", geminiErr);
       }
     }
 

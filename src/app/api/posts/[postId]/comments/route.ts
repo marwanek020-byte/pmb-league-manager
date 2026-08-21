@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 
 export async function POST(
   req: Request,
@@ -57,6 +58,13 @@ export async function POST(
           type: "POST_COMMENT",
           message: `${actorName} replied: "${commentSnippet}"`,
         },
+      });
+    }
+
+    // Trigger AI Ultras thread monitoring if a club was mentioned or challenged
+    if (!session.user.username.includes("_ultras") && session.user.username !== "pmb_sports_media") {
+      UltrasSocialService.respondToCommentThread(postId, newComment.id).catch((err) => {
+        console.error("[CommentsAPI] Failed to trigger Ultras thread reply:", err);
       });
     }
 

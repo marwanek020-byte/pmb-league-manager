@@ -1,75 +1,47 @@
-import { PrismaClient } from "@prisma/client";
-import { UltrasSocialService } from "../src/lib/services/ultras-social-service";
-import { getClubUltras } from "../src/lib/services/ultras-registry";
+import { getClubUltras, findMentionedClubsInText } from "../src/lib/services/ultras-registry";
 
-const prisma = new PrismaClient();
-
-async function testUltrasEngine() {
+function testUltrasLogic() {
   console.log("=================================================");
-  console.log("⚡ TESTING PMB AI ULTRAS & SOCIAL MEDIA ENGINE");
+  console.log("⚡ TESTING PMB AI ULTRAS & PUBLICATION ANALYSIS");
   console.log("=================================================\n");
 
-  // 1. Test Ultras Registry
+  // 1. Test Registry Clubs
   const farUltras = getClubUltras("FAR Rabat");
-  console.log("1. FAR Rabat Ultras:", farUltras.groupName, farUltras.bannerEmoji);
+  console.log("1. FAR Rabat Ultras:", farUltras.groupName, farUltras.bannerEmoji, `(Leader: @${farUltras.leaderUsername})`);
+  const westHamUltras = getClubUltras("West Ham United");
+  console.log("   West Ham Ultras:", westHamUltras.groupName, westHamUltras.bannerEmoji, `(Language: ${westHamUltras.preferredLanguage}, Chant: ${westHamUltras.chants[0]})`);
   const rajaUltras = getClubUltras("Raja Casablanca");
   console.log("   Raja Ultras:", rajaUltras.groupName, rajaUltras.bannerEmoji);
 
-  // 2. Test Morale Calculation
-  const farClub = await prisma.club.findFirst({ where: { name: { contains: "FAR", mode: "insensitive" } } });
-  if (farClub) {
-    const morale = await UltrasSocialService.calculateUltrasMorale(farClub.id);
-    console.log(`\n2. ${farClub.name} Ultras Morale:`, morale.moraleScore + "%", morale.statusArabic);
-  }
+  // 2. Test Smart Mention Detection
+  console.log("\n2. Testing Entity Recognition in Publications:");
+  
+  // Scenario A: FAR Rabat manager mentions West Ham United
+  const post1 = "We are preparing for a massive international friendly against West Ham United in London next week!";
+  const mentioned1 = findMentionedClubsInText(post1, "FAR Rabat");
+  console.log("   Scenario A (FAR manager mentions West Ham):");
+  console.log("   Detected Opponents:", mentioned1.map(m => m.clubName));
+  console.assert(mentioned1.some(m => m.clubName === "West Ham United"), "Failed to detect West Ham United");
+  console.assert(!mentioned1.some(m => m.clubName === "Raja Casablanca"), "Should NOT detect Raja Casablanca");
 
-  // 3. Test Transfer Announcement
-  if (farClub) {
-    console.log("\n3. Testing 'Here We Go!' Transfer Announcement...");
-    await UltrasSocialService.publishTransferAnnouncement({
-      playerName: "Achraf Hakimi",
-      position: "RB",
-      overallRating: 84,
-      feeEur: 15_000_000,
-      fromClubName: "Paris Saint-Germain",
-      toClubName: farClub.name,
-      buyerClubId: farClub.id,
-      transferType: "PERMANENT",
-    });
+  // Scenario B: Word boundary safety ("so far" should NOT match FAR Rabat)
+  const post2 = "The squad has played really well so far this season with great spirit.";
+  const mentioned2 = findMentionedClubsInText(post2, "Chelsea FC");
+  console.log("   Scenario B (Checking false positives with 'so far'):");
+  console.log("   Detected Opponents:", mentioned2.map(m => m.clubName));
+  console.assert(mentioned2.length === 0, "'so far' falsely matched a club!");
 
-    const latestPost = await prisma.post.findFirst({
-      where: { tag: "TRANSFER" },
-      orderBy: { createdAt: "desc" },
-      include: { comments: true },
-    });
-    console.log("   ✅ Created Transfer Post:", latestPost?.content.slice(0, 100) + "...");
-    console.log("   ✅ Generated Ultras Comments Count:", latestPost?.comments.length);
-    if (latestPost?.comments[0]) {
-      console.log("   💬 Sample Comment:", latestPost.comments[0].content);
-    }
-  }
-
-  // 4. Test Post-Match Report Trigger
-  const sampleMatch = await prisma.match.findFirst({
-    where: { status: "COMPLETED" },
-  });
-  if (sampleMatch) {
-    console.log(`\n4. Testing Post-Match Report for Match ID ${sampleMatch.id}...`);
-    await UltrasSocialService.publishPostMatchReport(sampleMatch.id);
-
-    const latestMatchPost = await prisma.post.findFirst({
-      where: { content: { contains: "نهاية المباراة" } },
-      orderBy: { createdAt: "desc" },
-      include: { comments: true },
-    });
-    console.log("   ✅ Created Post-Match Breaking News:", latestMatchPost?.content.slice(0, 120) + "...");
-    console.log("   ✅ Generated Ultras Comments Count:", latestMatchPost?.comments.length);
-  }
+  // Scenario C: Casablanca Derby mention
+  const post3 = "الماتش الجاي ضد الرجاء غايكون قمة فالمستوى والكورفا نورد واجدة!";
+  const mentioned3 = findMentionedClubsInText(post3, "Wydad AC");
+  console.log("   Scenario C (Wydad manager mentions Raja in Arabic):");
+  console.log("   Detected Opponents:", mentioned3.map(m => m.clubName));
+  console.assert(mentioned3.some(m => m.clubName === "Raja Casablanca"), "Failed to detect Raja Casablanca");
 
   console.log("\n=================================================");
-  console.log("🎉 ALL AI ULTRAS & MEDIA TESTS PASSED!");
+  console.log("🎉 ALL PUBLICATION & ENTITY LOGIC CHECKS PASSED!");
   console.log("=================================================");
 }
 
-testUltrasEngine()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+testUltrasLogic();
+

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { getClubUltras } from "@/lib/services/ultras-registry";
+import { getClubUltras, findMentionedClubsInText, UltrasGroup } from "@/lib/services/ultras-registry";
+import { UltrasMentalityEngine } from "@/lib/services/ultras-mentality-engine";
 
 /**
  * Service to manage AI Ultras, Social Media Breaking News,
@@ -115,43 +116,49 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
 
       const commentsToCreate: Array<{ userId: string; clubId: string; content: string }> = [];
 
+      let homeState: "ECSTASY" | "CURVA_FURY" | "UNCONDITIONAL_LOYALTY" = "UNCONDITIONAL_LOYALTY";
+      let awayState: "ECSTASY" | "CURVA_FURY" | "UNCONDITIONAL_LOYALTY" = "UNCONDITIONAL_LOYALTY";
+
       if (homeScore > awayScore) {
-        // Home Win Comments
-        commentsToCreate.push({
-          userId: homeUltrasBotId,
-          clubId: match.homeClub.id,
-          content: `${homeUltras.bannerEmoji} ${homeUltras.chants[0]} برافو للرجال.. 3 نقاط مهمة ومكملين فطريق البطولة! 💚🖤`,
-        });
-        commentsToCreate.push({
-          userId: awayUltrasBotId,
-          clubId: match.awayClub.id,
-          content: `${awayUltras.bannerEmoji} هاد الهزيمة غير مقبولة تماماً! المدرب خاصو يتحمل المسؤولية ويصلح الدفاع قبل ما يفوت الفوت! 😤`,
-        });
+        homeState = "ECSTASY";
+        awayState = "CURVA_FURY";
       } else if (awayScore > homeScore) {
-        // Away Win Comments
-        commentsToCreate.push({
-          userId: awayUltrasBotId,
-          clubId: match.awayClub.id,
-          content: `${awayUltras.bannerEmoji} ديبلاسمون تاريخي ورجوع بـ 3 نقاط من قلب الميدان! العز للفرقة وللكوتش! ✈️🔥`,
-        });
-        commentsToCreate.push({
-          userId: homeUltrasBotId,
-          clubId: match.homeClub.id,
-          content: `${homeUltras.bannerEmoji} خسارة قاصحة فبلادنا.. القميص عندو هيبة وخاص القتالية 90 دقيقة ماشي البرود فالتيران!`,
-        });
+        awayState = "ECSTASY";
+        homeState = "CURVA_FURY";
       } else {
-        // Draw Comments
-        commentsToCreate.push({
-          userId: homeUltrasBotId,
-          clubId: match.homeClub.id,
-          content: `${homeUltras.bannerEmoji} نقطة أحسن من والو ولكن كنا نستحقو نربحو.. الماتش الجاي ما كاين غير الفوز!`,
-        });
-        commentsToCreate.push({
-          userId: awayUltrasBotId,
-          clubId: match.awayClub.id,
-          content: `${awayUltras.bannerEmoji} نقطة مزيانة خارج الميدان.. القتالية كانت حاضرة ونتمناو نواصلو بنفس الروح!`,
-        });
+        homeState = "UNCONDITIONAL_LOYALTY";
+        awayState = "UNCONDITIONAL_LOYALTY";
       }
+
+      const homeComment = UltrasMentalityEngine.generateOfflineCapoResponse({
+        ultras: homeUltras,
+        clubName: match.homeClub.name,
+        emotionalState: homeState,
+        userPrompt: `Match Result: ${match.homeClub.name} ${homeScore} - ${awayScore} ${match.awayClub.name}`,
+        language: homeUltras.preferredLanguage || "AR",
+        mentionedOpponent: match.awayClub.name,
+      });
+
+      const awayComment = UltrasMentalityEngine.generateOfflineCapoResponse({
+        ultras: awayUltras,
+        clubName: match.awayClub.name,
+        emotionalState: awayState,
+        userPrompt: `Match Result: ${match.homeClub.name} ${homeScore} - ${awayScore} ${match.awayClub.name}`,
+        language: awayUltras.preferredLanguage || "AR",
+        mentionedOpponent: match.homeClub.name,
+      });
+
+      commentsToCreate.push({
+        userId: homeUltrasBotId,
+        clubId: match.homeClub.id,
+        content: homeComment,
+      });
+
+      commentsToCreate.push({
+        userId: awayUltrasBotId,
+        clubId: match.awayClub.id,
+        content: awayComment,
+      });
 
       for (const comment of commentsToCreate) {
         await prisma.postComment.create({
@@ -176,8 +183,8 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
    */
   private static async sendUltrasMatchDirectMessages(
     match: any,
-    homeUltras: any,
-    awayUltras: any,
+    homeUltras: UltrasGroup,
+    awayUltras: UltrasGroup,
     homeScore: number,
     awayScore: number
   ) {
@@ -187,45 +194,42 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
 
       // A. Message to Home Manager
       if (match.homeClub.manager) {
-        let homeMsg = "";
-        if (homeScore > awayScore) {
-          homeMsg = `سلام كوتش ${match.homeClub.manager.username} 👑\n\n` +
-            `الله يعطيكم الصحة على الماتش ديال اليوم! 3 نقاط مستحقة وفرحتو الكورفا كاملة.. ${homeUltras.chants[0]}\n` +
-            `واصل بنفس الروح وحنا فظهرك ديما! ${homeUltras.bannerEmoji}`;
-        } else if (homeScore < awayScore) {
-          homeMsg = `كوتش ${match.homeClub.manager.username}.. الكورفا مقلقة بزاف من مستوى اليوم! ⚠️\n\n` +
-            `مايمكنش نخسرو بهاد الطريقة فميداننا.. الدفاع كان فيه ارتباك كبير والهجوم كان غايب! راجع الخطة ديالك قبل الماتش الجاي راه الجمهور ماكيرحمش فالاستهتار!`;
-        } else {
-          homeMsg = `سلام كوتش.. ماتش كان صعيب وتقاسمنا النقاط. ضيعنا فرص الفوز ولكن القتالية كانت مقبولة. الماتش الجاي خاصنا 3 نقاط لا بديل عنها! ${homeUltras.bannerEmoji}`;
-        }
+        const homeState = homeScore > awayScore ? "ECSTASY" : homeScore < awayScore ? "CURVA_FURY" : "UNCONDITIONAL_LOYALTY";
+        const homeMsg = UltrasMentalityEngine.generateOfflineCapoResponse({
+          ultras: homeUltras,
+          clubName: match.homeClub.name,
+          emotionalState: homeState,
+          userPrompt: `Post-match direct message to manager @${match.homeClub.manager.username} after ${homeScore}-${awayScore} against ${match.awayClub.name}`,
+          language: homeUltras.preferredLanguage || "AR",
+          mentionedOpponent: match.awayClub.name,
+        });
 
         await prisma.directMessage.create({
           data: {
             senderId: homeUltrasBotId,
             receiverId: match.homeClub.manager.id,
-            content: homeMsg,
+            content: `📢 [${homeUltras.officialGroupTitle || homeUltras.groupName}]\n\n${homeMsg}`,
           },
         });
       }
 
       // B. Message to Away Manager
       if (match.awayClub.manager) {
-        let awayMsg = "";
-        if (awayScore > homeScore) {
-          awayMsg = `برافو يا كوتش ${match.awayClub.manager.username}! 🔥\n\n` +
-            `رجعتو بـ 3 نقاط غالية من خارج الديار ولعبتو برجولة.. الكورفا كتشكرك على التكتيك العالي اليوم! ${awayUltras.chants[0]} ${awayUltras.bannerEmoji}`;
-        } else if (awayScore < homeScore) {
-          awayMsg = `كوتش ${match.awayClub.manager.username}، هاد الهزيمة خارج الميدان قاصحة! 🚨\n\n` +
-            `الجمهور اللي دار الديبلاسمون كان يستحق يشوف قتالية أكبر. خاصك تخدم على توازن الفريق فالخرجات الجاية!`;
-        } else {
-          awayMsg = `نقطة إيجابية خارج الميدان يا كوتش.. شكراً على المجهود والتركيز دابا على الماتش الجاي فبلادنا! ${awayUltras.bannerEmoji}`;
-        }
+        const awayState = awayScore > homeScore ? "ECSTASY" : awayScore < homeScore ? "CURVA_FURY" : "UNCONDITIONAL_LOYALTY";
+        const awayMsg = UltrasMentalityEngine.generateOfflineCapoResponse({
+          ultras: awayUltras,
+          clubName: match.awayClub.name,
+          emotionalState: awayState,
+          userPrompt: `Post-match direct message to manager @${match.awayClub.manager.username} after ${homeScore}-${awayScore} away at ${match.homeClub.name}`,
+          language: awayUltras.preferredLanguage || "AR",
+          mentionedOpponent: match.homeClub.name,
+        });
 
         await prisma.directMessage.create({
           data: {
             senderId: awayUltrasBotId,
             receiverId: match.awayClub.manager.id,
-            content: awayMsg,
+            content: `📢 [${awayUltras.officialGroupTitle || awayUltras.groupName}]\n\n${awayMsg}`,
           },
         });
       }
@@ -409,7 +413,12 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
 
   /**
    * 5. 🤖 AUTOMATIC AI ULTRAS REPLY TO MANAGER POSTS
-   * Analyzes manager post content and generates realistic Ultras reaction comments in Moroccan Darija.
+   * Intelligently reads and analyzes manager publications:
+   * - Detects post topic, language, and mentioned clubs/opponents.
+   * - Uses multi-model Gemini cascade ("gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash", "gemini-1.5-pro").
+   * - Triggers authentic, culturally adaptive commentary from the author's Ultras.
+   * - Triggers genuine counter-banter from mentioned opponents (e.g. West Ham Ultras in English with Hammers culture, NOT Raja Casablanca!).
+   * - Provides rich, varied, context-aware NLP offline templates when Gemini is offline.
    */
   public static async respondToManagerPost(postId: string) {
     try {
@@ -426,101 +435,482 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
       const clubName = post.club?.name || "PMB Club";
       const ultras = getClubUltras(clubName);
       const ultrasBotId = await this.getOrCreateBotUser(ultras.leaderUsername);
-      const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
+      const geminiApiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim();
 
-      let commentText = "";
+      // Detect post language
+      const isArabic = /[\u0600-\u06FF]/.test(post.content);
+      const isFrench = /\b(bonjour|nous|victoire|match|adversaire|joueur|equipe|arbitre|tactique|choc|mercato|entraineur)\b/i.test(post.content);
+      const postLang: "AR" | "FR" | "EN" = isArabic ? "AR" : isFrench ? "FR" : "EN";
 
-      // 1. Try Gemini AI Generation
+      // Detect any mentioned rival or opponent clubs in text
+      const mentionedClubs = findMentionedClubsInText(post.content, clubName);
+      const opponentNames = mentionedClubs.map((c) => c.clubName).join(", ");
+
+      let primaryCommentText = "";
+
+      // 1. Try Gemini Multi-Model Cascade for Author Club Ultras
       if (geminiApiKey) {
-        try {
-          const prompt = `You are the authentic Moroccan Ultras Fan Group ("${ultras.groupName}" ${ultras.bannerEmoji}) of "${clubName}".
-One of your chants is: "${ultras.chants[0]}".
-The manager of your club just posted this on the social feed:
+        const candidateModels = [
+          "gemini-2.0-flash",
+          "gemini-1.5-flash",
+          "gemini-2.5-flash",
+          "gemini-1.5-pro",
+        ];
+
+        const systemInstruction = `You are the authentic Ultras Fan Group leader of "${clubName}" named "${ultras.groupName}" (${ultras.bannerEmoji}).
+Official Group: "${ultras.officialGroupTitle}".
+Anthem/Chant: "${ultras.chants[0]}".
+Preferred Tone: ${ultras.tone}.
+
+CRITICAL BEHAVIOR RULES:
+- Read and deeply analyze the manager's publication below.
+- Do NOT repeat generic cliches or always say "we want 3 points".
+- Directly respond to what the manager actually wrote (specific opponent, tactical formation, player signings, referee controversy, injury update, victory celebration, or clash).
+- Match the club's authentic football culture:
+  * Moroccan clubs (FAR Rabat, Raja, Wydad, MAS, etc.): Write in authentic Moroccan Football Darija (الدارجة المغربية) with ultras passion.
+  * English clubs (West Ham United, Arsenal, Chelsea, Man Utd, etc.): Write in authentic British football fan English with club chants and slang (e.g. Hammers: "Irons", "blowing bubbles", "East London").
+  * French clubs (PSG, etc.): Write in passionate French.
+  * Spanish clubs (Real Madrid, Barcelona): Write in Spanish or English matching the post.
+- Keep the comment punchy, realistic, and between 15 and 35 words.
+- Return ONLY the exact comment text with relevant emojis, no quotes or preamble.`;
+
+        const userPrompt = `Manager Publication Content:
 "${post.content}"
 Tag: ${post.tag}
+${opponentNames ? `Mentioned Opponent/Club: ${opponentNames}` : ""}
+Language of publication: ${postLang}`;
 
-Task: Write 1 short, authentic, passionate reply comment (15 to 30 words) from the Ultras to the manager.
-Language: Moroccan Football Darija / Arabic (الدارجة المغربية).
-Tone & Rules:
-- If manager is confident or announcing a match: Encourage passionately with ultras chants and fire emojis!
-- If manager is celebrating a win: Celebrate the 3 points and demand consistency!
-- If manager is making excuses or lost a game: Demand fighting spirit, focus on the pitch, and no excuses.
-- If it's a new transfer: Welcome the player and demand sweat for the shirt.
-- Return ONLY the exact reply text without quotes or preamble.`;
+        for (const modelName of candidateModels) {
+          try {
+            const geminiRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  systemInstruction: { parts: [{ text: systemInstruction }] },
+                  contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+                  generationConfig: { temperature: 0.8, maxOutputTokens: 256 },
+                }),
+              }
+            );
 
-          const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.75, maxOutputTokens: 256 },
-              }),
+            if (geminiRes.ok) {
+              const geminiData = await geminiRes.json();
+              const generated = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (generated && generated.trim()) {
+                primaryCommentText = generated.trim();
+                break;
+              }
             }
-          );
-
-          if (geminiRes.ok) {
-            const geminiData = await geminiRes.json();
-            const generated = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (generated && generated.trim()) {
-              commentText = generated.trim();
-            }
+          } catch (geminiErr) {
+            console.warn(`[UltrasSocialService] Model ${modelName} failed, trying next model in cascade...`);
           }
-        } catch (geminiErr) {
-          console.warn("[UltrasSocialService] Gemini post reply failed, using heuristic template:", geminiErr);
         }
       }
 
-      // 2. Heuristic Semantic Fallback (if Gemini unavailable)
-      if (!commentText) {
-        const lower = post.content.toLowerCase();
-        if (post.tag === "VICTORY" || /فوز|ربح|3 نقاط|مبروك|انتصار|win|victory/i.test(lower)) {
-          commentText = `${ultras.bannerEmoji} ${ultras.chants[0]} برافو يا كوتش! هادي هي الروح والقتالية اللي بغينا نشوفو دائماً.. مكملين حتى للقب! 🔥👑`;
-        } else if (post.tag === "TRANSFER" || /صفقة|تعاقد|ميركاتو|لاعب جديد|signing|transfer/i.test(lower)) {
-          commentText = `${ultras.bannerEmoji} مرحباً بيه فقلعة النادي! كنتسناو منو يعطي كاع ما عندو ويعرق على التوني.. بالتوفيق! ⚽👏`;
-        } else if (/حكم|تحكيم|ظلم|referee|penalty|var/i.test(lower)) {
-          commentText = `${ultras.bannerEmoji} الحكم دار أخطاء ولكن حتى حنا خاصنا نركزو فالتيران ونصلحو الأخطاء التكتيكية بلا مانبقاو فكثرة الأعذار يا كوتش! 👊`;
-        } else if (/خسارة|اعتذار|هزيمة|نعتذر|sorry|defeat|loss/i.test(lower)) {
-          commentText = `${ultras.bannerEmoji} المقابلة سالات وكنتسناو ردة فعل رجولية فالماتش الجاي! القميص عندو هيبة والمدرج ماكيرحمش فالاستهتار! ⚠️`;
-        } else if (post.tag === "BANTER" || /ديربي|قمة|كلاسيكو|derby|clash/i.test(lower)) {
-          commentText = `${ultras.bannerEmoji} الكورفا واجدة وحاضرين بالآلاف للديبلاسمون! جيبوها يا رجال والعاصمة كلها وراكم! 💚🖤🔥`;
-        } else {
-          commentText = `${ultras.bannerEmoji} ${ultras.chants[0]} حنا فظهر الفرقة وفظهرك يا كوتش.. التركيز على الملعب و3 نقاط! 👏`;
-        }
+      // 2. Intelligent Offline Semantic NLP Fallback for Author Club Ultras
+      if (!primaryCommentText) {
+        primaryCommentText = this.generateSemanticFallbackComment(ultras, post.content, post.tag, mentionedClubs, postLang);
       }
 
-      // Create Ultras Comment
+      // 1. Author's Ultras evaluates & generates comment
       await prisma.postComment.create({
         data: {
           postId: post.id,
           userId: ultrasBotId,
-          clubId: null, // Null so it displays as Ultras fan group
-          content: commentText,
+          clubId: null,
+          content: primaryCommentText,
         },
       });
 
-      // 3. If post is BANTER, simulate rival Ultras counter-banter!
-      if (post.tag === "BANTER" || /رجاء|وداد|جيش|raja|wydad|far/i.test(post.content)) {
-        let rivalClubName = "Raja Casablanca";
-        if (clubName.toLowerCase().includes("raja")) rivalClubName = "Wydad AC";
-        else if (clubName.toLowerCase().includes("wydad")) rivalClubName = "FAR Rabat";
-        else if (clubName.toLowerCase().includes("far")) rivalClubName = "Raja Casablanca";
+      // 2. All mentioned clubs' Ultras read, analyze, and reply to defend their colors!
+      const repliedBotUsernames = new Set<string>([ultras.leaderUsername]);
 
-        const rivalUltras = getClubUltras(rivalClubName);
-        const rivalUltrasBotId = await this.getOrCreateBotUser(rivalUltras.leaderUsername);
+      for (const oppUltras of mentionedClubs) {
+        if (repliedBotUsernames.has(oppUltras.leaderUsername)) continue;
+        repliedBotUsernames.add(oppUltras.leaderUsername);
+
+        const oppBotId = await this.getOrCreateBotUser(oppUltras.leaderUsername);
+        let oppCommentText = "";
+
+        if (geminiApiKey) {
+          const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
+          const oppPrompt = `You are "${oppUltras.groupName}" (${oppUltras.bannerEmoji}), the authentic Ultras of "${oppUltras.clubName}".
+Anthem/Chant: "${oppUltras.chants[0]}".
+The manager of "${clubName}" just published this social post mentioning/clashing your team:
+"${post.content}"
+
+Task: Write a sharp, proud, witty counter-banter comment (15 to 30 words) defending "${oppUltras.clubName}".
+Language: ${oppUltras.preferredLanguage === "EN" ? "English (British fan slang)" : oppUltras.preferredLanguage === "FR" ? "French" : "Moroccan Darija / Arabic"}.
+Return ONLY the exact reply text without quotes.`;
+
+          for (const modelName of candidateModels) {
+            try {
+              const res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    contents: [{ role: "user", parts: [{ text: oppPrompt }] }],
+                    generationConfig: { temperature: 0.85, maxOutputTokens: 256 },
+                  }),
+                }
+              );
+
+              if (res.ok) {
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text && text.trim()) {
+                  oppCommentText = text.trim();
+                  break;
+                }
+              }
+            } catch {
+              // Ignore and fallback
+            }
+          }
+        }
+
+        if (!oppCommentText) {
+          oppCommentText = this.generateOpponentFallbackComment(oppUltras, clubName, post.content);
+        }
 
         await prisma.postComment.create({
           data: {
             postId: post.id,
-            userId: rivalUltrasBotId,
+            userId: oppBotId,
             clubId: null,
-            content: `${rivalUltras.bannerEmoji} هاد الهضرة كاملة غانشوفوها فالتيران الأحد الجاي.. الميدان هو اللي كيحكم بيناتنا! 😉⚽`,
+            content: oppCommentText,
+          },
+        });
+      }
+
+      // 3. Autonomous League Provocation Analysis (If post is a massive title race boast / league-wide challenge)
+      const isLeagueBrag = /champions|champion|easy league|nobody can beat us|نربحو كولشي|البطولة ساهلة|3 نقاط ساهلة|ما كاين تا فرقة|zero competition/i.test(post.content);
+      if (isLeagueBrag && mentionedClubs.length === 0) {
+        // Top rivals read and challenge the boast
+        const rivalsToChallenge = (ultras.rivals || ["raja casablanca", "wydad ac"]).slice(0, 2);
+        for (const rivalKey of rivalsToChallenge) {
+          const rivalUltras = getClubUltras(rivalKey);
+          if (repliedBotUsernames.has(rivalUltras.leaderUsername)) continue;
+          repliedBotUsernames.add(rivalUltras.leaderUsername);
+
+          const rivalBotId = await this.getOrCreateBotUser(rivalUltras.leaderUsername);
+          let boastClapback = `${rivalUltras.bannerEmoji} مازال ما شفتو والو يا كوتش! البطولة كتحسم فالميدان وفالدورات الأخيرة ماشي بالهضرة فالسوشيال ميديا! ⚔️🔥`;
+          if (rivalUltras.preferredLanguage === "EN") {
+            boastClapback = `${rivalUltras.bannerEmoji} Don't get ahead of yourself gaffer! The season is a marathon, we'll see who is standing at the end! 🫧⚒️`;
+          }
+
+          await prisma.postComment.create({
+            data: {
+              postId: post.id,
+              userId: rivalBotId,
+              clubId: null,
+              content: boastClapback,
+            },
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[UltrasSocialService] Failed to respond to manager post:", err);
+    }
+  }
+
+  /**
+   * 3.6 💬 RESPOND TO USER COMMENTS IN THREAD (Ultras monitor and reply to clashing comments)
+   */
+  public static async respondToCommentThread(postId: string, commentId: string) {
+    try {
+      const comment = await prisma.postComment.findUnique({
+        where: { id: commentId },
+        include: {
+          user: true,
+          club: true,
+          post: { include: { club: true } },
+        },
+      });
+
+      if (!comment || comment.user.username.includes("_ultras") || comment.user.username === "pmb_sports_media") {
+        return;
+      }
+
+      const commentText = comment.content.trim();
+      const authorClubName = comment.club?.name || comment.post?.club?.name || "Club";
+      const mentionedClubs = findMentionedClubsInText(commentText, authorClubName);
+
+      for (const targetUltras of mentionedClubs) {
+        const botId = await this.getOrCreateBotUser(targetUltras.leaderUsername);
+        const replyText = this.generateOpponentFallbackComment(targetUltras, authorClubName, commentText);
+
+        await prisma.postComment.create({
+          data: {
+            postId,
+            userId: botId,
+            clubId: null,
+            content: replyText,
           },
         });
       }
     } catch (err) {
-      console.error("[UltrasSocialService] Failed to respond to manager post:", err);
+      console.error("[UltrasSocialService] Failed to respond to comment thread:", err);
+    }
+  }
+
+  /**
+   * Helper to generate context-aware offline comments with rich variations
+   */
+  private static generateSemanticFallbackComment(
+    ultras: UltrasGroup,
+    content: string,
+    tag: string,
+    mentionedClubs: UltrasGroup[],
+    lang: "AR" | "FR" | "EN"
+  ): string {
+    const lower = content.toLowerCase();
+    const chant = ultras.chants[0] || "";
+    const emoji = ultras.bannerEmoji || "🔥";
+    const oppName = mentionedClubs.length > 0 ? mentionedClubs[0].clubName : "";
+    const oppLower = oppName.toLowerCase();
+
+    // 0. PRAISE / FRIENDSHIP / RESPECT / BROTHERHOOD ("s7abna", "3chran", "respect", "allies", "khoutna", "merci", "chokran")
+    const isPraiseOrFriendship =
+      /s7abna|3chran|3chrana|khoutna|respect|friends|brothers|respect to|great club|allies|alliance|chokran|merci|thanks|top club|famille|amis|respectueux|respect aux|تحية|احترام|اخوتنا|خوتنا|صحابنا|عشرانا|عشران|رجال|كل الاحترام|برافو|bravo|حب|أخوة|اخوة/i.test(lower);
+
+    if (oppName && isPraiseOrFriendship) {
+      if (oppLower.includes("west ham")) {
+        return `${emoji} 🤝 تحية خاصة لـ The Iron Army ولجمهور ويستهام الخوت والعشران! الاحترام متبادل بين ولاد العاصمة ولندن.. ألتراس حقيقيين وثقافة فيراج أصيلة! ⚒️🍷💚🖤`;
+      }
+      if (oppLower.includes("paris") || oppLower.includes("psg")) {
+        return `${emoji} 🤝 الاحترام متبادل مع جماهير باريس الحقيقية والـ CUP! الروح الرياضية وثقافة الألتراس كتجمع الرجال فكل مكان! 🔵🔴💚🖤`;
+      }
+      return `${emoji} 🤝 الاحترام متبادل والرجال كيعرفو بعضياتهم! تحية خاصة لجمهور ${oppName} العريق.. ديما احترام وأخوة بين الجماهير الوفية! 👏🔥`;
+    }
+
+    // Check if user is specifically discussing an upcoming scheduled match
+    const isExplicitMatchdayFixture =
+      /ماتش اليوم|الماتش الجاي|ديبلاسمون|التذاكر|تشكيلة اليوم|next match|upcoming fixture|kickoff|matchday|choc de la journée/i.test(lower);
+
+    // 1. CLASH / BANTER / OPINION / ROAST AGAINST ANY MENTIONED OPPONENT
+    if (oppName && !isExplicitMatchdayFixture) {
+      if (oppLower.includes("manchester united") || oppLower.includes("man united") || oppLower.includes("man utd")) {
+        return `${emoji} هههههه بالصح يا كوتش سالات وقتهم وشحال هادي ما بقاو فرقة! بقاو عايشين غير على أطلال الماضي.. الزعيم الملكي حاضر برجالو وفورمة عالية! 🔥⚔️`;
+      }
+      if (oppLower.includes("paris") || oppLower.includes("psg")) {
+        return `${emoji} هههههه عطيهم يا كوتش! قصف فالتسعين.. باريس غي الفلوس والنفخ فالإعلام وبلا روح! الزعيم الملكي تاريخ ورجال فالميدان وغانوصلو ليهم الميساج! 🔥⚔️`;
+      }
+      if (oppLower.includes("touarga") || oppLower.includes("uts")) {
+        return `${emoji} هههههه بالصح يا كوتش تواركة ما فرقة ما والو غي ضياف فالعاصمة! الزعيم الملكي هو سيد الرباط والتيران غايعطيهم درس! 🔥👊`;
+      }
+      if (oppLower.includes("raja") || oppLower.includes("rca")) {
+        return `${emoji} هههههه عطيهم يا كوتش! ما كاين غير الزعيم والعسكر.. شعب الهضرة غاياكلو قتلة فالتيران! 🔥⚔️`;
+      }
+      if (oppLower.includes("wydad") || oppLower.includes("wac")) {
+        return `${emoji} هههههه قصف فالمستوى يا كوتش! الزعيم الملكي عقدتهم التاريخية والميدان هو اللي كيهضر! 👑🔥`;
+      }
+      if (oppLower.includes("chelsea")) {
+        return `${emoji} هههههه بالصح يا كوتش غي الملايير مضيعة وبلا هوية! الزعيم الملكي عندو رجال كيموتو على التوني! 🔥🦁`;
+      }
+      if (oppLower.includes("arsenal")) {
+        return `${emoji} هههههه قصف فالمستوى! كيوصلو للقمة ويخافو.. ما كاين غير الزعيم والشخصية القوية! 🔥💣`;
+      }
+      if (oppLower.includes("barcelona") || oppLower.includes("real madrid")) {
+        return `${emoji} هههههه عطيهم يا كوتش! الزعيم الملكي ما كيرضى بغير القمة وهادوك غير كيهضرو فالفراغ! 🔥👑`;
+      }
+      if (oppLower.includes("west ham")) {
+        return `${emoji} هههههه عطيهم يا كوتش! ويستهام عندهم تاريخ فإنجلترا ولكن الزعيم الملكي ما كيرحم تا فرقة فالميدان! ⚒️🔥`;
+      }
+      return `${emoji} هههههه عطيهم يا كوتش! ما كاين غير ${ultras.nickname || ultras.clubName}.. هادوك غير كيهضرو فالفراغ والميدان غايعطيهم درس قاصح! 🔥⚔️`;
+    }
+
+    // 2. RESPECTFUL / TACTICAL FIXTURE MENTION
+    if (oppName) {
+      const oppArabicName =
+        oppLower.includes("paris") || oppLower.includes("psg")
+          ? "باريس سان جيرمان"
+          : oppLower.includes("manchester") || oppLower.includes("man united")
+          ? "مانشستر يونايتد"
+          : oppLower.includes("touarga")
+          ? "اتحاد تواركة"
+          : oppLower.includes("raja")
+          ? "الرجاء"
+          : oppLower.includes("wydad")
+          ? "الوداد"
+          : oppLower.includes("west ham")
+          ? "وست هام"
+          : oppName;
+
+      if (lang === "AR" || ultras.preferredLanguage === "AR") {
+        const templates = [
+          `${emoji} ${chant} مواجهة قوية ضد ${oppArabicName}.. الكورفا واجدة وكنتسناو قتالية وشراسة فالميدان للدفاع على القميص! ⚔️🔥`,
+          `${emoji} ماتش كبير كيتسنانا ضد ${oppArabicName}.. التكتيك والتركيز 90 دقيقة هو مفتاح الانتصار! كلنا وراكم! 🛡️⚽`,
+          `${emoji} العاصمة والمدرج كامل مشتعل قبل مواجهة ${oppArabicName}.. جيبو الفوز وشرفو الألوان! 💚🖤`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else if (lang === "FR" || ultras.preferredLanguage === "FR") {
+        return `${emoji} Grand choc face à ${oppName} ! Toute la tribune est prête, on veut un engagement total sur la pelouse ! ⚔️🔥`;
+      } else {
+        const templates = [
+          `${emoji} Massive fixture against ${oppName}! The fans are buzzing, let's take the game to them with high intensity! ⚒️🔥`,
+          `${emoji} Big test ahead vs ${oppName}! Stay compact, disciplined, and fight for every single ball! 🛡️⚡`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      }
+    }
+
+    // 3. TACTICAL & FORMATION DISCUSSIONS
+    if (/خطة|تكتيك|تشكيلة|ضغط|دفاع|هجوم|tactique|formation|lineup|tactics|pressing|system/i.test(lower)) {
+      if (lang === "AR" || ultras.preferredLanguage === "AR") {
+        const templates = [
+          `${emoji} قراءة تكتيكية فالمستوى يا كوتش.. الضغط العالي والتحولات السريعة هما اللي غايصنعو الفارق فالماتش! 🧠⚽`,
+          `${emoji} ${chant} الانضباط التكتيكي وحماية الخطوط الخلفية هما الأساس.. حنا فظهرك ونثقو فالخيارات ديالك! 📋🛡️`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else {
+        return `${emoji} Spot on tactical breakdown, gaffer! Sharp pressing and aggressive transitions will win us this battle! 🧠⚽`;
+      }
+    }
+
+    // 4. TRANSFERS & NEW SIGNINGS
+    if (tag === "TRANSFER" || /صفقة|تعاقد|ميركاتو|لاعب جديد|signing|transfer|recruit|mercato/i.test(lower)) {
+      if (lang === "AR" || ultras.preferredLanguage === "AR") {
+        const templates = [
+          `${emoji} مرحباً بيه فقلعة النادي! القميص عندو هيبة وكنتسناو منو يعرق عليه ويقدم الإضافة الحقيقية فالميدان! 👏🔥`,
+          `${emoji} صفقة ممتازة لتعزيز المجموعة.. الخدمة والقتالية فالتيران هي المعيار الوحيد عندنا! بالتوفيق ليه! ⚽⚡`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else {
+        return `${emoji} Cracking addition to the squad! Welcome to the club, wear the badge with pride and fight for every ball! 👏🔥`;
+      }
+    }
+
+    // 5. REFEREE & VAR CONTROVERSIES
+    if (/حكم|تحكيم|ظلم|var|referee|penalty|card/i.test(lower)) {
+      if (lang === "AR" || ultras.preferredLanguage === "AR") {
+        return `${emoji} التحكيم دار أخطاء واضحة ولكن قوتنا ديما فالميدان.. مانعطيوش فرصة لأي عذر والرد غايكون بالقتالية والتسجيل فالماتش الجاي! 👊`;
+      } else {
+        return `${emoji} Ref decisions were shocking, but our focus stays on our own performance! We answer on the pitch with pride! 👊`;
+      }
+    }
+
+    // 6. LOSS / BOUNCE BACK / APOLOGY
+    if (/خسارة|اعتذار|هزيمة|نعتذر|sorry|defeat|loss|bounce back/i.test(lower)) {
+      if (lang === "AR" || ultras.preferredLanguage === "AR") {
+        return `${emoji} هزيمة قاصحة ولكن الكورفا ماكتتخلاش على الفريق.. كنوعدوكم بالتشجيع وكنتسناو ردة فعل رجولية فالتيران بلا أعذار! ⚠️🛡️`;
+      } else {
+        return `${emoji} Tough pill to swallow, but true supporters never hide. We want to see a massive reaction next match! ⚠️🛡️`;
+      }
+    }
+
+    // 7. VICTORY & CELEBRATION
+    if (tag === "VICTORY" || /فوز|ربح|3 نقاط|مبروك|انتصار|win|victory|champions/i.test(lower)) {
+      if (lang === "AR" || ultras.preferredLanguage === "AR") {
+        const templates = [
+          `${emoji} ${chant} أداء بطولي وفوز مستحق أسعد كاع الجماهير! الاستمرارية هي مفتاح المنافسة على الألقاب.. برافو للفرقة كاملة! 🔥👑`,
+          `${emoji} فرحة مستحقة للرجال.. القتالية والتنظيم فالتيران كانو فالمستوى، مكملين بنفس الروح حتى لآخر جولة! 🏆✨`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else {
+        return `${emoji} Brilliant performance and well deserved victory! Outstanding character from the lads! Keep this momentum going! 🔥👑`;
+      }
+    }
+
+    // 8. DERBY & BANTER
+    if (tag === "BANTER" || /ديربي|قمة|كلاسيكو|derby|clash|banter/i.test(lower)) {
+      if (lang === "AR" || ultras.preferredLanguage === "AR") {
+        return `${emoji} ${chant} أجواء الكورفا مشتعلة والمدرج غايكون فالموعد! جيبوها يا رجال والعاصمة كلها وراكم! ⚔️🔥`;
+      } else {
+        return `${emoji} Derby vibes are electric! The atmosphere is going to be rocking, go out there and fight for the badge! ⚔️🔥`;
+      }
+    }
+
+    // 9. GENERAL SUPPORT
+    if (lang === "AR" || ultras.preferredLanguage === "AR") {
+      const templates = [
+        `${emoji} ${chant} حنا فظهر الفرقة وفظهرك يا كوتش.. الروح الجماعية والقتالية هي اللي غاتوصلنا لأهدافنا! 👏🛡️`,
+        `${emoji} الدعم متواصل من المدرج 90 دقيقة.. كلنا ثقة فالخدمة ديالكم ومساندين حتى لآخر لحظة! ⚽🔥`,
+      ];
+      return templates[Math.floor(Math.random() * templates.length)];
+    } else {
+      return `${emoji} Fully behind the manager and the lads! Hard work and togetherness will take us to the top! 👏🛡️`;
+    }
+  }
+
+  /**
+   * Helper to generate opponent counter-banter or mutual respect comment
+   */
+  private static generateOpponentFallbackComment(oppUltras: UltrasGroup, hostClubName: string, userContent = ""): string {
+    const emoji = oppUltras.bannerEmoji || "⚔️";
+    const chant = oppUltras.chants[0] || "";
+    const lower = oppUltras.clubName.toLowerCase();
+    const contentLower = userContent.toLowerCase();
+
+    // Check if user is showing respect, praise, friendship or brotherhood
+    const isPraiseOrFriendship =
+      /s7abna|3chran|3chrana|khoutna|respect|friends|brothers|respect to|great club|allies|alliance|chokran|merci|thanks|top club|famille|amis|respectueux|respect aux|تحية|احترام|اخوتنا|خوتنا|صحابنا|عشرانا|عشران|رجال|كل الاحترام|برافو|bravo|حب|أخوة|اخوة/i.test(contentLower);
+
+    if (isPraiseOrFriendship) {
+      if (oppUltras.preferredLanguage === "EN" || lower.includes("west ham")) {
+        return `${emoji} 🤝 Pure respect from East London to Rabat! Much love to the FAR Rabat Ultras and manager! Proper fans and authentic terrace culture! 🫧⚒️`;
+      }
+      if (oppUltras.preferredLanguage === "FR" || lower.includes("paris") || lower.includes("psg")) {
+        return `${emoji} 🤝 Grand respect entre vrais passionnés de football ! Merci aux supporters de ${hostClubName}, la ferveur ultra c'est aussi le respect mutuel ! 🔵🔴🗼`;
+      }
+      if (oppUltras.preferredLanguage === "ES" || lower.includes("real madrid") || lower.includes("barcelona")) {
+        return `${emoji} 🤝 ¡Mucho respeto y hermandad para la afición de ${hostClubName}! ¡El fútbol une a los verdaderos hinchas! 👑⚪⚡`;
+      }
+      return `${emoji} 🤝 الاحترام والتقدير متبادل بيناتنا! تحية حارة من جمهورنا لجمهور ${hostClubName} العريق.. ديما خوت وعشران فالتيران وخارج التيران! 👏🔥`;
+    }
+
+    // Otherwise: Fierce Opponent Clapbacks
+    if (oppUltras.preferredLanguage === "EN") {
+      if (lower.includes("manchester united") || lower.includes("man united") || lower.includes("man utd")) {
+        return `${emoji} 20 League Titles & 3 European Cups! Keep Manchester United's name out of your mouth until you've won something on the world stage! Old Trafford will always be the Theatre of Dreams! 🔴👹⚡`;
+      } else if (lower.includes("chelsea")) {
+        return `${emoji} 2x Champions of Europe and World Champions! Come to Stamford Bridge and see what London blue pride really means! 🔵🦁💙`;
+      } else if (lower.includes("arsenal")) {
+        return `${emoji} The Invincibles history you could only dream of! North London is red and we fear no one! Victoria Concordia Crescit! 🔴💣`;
+      } else if (lower.includes("liverpool")) {
+        return `${emoji} 6 European Cups at Anfield! You'll Never Walk Alone is more than just a chant, it's royalty! Respect the greatest! 🔴🦅🔥`;
+      } else if (lower.includes("manchester city") || lower.includes("man city")) {
+        return `${emoji} Treble winners and masters of football! You can talk about history, but right now we rule the world! 💙🦈⚡`;
+      } else if (lower.includes("west ham")) {
+        return `${emoji} Claret & Blue Army ready for the trip! Bubbles flying high in East London! Bring on the clash against ${hostClubName}! 🫧⚒️`;
+      } else {
+        return `${emoji} Talking cheap on social media? Bring your squad to our ground and we'll see who rules the pitch! ⚡🔥`;
+      }
+    } else if (oppUltras.preferredLanguage === "FR" || lower.includes("paris") || lower.includes("psg")) {
+      return `${emoji} Vous osez parler du Paris Saint-Germain ? Ici c'est Paris et le Virage Auteuil ne craint personne ! Venez au Parc des Princes si vous avez le courage ! 🔵🔴🗼🔥`;
+    } else if (oppUltras.preferredLanguage === "ES" || lower.includes("real madrid") || lower.includes("barcelona")) {
+      if (lower.includes("real madrid")) {
+        return `${emoji} 15 Copas de Europa! El club más grande de la historia. ¡Lávate la boca antes de hablar del Real Madrid! ¡Hala Madrid y nada más! 👑⚪⚡`;
+      } else {
+        return `${emoji} ¡Més que un club! 5 Champions y el mejor fútbol del mundo. ¡Visca el Barça y respeto a los colores blaugrana! 🔵🔴💙❤️`;
+      }
+    } else {
+      // Moroccan Darija / Arabic Clubs Counter-Clapbacks
+      if (lower.includes("touarga") || lower.includes("uts")) {
+        return `${emoji} كتسميونا ماشي فرقة حيت مخلوعين منا فالعاصمة! الميدان هو لي غايحكم ونبينو ليكم شكون كيكور وشكون كيهضر فالفراغ! 👊⚡`;
+      } else if (lower.includes("wydad") || lower.includes("wac")) {
+        return `${emoji} فاش كتدوي على وداد الأمة وأسياد القارة دير يدك على راسك! الكورفا نورد غاتوريكم حجمكم الحقيقي فالميدان! ⭐🏆❤️🤍`;
+      } else if (lower.includes("raja") || lower.includes("rca")) {
+        return `${emoji} شكون نتوما باش تدويو على شعب الخضرة؟ 3 عصب إفريقية ونهائي كاس العالم يا لي ماعندكم تاريخ! موعدنا فالماتش نكلوكم! 🦅💚`;
+      } else if (lower.includes("far") || lower.includes("rabat")) {
+        return `${emoji} الزعيم الملكي كيبقا كابوسكم التاريخي! العاصمة عندها سيد واحد هو الجيش الملكي وما سوقناش فالهضرة الخاوية! 💚🖤🔴🔥`;
+      } else if (lower.includes("fes") || lower.includes("mas")) {
+        return `${emoji} الماص حضارة وتاريخ العاصمة العلمية! فاش تدوي على النمور الصفر عرق بعدا على التوني ديالك! 🐯💛🖤`;
+      } else if (lower.includes("tanger") || lower.includes("irt")) {
+        return `${emoji} طنجة العالية وفرسان البوغاز ما كيخافو من تا فرقة! غاتجيو للشمال وغاترجعو خاويين! 🌊💙🤍`;
+      } else if (lower.includes("berkane") || lower.includes("rsb")) {
+        return `${emoji} ولاد الشرق وفرسان البرتقالي واعرين عليكم فالميدان! الصافرة هي لي غاتوريكم شكون أسياد الكرة! 🧡🖤🍊`;
+      } else if (lower.includes("safi") || lower.includes("ocs")) {
+        return `${emoji} القرش المسفيوي واجد يغرقكم فالمحيط! دخلوا للميدان وغاتشوفو الشراسة الحقيقية! 🦈💙🔴`;
+      } else if (lower.includes("agadir") || lower.includes("husa")) {
+        return `${emoji} غزالة سوس برجالها وإمازيغن ورا الفرقة! غانوصلو ليكم الرسالة فالتيران! 🔴⚪ⵣ`;
+      } else {
+        return `${emoji} ${chant}\nهاد الهضرة كاملة غانشوفوها فالتيران.. الكورفا واجدة والميدان هو اللي كيحكم! ⚽🔥`;
+      }
     }
   }
 }
