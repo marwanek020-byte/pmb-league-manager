@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { getBudgetHistory } from "@/lib/services/budget-service";
 import { serializeBudgetTransaction } from "@/lib/serialize-budget";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: Request,
   { params }: { params: { clubId: string } }

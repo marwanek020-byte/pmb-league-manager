@@ -3,6 +3,11 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ClubBadge } from "@/components/ClubBadge";
+import { FormattedRichText } from "@/components/FormattedRichText";
+import { TacticalPitchVisualizer } from "@/components/manager/scouting/TacticalPitchVisualizer";
+import { ExecutiveBriefingCard } from "@/components/manager/scouting/ExecutiveBriefingCard";
+import { WhatIfSimulatorModal } from "@/components/manager/scouting/WhatIfSimulatorModal";
+import { ChiefScoutCommandWorkspace, ChatMessage } from "@/components/manager/scouting/ChiefScoutCommandWorkspace";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/lib/use-toast";
 
@@ -209,6 +214,10 @@ type ScoutingData = {
       scoutVerdict: string;
     };
   };
+  executiveBriefing?: any;
+  transferPriorities?: any[];
+  aiDailyShortlist?: any[];
+  opponentDossier?: any;
   budgetPlanner?: {
     totalBudget: number;
     primaryAllocation: { targetPosition: string; suggestedAmount: number; reason: string };
@@ -217,11 +226,11 @@ type ScoutingData = {
     financialAdvice: string;
   };
   recommendations?: {
-    immediateStarters: RecommendedPlayer[];
-    budgetGems: RecommendedPlayer[];
+    immediateStarters: (RecommendedPlayer & { fitScore?: number; fitTier?: string; archetype?: string })[];
+    budgetGems: (RecommendedPlayer & { fitScore?: number; fitTier?: string; archetype?: string })[];
     auctionOpportunities: AuctionOpportunity[];
-    rivalClubTargets: RivalTarget[];
-    bestAvailableForBudget: BestForBudgetCandidate[];
+    rivalClubTargets: (RivalTarget & { fitScore?: number; fitTier?: string; archetype?: string })[];
+    bestAvailableForBudget: (BestForBudgetCandidate & { fitScore?: number; fitTier?: string; archetype?: string })[];
   };
   transferWindowOverview?: {
     recentCompletedTransfers: Array<{
@@ -253,11 +262,6 @@ type ScoutingData = {
     marketValue: number;
     realClub: string;
   }>;
-};
-
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
 };
 
 type PlayerDossierData = {
@@ -306,6 +310,7 @@ export function ManagerScoutingHub({
   const [data, setData] = useState<ScoutingData>(initialData);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [activeTab, setActiveTab] = useState<
+    | "dailyShortlist"
     | "bestForBudget"
     | "starters"
     | "gems"
@@ -316,7 +321,7 @@ export function ManagerScoutingHub({
     | "financial"
     | "searchHub"
     | "rivalMoves"
-  >("bestForBudget");
+  >("dailyShortlist");
 
   // 3-Way Simulator State
   const [simTargetA, setSimTargetA] = useState<string>("");
@@ -338,6 +343,7 @@ export function ManagerScoutingHub({
   // Player Dossier Modal State
   const [selectedPlayerDossier, setSelectedPlayerDossier] = useState<PlayerDossierData | null>(null);
   const [loadingDossier, setLoadingDossier] = useState(false);
+  const [isWhatIfModalOpen, setIsWhatIfModalOpen] = useState(false);
 
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -346,15 +352,9 @@ export function ManagerScoutingHub({
       content: `Greetings Manager! I am your **VIP Sporting Director & Chief Scout**.\n\nI am connected directly to your club **${data.club?.name || "squad"}** and your **422-player PostgreSQL database**.\n\nAsk me to search by nationality, evaluate budget targets, scout rivals, or generate matchday plans!`,
     },
   ]);
-  const [inputMessage, setInputMessage] = useState("");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
 
   const { toast, showSuccess, showError, dismiss } = useToast();
-
-  useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, isSendingMessage]);
 
   const handleRefreshAudit = async () => {
     setLoadingAudit(true);
@@ -417,24 +417,28 @@ export function ManagerScoutingHub({
     }
   }, [activeTab]);
 
-  const handleSendMessage = async (customText?: string) => {
-    const textToSend = customText || inputMessage;
-    if (!textToSend.trim() || isSendingMessage) return;
+  const handleSendMessage = async (message: string) => {
+    if (!message || !message.trim() || isSendingMessage) return;
+    const textToSend = message.trim();
 
     const newMessages: ChatMessage[] = [
       ...chatMessages,
       { role: "user", content: textToSend },
     ];
     setChatMessages(newMessages);
-    if (!customText) setInputMessage("");
     setIsSendingMessage(true);
 
     try {
+      const historyToSend = chatMessages
+        .slice(-6)
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const res = await fetch("/api/manager/scouting/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: textToSend,
+          history: historyToSend,
         }),
       });
 
@@ -446,7 +450,11 @@ export function ManagerScoutingHub({
       const responseData = await res.json();
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: responseData.reply },
+        {
+          role: "assistant",
+          content: responseData.reply,
+          recommendedPlayers: responseData.recommendedPlayers || [],
+        },
       ]);
     } catch (err: any) {
       setChatMessages((prev) => [
@@ -666,7 +674,28 @@ export function ManagerScoutingHub({
         </div>
       </section>
 
-      {/* ── 2. DEEP SQUAD AUDIT & 10-POSITION DEPTH MATRIX ────────────────── */}
+      {/* ── 2. EXECUTIVE SPORTING DIRECTOR BRIEFING & RECRUITMENT PRIORITIES ── */}
+      {data.executiveBriefing && (
+        <ExecutiveBriefingCard
+          briefing={data.executiveBriefing}
+          transferPriorities={data.transferPriorities}
+          onOpenDossier={handleOpenDossier}
+          onSearchPosition={(pos) => {
+            setSearchPos(pos);
+            setActiveTab("searchHub");
+            handleExecuteVisualSearch();
+          }}
+          onOpenWhatIf={() => setIsWhatIfModalOpen(true)}
+        />
+      )}
+
+      {/* ── 3. 2D TACTICAL PITCH VISUALIZER CENTERPIECE ─────────────────── */}
+      <TacticalPitchVisualizer
+        players={data.squadPlayers || []}
+        onSelectPlayer={handleOpenDossier}
+      />
+
+      {/* ── 4. DEEP SQUAD AUDIT & 10-POSITION DEPTH MATRIX ────────────────── */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Positional Depth Matrix with Strongest & Weakest */}
         <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-pmb-charcoal/80 p-5 space-y-4">
@@ -898,6 +927,14 @@ export function ManagerScoutingHub({
               💰 Bargains ({recs.budgetGems.length})
             </button>
             <button
+              onClick={() => setActiveTab("dailyShortlist")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition border border-pmb-gold/50 ${
+                activeTab === "dailyShortlist" ? "bg-pmb-gold text-black shadow font-black" : "text-pmb-gold hover:bg-pmb-gold/10"
+              }`}
+            >
+              🌟 AI Daily Top 5
+            </button>
+            <button
               onClick={() => setActiveTab("auctions")}
               className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                 activeTab === "auctions" ? "bg-pmb-gold text-black shadow" : "text-gray-400 hover:text-white"
@@ -955,6 +992,85 @@ export function ManagerScoutingHub({
             </button>
           </div>
         </div>
+
+        {/* Tab: AI Daily Top 5 Shortlist */}
+        {activeTab === "dailyShortlist" && (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-pmb-gold/10 border border-pmb-gold/25 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div>
+                <p className="font-bold text-white text-sm">🌟 Chief Scout Daily Top 5 Curated Shortlist</p>
+                <p className="text-gray-300 mt-0.5">Top algorithmic targets curated daily based on starter upgrades, free agent gems, and value bargains.</p>
+              </div>
+              <span className="rounded bg-pmb-gold px-2.5 py-1 text-black font-extrabold">Top 5 Picks</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.aiDailyShortlist?.map((item: any, idx: number) => {
+                const p = item.player;
+                if (!p) return null;
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-2xl border border-pmb-gold/40 bg-pmb-charcoal/90 p-5 flex flex-col justify-between space-y-4 hover:border-pmb-gold transition shadow-lg"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="rounded bg-pmb-gold/20 px-2 py-0.5 text-[10px] font-black text-pmb-gold">
+                          {item.category}
+                        </span>
+                        <div className="h-8 w-8 rounded-full bg-pmb-gold font-black text-black flex items-center justify-center text-sm shadow">
+                          {p.overallRating}
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <h3 className="text-lg font-bold text-white truncate">{p.fullName}</h3>
+                        <p className="text-xs text-gray-400 font-medium">
+                          {p.position} • {p.realClub || p.currentClubName || "Free Agent"} • {p.nationality}
+                        </p>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {p.fitScore !== undefined && (
+                          <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-black text-emerald-400">
+                            ⭐ {p.fitScore}/100 Fit
+                          </span>
+                        )}
+                        {p.archetype && (
+                          <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-gray-300">
+                            {p.archetype}
+                          </span>
+                        )}
+                      </div>
+
+                      {p.reason && (
+                        <p className="mt-3 text-xs text-pmb-gold bg-black/60 rounded-xl p-3 border border-white/5 leading-relaxed">
+                          💡 {p.reason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold">Transfer Fee</p>
+                        <p className="text-sm font-black text-white">
+                          {p.marketValue === 0 ? "€0 (Free Agent)" : `€${(p.marketValue / 1_000_000).toFixed(1)}M`}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleOpenDossier(p.id)}
+                        className="rounded-xl bg-pmb-gold px-3.5 py-2 text-xs font-black text-black hover:bg-white transition shadow"
+                      >
+                        View Dossier
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Tab 0: Best for Budget */}
         {activeTab === "bestForBudget" && (
@@ -1284,6 +1400,35 @@ export function ManagerScoutingHub({
                   </div>
                 </div>
 
+                {/* 1,000-Iteration Monte Carlo Simulation Gauge */}
+                {data.opponentDossier?.simulationOutcome && (
+                  <div className="rounded-2xl border border-white/10 bg-black/80 p-5 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-pmb-gold uppercase tracking-wider">
+                        🎲 1,000-Iteration Monte Carlo Pre-Match Simulation
+                      </span>
+                      <span className="text-[11px] text-gray-400">
+                        Projected Score: <strong className="text-white">{data.opponentDossier.simulationOutcome.projectedScore}</strong> (xG {data.opponentDossier.simulationOutcome.expectedGoals?.myClub} - {data.opponentDossier.simulationOutcome.expectedGoals?.opponent})
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="rounded-xl bg-emerald-950/40 border border-emerald-500/40 p-3">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">Win Chance</span>
+                        <p className="text-xl font-black text-emerald-400 mt-0.5">{data.opponentDossier.simulationOutcome.winProbability}%</p>
+                      </div>
+                      <div className="rounded-xl bg-yellow-950/40 border border-yellow-500/40 p-3">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">Draw Chance</span>
+                        <p className="text-xl font-black text-yellow-400 mt-0.5">{data.opponentDossier.simulationOutcome.drawProbability}%</p>
+                      </div>
+                      <div className="rounded-xl bg-rose-950/40 border border-rose-500/40 p-3">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">Loss Chance</span>
+                        <p className="text-xl font-black text-rose-400 mt-0.5">{data.opponentDossier.simulationOutcome.lossProbability}%</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Match Plan Card */}
                 {data.nextOpponentReport.matchPlan && (
                   <div className="rounded-2xl border border-rose-500/40 bg-black/80 p-6 space-y-4">
@@ -1294,17 +1439,28 @@ export function ManagerScoutingHub({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                       <div className="rounded-xl bg-pmb-charcoal/80 border border-white/10 p-3.5 space-y-1">
                         <p className="font-bold text-pmb-gold uppercase">Recommended Formation</p>
-                        <p className="text-sm font-black text-white">{data.nextOpponentReport.matchPlan.formation}</p>
+                        <p className="text-sm font-black text-white">{data.opponentDossier?.tacticalPlan?.recommendedFormation || data.nextOpponentReport.matchPlan.formation}</p>
                       </div>
                       <div className="rounded-xl bg-pmb-charcoal/80 border border-white/10 p-3.5 space-y-1">
                         <p className="font-bold text-rose-400 uppercase">Area to Exploit</p>
-                        <p className="text-sm font-black text-white">{data.nextOpponentReport.matchPlan.areaToExploit}</p>
+                        <p className="text-sm font-black text-white">{data.opponentDossier?.tacticalPlan?.vulnerabilityZone || data.nextOpponentReport.matchPlan.areaToExploit}</p>
                       </div>
                       <div className="rounded-xl bg-pmb-charcoal/80 border border-white/10 p-3.5 space-y-1">
                         <p className="font-bold text-amber-400 uppercase">Player to Mark</p>
-                        <p className="text-sm font-black text-white">{data.nextOpponentReport.matchPlan.playerToMark}</p>
+                        <p className="text-sm font-black text-white">{data.opponentDossier?.tacticalPlan?.keyThreat || data.nextOpponentReport.matchPlan.playerToMark}</p>
                       </div>
                     </div>
+
+                    {data.opponentDossier?.tacticalPlan?.primaryDirectives && (
+                      <div className="pt-3 border-t border-white/10 space-y-2">
+                        <p className="text-xs font-bold text-white uppercase">Key Tactical Directives:</p>
+                        <ul className="text-xs text-gray-300 space-y-1.5 list-disc list-inside">
+                          {data.opponentDossier.tacticalPlan.primaryDirectives.map((d: string, i: number) => (
+                            <li key={i}>{d}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     <p className="text-xs text-gray-300 italic pt-2 border-t border-white/10">
                       "{data.nextOpponentReport.matchPlan.scoutVerdict}"
@@ -1649,115 +1805,24 @@ export function ManagerScoutingHub({
         )}
       </section>
 
-      {/* ── 5. INTERACTIVE CHIEF SCOUT DATABASE AI CHAT ──────────────────── */}
-      <section className="rounded-2xl border border-pmb-gold/30 bg-gradient-to-b from-pmb-charcoal to-black p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🤖</span>
-            <div>
-              <h2 className="text-lg font-bold text-white font-serif">
-                Chat with Chief Scout AI (VIP Sporting Intelligence)
-              </h2>
-              <p className="text-xs text-gray-400">
-                Connected to 422 players in PMB PostgreSQL Database • Live €{(club.budget / 1_000_000).toFixed(1)}M Budget
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Suggestion Chips */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => handleSendMessage("Show me Moroccan goalkeepers.")}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-gray-300 hover:border-pmb-gold hover:text-pmb-gold transition"
-          >
-            🇲🇦 "Moroccan Goalkeepers"
-          </button>
-          <button
-            onClick={() => handleSendMessage("Find French CBs rated 80+.")}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-gray-300 hover:border-pmb-gold hover:text-pmb-gold transition"
-          >
-            🇫🇷 "French CBs 80+"
-          </button>
-          <button
-            onClick={() => handleSendMessage("What is the best player I can afford?")}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-gray-300 hover:border-pmb-gold hover:text-pmb-gold transition"
-          >
-            🎯 "Best for My Budget"
-          </button>
-          <button
-            onClick={() => handleSendMessage("Scout my next opponent.")}
-            className="rounded-full border border-rose-500/30 bg-rose-950/30 px-3 py-1 text-xs font-bold text-rose-300 hover:border-rose-400 hover:text-white transition"
-          >
-            ⚔️ "Scout Next Opponent"
-          </button>
-          <button
-            onClick={() => handleSendMessage("Find alternatives to my CF.")}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-gray-300 hover:border-pmb-gold hover:text-pmb-gold transition"
-          >
-            ⚡ "Alternatives to CF"
-          </button>
-          <button
-            onClick={() => handleSendMessage("What if I spend 20M?")}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-gray-300 hover:border-pmb-gold hover:text-pmb-gold transition"
-          >
-            💼 "What if I spend €20M?"
-          </button>
-        </div>
-
-        {/* Chat History Box */}
-        <div className="h-[480px] overflow-y-auto space-y-4 rounded-2xl border border-white/10 bg-black/75 p-5 shadow-inner scroll-smooth">
-          {chatMessages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[88%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === "user"
-                    ? "bg-pmb-gold text-black font-semibold rounded-br-none shadow-md"
-                    : "bg-pmb-charcoal text-gray-100 border border-white/15 rounded-bl-none shadow-lg"
-                }`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {isSendingMessage && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-none bg-pmb-charcoal p-3.5 text-xs text-gray-300 border border-white/15 flex items-center gap-2.5 shadow-md">
-                <span className="animate-spin text-pmb-gold">⏳</span>
-                <span>Chief Scout AI is analyzing database & formulating strategic plan...</span>
-              </div>
-            </div>
-          )}
-          <div ref={chatBottomRef} />
-        </div>
-
-        {/* Input Box */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="flex gap-2"
-        >
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Search database (e.g. 'Show Moroccan CBs 80+', 'Best player I can afford', 'Scout Chelsea')..."
-            className="pmb-input flex-1 text-sm"
-          />
-          <button
-            type="submit"
-            disabled={isSendingMessage || !inputMessage.trim()}
-            className="rounded-xl bg-pmb-gold px-5 py-2.5 text-xs font-extrabold text-black hover:bg-white transition disabled:opacity-50"
-          >
-            Search DB
-          </button>
-        </form>
-      </section>
+      {/* ── 5. INTERACTIVE CHIEF SCOUT DATABASE AI COMMAND DECK ──────────── */}
+      <ChiefScoutCommandWorkspace
+        chatMessages={chatMessages}
+        isSendingMessage={isSendingMessage}
+        clubName={club.name}
+        budgetEur={club.budget}
+        onSendMessage={handleSendMessage}
+        onResetConversation={() => {
+          setChatMessages([
+            {
+              role: "assistant",
+              content: `Tactical session initialized. How can I assist you, Boss? Search by position, nationality, budget, scout rivals, or simulate transfers.`,
+            },
+          ]);
+          showSuccess("🧹 Conversation context reset");
+        }}
+        onOpenDossier={handleOpenDossier}
+      />
 
       {/* ── 6. INTERACTIVE PLAYER SCOUT DOSSIER MODAL ────────────────────── */}
       {selectedPlayerDossier && (
@@ -1871,6 +1936,14 @@ export function ManagerScoutingHub({
           </div>
         </div>
       )}
+
+      {/* ── WHAT-IF SIMULATOR MODAL ────────────────────────────────────── */}
+      <WhatIfSimulatorModal
+        isOpen={isWhatIfModalOpen}
+        onClose={() => setIsWhatIfModalOpen(false)}
+        squadPlayers={data.squadPlayers || []}
+        availableCandidates={allCandidatePool || []}
+      />
     </div>
   );
 }

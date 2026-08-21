@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { PlayerFitService } from "@/lib/services/player-fit-service";
+import { OpponentTacticalService } from "@/lib/services/opponent-tactical-service";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ export async function GET() {
       where: { id: session.user.clubId },
       include: {
         league: true,
+        manager: { select: { username: true } },
         players: {
           where: { status: "REGISTERED" },
           orderBy: [{ overallRating: "desc" }, { fullName: "asc" }],
@@ -366,7 +369,7 @@ export async function GET() {
     const neededPositions = Array.from(new Set(gapAlerts.flatMap((a) => a.targetPositions)));
 
     // ── 6. MULTI-CHANNEL MARKET SCAN ──────────────────────────────────────
-    const [freeAgents, activeAuctions, rivalSurplus, recentCompletedTransfers] = await Promise.all([
+    const [freeAgents, activeAuctions, rivalSurplus, recentCompletedTransfers, opponentDossier] = await Promise.all([
       prisma.player.findMany({
         where: { status: "AVAILABLE", pmbClubId: null },
         orderBy: [{ overallRating: "desc" }, { marketValue: "asc" }],
@@ -381,7 +384,7 @@ export async function GET() {
       prisma.player.findMany({
         where: { status: "REGISTERED", pmbClubId: { not: club.id } },
         orderBy: [{ overallRating: "desc" }, { fullName: "asc" }],
-        take: 20,
+        take: 25,
         include: { pmbClub: { select: { id: true, name: true, logo: true } } },
       }),
       prisma.transfer.findMany({
@@ -394,46 +397,87 @@ export async function GET() {
           toClub: { select: { name: true } },
         },
       }),
+      OpponentTacticalService.generatePreMatchDossier(club.id),
     ]);
 
-    // Format 1: Immediate Starters (Free Agents)
+    const clubSquadSimple = players.map((p) => ({
+      position: p.position.toUpperCase(),
+      overallRating: p.overallRating,
+      nationality: p.nationality,
+    }));
+
+    // Format 1: Immediate Starters (Free Agents with 5-Pillar Fit Score)
     const immediateStarters = freeAgents
       .slice(0, 4)
-      .map((p) => ({
-        id: p.id,
-        playerId: p.playerId,
-        fullName: p.fullName,
-        position: p.position.toUpperCase(),
-        overallRating: p.overallRating ?? 75,
-        marketValue: Number(p.marketValue ?? 0),
-        realClub: p.realClub,
-        nationality: p.nationality,
-        photo: p.photo,
-        fitsGap: neededPositions.some((pos) => p.position.toUpperCase().includes(pos.toUpperCase())),
-        affordable: Number(p.marketValue ?? 0) <= budget,
-        reason: (p.overallRating ?? 75) >= overallRating
-          ? `+${(p.overallRating ?? 75) - overallRating} OVR upgrade to current team average.`
-          : `Fills depth in ${p.position.toUpperCase()} with instant free-agent signing.`,
-      }));
+      .map((p) => {
+        const fit = PlayerFitService.calculateFitScore({
+          player: {
+            id: p.id,
+            fullName: p.fullName,
+            position: p.position,
+            overallRating: p.overallRating,
+            marketValue: Number(p.marketValue ?? 0),
+            nationality: p.nationality,
+          },
+          clubSquad: clubSquadSimple,
+          clubBudget: budget,
+        });
+
+        return {
+          id: p.id,
+          playerId: p.playerId,
+          fullName: p.fullName,
+          position: p.position.toUpperCase(),
+          overallRating: p.overallRating ?? 75,
+          marketValue: Number(p.marketValue ?? 0),
+          realClub: p.realClub,
+          nationality: p.nationality,
+          photo: p.photo,
+          fitsGap: neededPositions.some((pos) => p.position.toUpperCase().includes(pos.toUpperCase())),
+          affordable: Number(p.marketValue ?? 0) <= budget,
+          fitScore: fit.score,
+          fitTier: fit.tierLabel,
+          archetype: fit.archetypeLabel,
+          reason: fit.recommendationReason,
+        };
+      });
 
     // Format 2: Budget Gems
     const budgetGems = freeAgents
       .filter((p) => Number(p.marketValue ?? 0) <= Math.max(15_000_000, budget * 0.6))
       .slice(0, 4)
-      .map((p) => ({
-        id: p.id,
-        playerId: p.playerId,
-        fullName: p.fullName,
-        position: p.position.toUpperCase(),
-        overallRating: p.overallRating ?? 75,
-        marketValue: Number(p.marketValue ?? 0),
-        realClub: p.realClub,
-        nationality: p.nationality,
-        photo: p.photo,
-        fitsGap: neededPositions.some((pos) => p.position.toUpperCase().includes(pos.toUpperCase())),
-        affordable: true,
-        reason: `Value pick: €${(Number(p.marketValue ?? 0) / 1_000_000).toFixed(1)}M market value.`,
-      }));
+      .map((p) => {
+        const fit = PlayerFitService.calculateFitScore({
+          player: {
+            id: p.id,
+            fullName: p.fullName,
+            position: p.position,
+            overallRating: p.overallRating,
+            marketValue: Number(p.marketValue ?? 0),
+            nationality: p.nationality,
+          },
+          clubSquad: clubSquadSimple,
+          clubBudget: budget,
+        });
+
+        return {
+          id: p.id,
+          playerId: p.playerId,
+          fullName: p.fullName,
+          position: p.position.toUpperCase(),
+          overallRating: p.overallRating ?? 75,
+          marketValue: Number(p.marketValue ?? 0),
+          realClub: p.realClub,
+          nationality: p.nationality,
+          photo: p.photo,
+          fitsGap: neededPositions.some((pos) => p.position.toUpperCase().includes(pos.toUpperCase())),
+          affordable: true,
+          fitScore: fit.score,
+          fitTier: fit.tierLabel,
+          archetype: fit.archetypeLabel,
+          reason: fit.recommendationReason,
+        };
+      });
 
     // Format 3: Live Auctions
     const auctionOpportunities = activeAuctions.map((auc) => {
@@ -465,37 +509,64 @@ export async function GET() {
     });
 
     // Format 4: Rival Club Targets
-    const rivalClubTargets = rivalSurplus.slice(0, 4).map((p) => ({
-      id: p.id,
-      playerId: p.playerId,
-      fullName: p.fullName,
-      position: p.position.toUpperCase(),
-      overallRating: p.overallRating ?? 75,
-      marketValue: Number(p.marketValue ?? 0),
-      currentClubName: p.pmbClub?.name ?? "Rival Club",
-      currentClubLogo: p.pmbClub?.logo ?? null,
-      realClub: p.realClub,
-      nationality: p.nationality,
-      photo: p.photo,
-      fitsGap: neededPositions.some((pos) => p.position.toUpperCase().includes(pos.toUpperCase())),
-      affordable: Number(p.marketValue ?? 0) <= budget,
-      reason: `Transfer / Loan prospect currently registered to ${p.pmbClub?.name ?? "rival team"}.`,
-    }));
+    const rivalClubTargets = rivalSurplus.slice(0, 4).map((p) => {
+      const fit = PlayerFitService.calculateFitScore({
+        player: {
+          id: p.id,
+          fullName: p.fullName,
+          position: p.position,
+          overallRating: p.overallRating,
+          marketValue: Number(p.marketValue ?? 0),
+          nationality: p.nationality,
+        },
+        clubSquad: clubSquadSimple,
+        clubBudget: budget,
+      });
+
+      return {
+        id: p.id,
+        playerId: p.playerId,
+        fullName: p.fullName,
+        position: p.position.toUpperCase(),
+        overallRating: p.overallRating ?? 75,
+        marketValue: Number(p.marketValue ?? 0),
+        currentClubName: p.pmbClub?.name ?? "Rival Club",
+        currentClubLogo: p.pmbClub?.logo ?? null,
+        realClub: p.realClub,
+        nationality: p.nationality,
+        photo: p.photo,
+        fitsGap: neededPositions.some((pos) => p.position.toUpperCase().includes(pos.toUpperCase())),
+        affordable: Number(p.marketValue ?? 0) <= budget,
+        fitScore: fit.score,
+        fitTier: fit.tierLabel,
+        archetype: fit.archetypeLabel,
+        reason: fit.recommendationReason,
+      };
+    });
 
     // Format 5: "Best Available for My Budget" Algorithmic Ranker
     const bestAvailableForBudget = [...freeAgents, ...rivalSurplus]
       .filter((p) => Number(p.marketValue ?? 0) <= budget || Number(p.marketValue ?? 0) === 0)
       .map((p) => {
+        const fit = PlayerFitService.calculateFitScore({
+          player: {
+            id: p.id,
+            fullName: p.fullName,
+            position: p.position,
+            overallRating: p.overallRating,
+            marketValue: Number(p.marketValue ?? 0),
+            nationality: p.nationality,
+          },
+          clubSquad: clubSquadSimple,
+          clubBudget: budget,
+        });
+
         const rating = p.overallRating ?? 75;
         const price = Number(p.marketValue ?? 0);
         const delta = rating - overallRating;
         const isNeeded = neededPositions.some((pos) =>
           p.position.toUpperCase().includes(pos.toUpperCase())
         );
-
-        let score = rating * 1.2 + delta * 3;
-        if (isNeeded) score += 15;
-        score += Math.max(0, 10 - price / 5_000_000);
 
         return {
           id: p.id,
@@ -505,11 +576,13 @@ export async function GET() {
           overallRating: rating,
           marketValue: price,
           nationality: p.nationality,
-          realClub: p.realClub,
           currentClubName: (p as any).pmbClub?.name || "Free Agent",
           ratingImprovement: delta,
           isNeeded,
-          score,
+          score: fit.score,
+          fitScore: fit.score,
+          fitTier: fit.tierLabel,
+          archetype: fit.archetypeLabel,
           impactSummary:
             delta > 0
               ? `+${delta} OVR squad upgrade • Leaves €${((budget - price) / 1_000_000).toFixed(1)}M reserve`
@@ -517,7 +590,7 @@ export async function GET() {
         };
       })
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
+      .slice(0, 4);
 
     // ── 7. NEXT OPPONENT TACTICAL SCOUTING REPORT ─────────────────────────
     const upcomingMatch = await prisma.match.findFirst({
@@ -728,6 +801,122 @@ export async function GET() {
           : "Tight financial margin. Prioritize high rating-per-million free agents and loan deals.",
     };
 
+    // ── 9. 4-TIER TRANSFER PRIORITY ENGINE ────────────────────────────────
+    const transferPriorities: Array<{
+      tier: "CRITICAL" | "HIGH" | "MEDIUM" | "LUXURY";
+      tierLabel: string;
+      position: string;
+      reason: string;
+      recommendedPlayer: any | null;
+    }> = [];
+
+    // Critical Priority (0 player slots or 1 GK)
+    if (gkPlayers.length <= 1) {
+      const bestGk = freeAgents.find((p) => isGK(p.position)) || rivalSurplus.find((p) => isGK(p.position));
+      transferPriorities.push({
+        tier: "CRITICAL",
+        tierLabel: "🔴 CRITICAL EMERGENCY",
+        position: "GK",
+        reason: gkPlayers.length === 0 ? "0 Goalkeepers in squad. Goal is completely undefended." : "Only 1 goalkeeper. Backup required.",
+        recommendedPlayer: bestGk ? { fullName: bestGk.fullName, position: "GK", overallRating: bestGk.overallRating ?? 75, marketValue: Number(bestGk.marketValue ?? 0) } : null,
+      });
+    }
+    if (cbPlayers.length < 2) {
+      const bestCb = freeAgents.find((p) => isCB(p.position)) || rivalSurplus.find((p) => isCB(p.position));
+      transferPriorities.push({
+        tier: "CRITICAL",
+        tierLabel: "🔴 CRITICAL EMERGENCY",
+        position: "CB",
+        reason: `Only ${cbPlayers.length} natural central defenders. Minimum 3 required for tactical stability.`,
+        recommendedPlayer: bestCb ? { fullName: bestCb.fullName, position: "CB", overallRating: bestCb.overallRating ?? 75, marketValue: Number(bestCb.marketValue ?? 0) } : null,
+      });
+    }
+
+    // High Priority (Starting upgrade below league standard)
+    if (defRating < leagueAvgStats.def - 2) {
+      const upgradeDef = freeAgents.find((p) => isDEF(p.position) && (p.overallRating ?? 75) > defRating);
+      transferPriorities.push({
+        tier: "HIGH",
+        tierLabel: "🟠 HIGH PRIORITY UPGRADE",
+        position: "DEF",
+        reason: `Defense (${defRating} OVR) is lagging behind league standard (${leagueAvgStats.def} OVR).`,
+        recommendedPlayer: upgradeDef ? { fullName: upgradeDef.fullName, position: upgradeDef.position, overallRating: upgradeDef.overallRating ?? 75, marketValue: Number(upgradeDef.marketValue ?? 0) } : null,
+      });
+    }
+
+    // Medium Priority (Depth)
+    const depthCandidate = freeAgents.find((p) => neededPositions.includes(p.position.toUpperCase()));
+    if (depthCandidate) {
+      transferPriorities.push({
+        tier: "MEDIUM",
+        tierLabel: "🟡 SQUAD ROTATION & DEPTH",
+        position: depthCandidate.position.toUpperCase(),
+        reason: `Bolster bench depth for fixture congestion and fatigue management.`,
+        recommendedPlayer: { fullName: depthCandidate.fullName, position: depthCandidate.position.toUpperCase(), overallRating: depthCandidate.overallRating ?? 75, marketValue: Number(depthCandidate.marketValue ?? 0) },
+      });
+    }
+
+    // Luxury Priority (Star signing)
+    const luxuryTarget = [...freeAgents, ...rivalSurplus].sort((a, b) => (b.overallRating ?? 75) - (a.overallRating ?? 75))[0];
+    if (luxuryTarget) {
+      transferPriorities.push({
+        tier: "LUXURY",
+        tierLabel: "🟢 LUXURY / MARQUEE TARGET",
+        position: luxuryTarget.position.toUpperCase(),
+        reason: `Marquee signature opportunity (${luxuryTarget.overallRating} OVR) to boost title aspirations.`,
+        recommendedPlayer: { fullName: luxuryTarget.fullName, position: luxuryTarget.position.toUpperCase(), overallRating: luxuryTarget.overallRating ?? 75, marketValue: Number(luxuryTarget.marketValue ?? 0) },
+      });
+    }
+
+    // ── 10. AI DAILY TOP 5 SHORTLIST ──────────────────────────────────────
+    const aiDailyShortlist = [
+      {
+        category: "⚡ THE INSTANT STARTER",
+        player: immediateStarters[0] || null,
+        badge: "STARTER UPGRADE",
+      },
+      {
+        category: "💎 THE FREE AGENT GEM",
+        player: immediateStarters.find((p) => p.marketValue === 0) || immediateStarters[1] || null,
+        badge: "€0 FEE",
+      },
+      {
+        category: "💰 THE VALUE BARGAIN",
+        player: budgetGems[0] || null,
+        badge: "HIGH VALUE",
+      },
+      {
+        category: "⚔️ THE RIVAL RAID",
+        player: rivalClubTargets[0] || null,
+        badge: "RIVAL TARGET",
+      },
+      {
+        category: "🌟 THE PROSPECT",
+        player: bestAvailableForBudget[bestAvailableForBudget.length - 1] || null,
+        badge: "PROSPECT",
+      },
+    ].filter((item) => item.player !== null);
+
+    // ── 11. EXECUTIVE MORNING BRIEFING ────────────────────────────────────
+    const executiveBriefing = {
+      clubName: club.name,
+      managerName: club.manager?.username || "Manager",
+      squadHealthScore: overallHealthScore,
+      treasuryBudgetEur: budget,
+      primarySquadRisk: gapAlerts.find((g) => g.severity === "CRITICAL" || g.severity === "HIGH") || null,
+      valueRadarOpportunity: budgetGems[0] || null,
+      opponentPreMatchAlert: opponentDossier.hasUpcomingMatch
+        ? {
+            opponentName: opponentDossier.opponent?.name,
+            matchday: opponentDossier.matchday,
+            isHome: opponentDossier.isHome,
+            winProbability: opponentDossier.simulationOutcome.winProbability,
+            keyThreat: opponentDossier.tacticalPlan.keyThreat,
+            tacticalMentality: opponentDossier.tacticalPlan.mentalityLabel,
+          }
+        : null,
+    };
+
     return NextResponse.json({
       enabled: true,
       club: {
@@ -774,6 +963,10 @@ export async function GET() {
       },
       gapAlerts,
       nextOpponentReport,
+      opponentDossier,
+      executiveBriefing,
+      transferPriorities,
+      aiDailyShortlist,
       budgetPlanner,
       recommendations: {
         immediateStarters,

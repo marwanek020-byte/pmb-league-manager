@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createAuction, getLiveAuctions } from "@/lib/services/auction-service";
+import { createAuctionWithPlayer, getLiveAuctions } from "@/lib/services/auction-service";
 
 export const dynamic = "force-dynamic";
 
@@ -29,17 +29,18 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { playerId, startingPrice, minIncrement, durationMinutes } = body;
+    const { playerId, newPlayer, startingPrice, minIncrement, durationMinutes } = body;
 
-    if (!playerId || !startingPrice || !durationMinutes) {
+    if ((!playerId && !newPlayer?.fullName) || !startingPrice || !durationMinutes) {
       return NextResponse.json(
-        { error: "Missing required fields (playerId, startingPrice, durationMinutes)." },
+        { error: "Missing required fields (player identification, startingPrice, durationMinutes)." },
         { status: 400 }
       );
     }
 
-    const auction = await createAuction(session.user.id, {
+    const auction = await createAuctionWithPlayer(session.user.id, {
       playerId,
+      newPlayer,
       startingPrice: Number(startingPrice),
       minIncrement: minIncrement ? Number(minIncrement) : undefined,
       durationMinutes: Number(durationMinutes),

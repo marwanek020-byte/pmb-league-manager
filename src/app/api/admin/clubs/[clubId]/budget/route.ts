@@ -7,6 +7,8 @@ import {
   AdminBudgetAction,
 } from "@/lib/services/budget-service";
 
+export const dynamic = "force-dynamic";
+
 const VALID_ACTIONS: AdminBudgetAction[] = [
   "INITIAL",
   "ADD",

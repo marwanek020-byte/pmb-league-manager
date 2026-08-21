@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { PlayerFitService } from "@/lib/services/player-fit-service";
+import { WhatIfSimulatorService } from "@/lib/services/what-if-simulator-service";
+import { OpponentTacticalService } from "@/lib/services/opponent-tactical-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { message } = await request.json();
+    const { message, history } = await request.json();
 
     if (!message || typeof message !== "string" || !message.trim()) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
@@ -20,6 +23,7 @@ export async function POST(request: NextRequest) {
       where: { id: session.user.clubId },
       include: {
         league: true,
+        manager: { select: { username: true } },
         players: {
           where: { status: "REGISTERED" },
           orderBy: [{ overallRating: "desc" }, { fullName: "asc" }],
@@ -41,754 +45,490 @@ export async function POST(request: NextRequest) {
     const budgetEur = (Number(club.budget) / 1_000_000).toFixed(1);
     const budgetNum = Number(club.budget);
     const lower = message.toLowerCase().trim();
-    const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
+    const geminiApiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim();
 
-    // ── 0. GOOGLE GEMINI GROUNDED GENERATION ENGINE (IF API KEY IS SET) ───
-    if (geminiApiKey) {
+    const isArabic = /[\u0600-\u06FF]/.test(message);
+    const isFrench = /\b(bonjour|salut|trouver|défenseur|attaquant|milieu|gardien|prochain|adversaire|plan|équipe|joueur)\b/i.test(lower);
+
+    // Positional classifications
+    const getPositionCategory = (text: string) => {
+      const t = text.toLowerCase();
+      if (
+        /\b(cf|st|striker|strikers|center forward|centre forward|buteur)\b/i.test(t) ||
+        t.includes("مهاجم صريح") ||
+        t.includes("رأس حربة") ||
+        t.includes("راس حربة") ||
+        t.includes("قناص") ||
+        t.includes("مهاجم") ||
+        t.includes("هجوم") ||
+        t.includes("مهاجمين")
+      ) {
+        return "CF";
+      }
+      if (
+        /\b(gk|goalkeeper|goalkeepers|keeper|keepers|gardien)\b/i.test(t) ||
+        t.includes("حارس") ||
+        t.includes("حارس مرمى") ||
+        t.includes("كول")
+      ) {
+        return "GK";
+      }
+      if (
+        /\b(cb|center back|centre back|défenseur central)\b/i.test(t) ||
+        t.includes("قلب دفاع") ||
+        t.includes("أكسيال") ||
+        t.includes("سنترال")
+      ) {
+        return "CB";
+      }
+      if (
+        /\b(lb|left back|arrière gauche)\b/i.test(t) ||
+        t.includes("ظهير أيسر") ||
+        t.includes("أيسر") ||
+        t.includes("لاتيرال كوش")
+      ) {
+        return "LB";
+      }
+      if (
+        /\b(rb|right back|arrière droit)\b/i.test(t) ||
+        t.includes("ظهير أيمن") ||
+        t.includes("أيمن") ||
+        t.includes("لاتيرال دروا")
+      ) {
+        return "RB";
+      }
+      if (
+        /\b(lwf|lw|left wing|ailier gauche)\b/i.test(t) ||
+        t.includes("جناح أيسر")
+      ) {
+        return "LWF";
+      }
+      if (
+        /\b(rwf|rw|right wing|ailier droit)\b/i.test(t) ||
+        t.includes("جناح أيمن")
+      ) {
+        return "RWF";
+      }
+      if (
+        /\b(amf|cam|attacking mid|milieu offensif)\b/i.test(t) ||
+        t.includes("صانع ألعاب") ||
+        t.includes("صانع العاب")
+      ) {
+        return "AMF";
+      }
+      if (
+        /\b(dmf|dm|defensive mid|milieu défensif)\b/i.test(t) ||
+        t.includes("ارتكاز") ||
+        t.includes("وسط دفاعي")
+      ) {
+        return "DMF";
+      }
+      if (
+        /\b(cmf|cm|mid|midfielder|milieu)\b/i.test(t) ||
+        t.includes("وسط") ||
+        t.includes("لاعب وسط") ||
+        t.includes("وسط ميدان")
+      ) {
+        return "MID";
+      }
+      if (
+        /\b(def|defender|defenders|défenseur)\b/i.test(t) ||
+        t.includes("دفاع") ||
+        t.includes("مدافع") ||
+        t.includes("مدافعين")
+      ) {
+        return "DEF";
+      }
+      return null;
+    };
+
+    const clubSquadSimple = club.players.map((p) => ({
+      position: p.position.toUpperCase(),
+      overallRating: p.overallRating,
+      nationality: p.nationality,
+    }));
+
+    // Helper to auto-detect mentioned players in reply and attach clickable dossier shortcuts + fit scores
+    const sendResponse = async (text: string) => {
       try {
-        // 1. Fetch upcoming fixture & opponent
-        const upcomingMatch = await prisma.match.findFirst({
-          where: {
-            OR: [{ homeClubId: club.id }, { awayClubId: club.id }],
-            status: "UPCOMING",
-          },
-          orderBy: { matchday: "asc" },
-          include: {
-            homeClub: {
-              include: {
-                manager: { select: { username: true } },
-                players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
-              },
-            },
-            awayClub: {
-              include: {
-                manager: { select: { username: true } },
-                players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
-              },
-            },
-            season: {
-              include: { competitionSeason: true },
-            },
-          },
+        const allDbPlayers = await prisma.player.findMany({
+          select: { id: true, fullName: true, position: true, overallRating: true, marketValue: true, nationality: true },
         });
+        const textLower = text.toLowerCase();
+        const detected: Array<{ id: string; name: string; position: string; overallRating: number; fitScore: number; archetype: string }> = [];
+        for (const p of allDbPlayers) {
+          if (p.fullName && textLower.includes(p.fullName.toLowerCase())) {
+            if (!detected.some((d) => d.id === p.id)) {
+              const fit = PlayerFitService.calculateFitScore({
+                player: {
+                  id: p.id,
+                  fullName: p.fullName,
+                  position: p.position,
+                  overallRating: p.overallRating,
+                  marketValue: Number(p.marketValue ?? 0),
+                  nationality: p.nationality,
+                },
+                clubSquad: clubSquadSimple,
+                clubBudget: budgetNum,
+              });
 
-        let opponentDataSummary = "No upcoming match fixture scheduled.";
-        if (upcomingMatch) {
-          const isHome = upcomingMatch.homeClubId === club.id;
-          const oppClub = isHome ? upcomingMatch.awayClub : upcomingMatch.homeClub;
-          const oppPlayers = oppClub.players.map(
-            (p) => `${p.fullName} (${p.position.toUpperCase()}, ${p.overallRating ?? "N/A"} OVR, ${p.nationality})`
-          );
-
-          // Get Opponent Goals & Assists
-          const [oppGoals, oppAssists] = await Promise.all([
-            prisma.matchEvent.findMany({
-              where: { clubId: oppClub.id, type: "GOAL" },
-              include: { player: { select: { fullName: true, position: true } } },
-            }),
-            prisma.matchEvent.findMany({
-              where: { clubId: oppClub.id, OR: [{ type: "ASSIST" }, { assistPlayerId: { not: null } }] },
-              include: {
-                assistPlayer: { select: { fullName: true, position: true } },
-                player: { select: { fullName: true, position: true } },
-              },
-            }),
-          ]);
-
-          const goalCounts: Record<string, number> = {};
-          for (const e of oppGoals) {
-            if (e.player) goalCounts[e.player.fullName] = (goalCounts[e.player.fullName] || 0) + 1;
+              detected.push({
+                id: p.id,
+                name: p.fullName,
+                position: p.position.toUpperCase(),
+                overallRating: p.overallRating ?? 75,
+                fitScore: fit.score,
+                archetype: fit.archetypeLabel,
+              });
+            }
+            if (detected.length >= 6) break;
           }
+        }
+        return NextResponse.json({ reply: text, recommendedPlayers: detected });
+      } catch {
+        return NextResponse.json({ reply: text, recommendedPlayers: [] });
+      }
+    };
 
-          const assistCounts: Record<string, number> = {};
-          for (const e of oppAssists) {
-            const p = e.assistPlayer || (e.type === "ASSIST" ? e.player : null);
-            if (p) assistCounts[p.fullName] = (assistCounts[p.fullName] || 0) + 1;
-          }
+    // ── 0. LOAD FULL COMPREHENSIVE CONTEXT FROM POSTGRESQL ────────────────────
+    const [
+      allLeagues,
+      allClubs,
+      upcomingMatch,
+      opponentDossier,
+      topFreeAgents,
+      topRivalPlayers,
+      liveAuctions,
+    ] = await Promise.all([
+      prisma.league.findMany({
+        select: { id: true, name: true, country: true },
+      }),
+      prisma.club.findMany({
+        select: { id: true, name: true, budget: true, league: { select: { name: true } }, manager: { select: { username: true } } },
+      }),
+      prisma.match.findFirst({
+        where: {
+          OR: [{ homeClubId: club.id }, { awayClubId: club.id }],
+          status: "UPCOMING",
+        },
+        orderBy: { matchday: "asc" },
+        include: {
+          homeClub: {
+            include: {
+              manager: { select: { username: true } },
+              players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
+            },
+          },
+          awayClub: {
+            include: {
+              manager: { select: { username: true } },
+              players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
+            },
+          },
+          season: {
+            include: { competitionSeason: true },
+          },
+        },
+      }),
+      OpponentTacticalService.generatePreMatchDossier(club.id),
+      prisma.player.findMany({
+        where: { status: "AVAILABLE", pmbClubId: null },
+        orderBy: [{ overallRating: "desc" }, { marketValue: "asc" }],
+        take: 35,
+      }),
+      prisma.player.findMany({
+        where: { status: "REGISTERED", pmbClubId: { not: club.id } },
+        orderBy: [{ overallRating: "desc" }, { fullName: "asc" }],
+        take: 35,
+        include: { pmbClub: { select: { name: true } } },
+      }),
+      prisma.auction.findMany({
+        where: { status: "ACTIVE" },
+        include: { player: true },
+        take: 10,
+      }),
+    ]);
 
-          opponentDataSummary = `
+    let opponentDataSummary = "No upcoming match currently scheduled in active season.";
+    if (upcomingMatch) {
+      const isHome = upcomingMatch.homeClubId === club.id;
+      const oppClub = isHome ? upcomingMatch.awayClub : upcomingMatch.homeClub;
+      const oppPlayers = oppClub.players.map((p) => `${p.fullName} (${p.position}, ${p.overallRating} OVR)`);
+
+      opponentDataSummary = `
 - Opponent Club: ${oppClub.name} (Manager: @${oppClub.manager?.username ?? "None"})
 - Matchday: ${upcomingMatch.matchday} (${isHome ? "Playing at HOME 🏠" : "Playing AWAY ✈️"})
 - Competition: ${upcomingMatch.season?.competitionSeason?.name || "League Match"}
-- Opponent Roster (${oppPlayers.length} players):
-  ${oppPlayers.join(", ")}
-- Opponent Top Goalscorers in PMB: ${Object.entries(goalCounts).map(([n, g]) => `${n} (${g} goals)`).join(", ") || "None yet"}
-- Opponent Top Playmakers in PMB: ${Object.entries(assistCounts).map(([n, a]) => `${n} (${a} assists)`).join(", ") || "None yet"}
+- Win Probability: ${opponentDossier.simulationOutcome.winProbability}% (Draw: ${opponentDossier.simulationOutcome.drawProbability}%, Loss: ${opponentDossier.simulationOutcome.lossProbability}%)
+- Projected Score: ${opponentDossier.simulationOutcome.projectedScore} (xG: ${opponentDossier.simulationOutcome.expectedGoals.myClub} vs ${opponentDossier.simulationOutcome.expectedGoals.opponent})
+- Scout Recommended Formation: ${opponentDossier.tacticalPlan.recommendedFormation} (${opponentDossier.tacticalPlan.mentalityLabel})
+- Key Danger Man to Mark: ${opponentDossier.tacticalPlan.keyThreat}
+- Exploitation Zone: ${opponentDossier.tacticalPlan.vulnerabilityZone}
+- Primary Tactical Directives: ${opponentDossier.tacticalPlan.primaryDirectives.join(" | ")}
+- Man-Marking Duty: ${opponentDossier.tacticalPlan.manMarkingDuty}
+- Opponent Roster (${oppPlayers.length} players): ${oppPlayers.slice(0, 15).join(", ")}
 `;
-        }
+    }
 
-        // 2. Fetch Market Samples (Free Agents & Rival players)
-        const [freeAgentsSample, rivalSample] = await Promise.all([
-          prisma.player.findMany({
-            where: { status: "AVAILABLE", pmbClubId: null },
-            orderBy: [{ overallRating: "desc" }, { marketValue: "asc" }],
-            take: 30,
-          }),
-          prisma.player.findMany({
-            where: { status: "REGISTERED", pmbClubId: { not: club.id } },
-            orderBy: [{ overallRating: "desc" }, { fullName: "asc" }],
-            take: 25,
-            include: { pmbClub: { select: { name: true } } },
-          }),
-        ]);
+    const formatP = (p: any) =>
+      `• ${p.fullName} (${p.position}, ${p.overallRating} OVR, ${p.nationality}, Club: ${p.pmbClub?.name || "Free Agent"}, Value: €${(Number(p.marketValue || 0) / 1_000_000).toFixed(1)}M)`;
 
-        const freeAgentsList = freeAgentsSample.map(
-          (p) => `${p.fullName} (${p.position.toUpperCase()}, ${p.overallRating ?? 75} OVR, €${(Number(p.marketValue || 0) / 1_000_000).toFixed(1)}M, ${p.nationality})`
-        ).join("\n  ");
+    const mySquadList = club.players.map(formatP).join("\n  ");
+    const freeAgentsList = topFreeAgents.map(formatP).join("\n  ");
+    const rivalPlayersList = topRivalPlayers.map(formatP).join("\n  ");
+    const liveAuctionsList = liveAuctions.map((a) => `• ${a.player.fullName} (${a.player.position}, ${a.player.overallRating} OVR, Current Bid: €${(Number(a.currentBid || 0) / 1_000_000).toFixed(1)}M)`).join("\n  ");
+    const leaguesList = allLeagues.map((l) => `${l.name} (${l.country})`).join(", ");
+    const clubsList = allClubs.map((c) => `${c.name} (${c.league.name}, Manager: @${c.manager?.username || "None"}, Budget: €${(Number(c.budget)/1e6).toFixed(1)}M)`).join("; ");
 
-        const rivalPlayersList = rivalSample.map(
-          (p) => `${p.fullName} (${p.position.toUpperCase()}, ${p.overallRating ?? 75} OVR, €${(Number(p.marketValue || 0) / 1_000_000).toFixed(1)}M, Club: ${p.pmbClub?.name}, ${p.nationality})`
-        ).join("\n  ");
+    // ── 1. GOOGLE GEMINI MULTI-MODEL CASCADE ──────────────────────────────────
+    if (geminiApiKey) {
+      const candidateModels = [
+        "gemini-3.5-flash",
+        "gemini-flash-lite-latest",
+        "gemini-3.5-flash-lite",
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+      ];
 
-        const mySquadList = club.players.map(
-          (p) => `${p.fullName} (${p.position.toUpperCase()}, ${p.overallRating ?? 75} OVR, ${p.nationality})`
-        ).join("\n  ");
+      const systemPrompt = `You are the VIP Sporting Director, Chief Scout, and Chief Tactical Analyst of "${club.name}" in PMB League Manager.
+You are in a direct discussion with your club manager (@${club.manager?.username || "Boss"}).
+You have full, unconstrained access to the live PostgreSQL database for the entire PMB ecosystem.
 
-        // 3. Build Grounded Prompt
-        const systemPrompt = `You are the VIP Chief Scout & Sporting Director of "${club.name}" in PMB League Manager.
-You are in a direct conversation with your club manager.
-
-=== LIVE IN-GAME DATABASE SNAPSHOT ===
+=== LIVE IN-GAME DATABASE KNOWLEDGE ===
 YOUR CLUB:
 - Club Name: ${club.name}
-- League: ${club.league.name}
+- League: ${club.league.name} (Country: ${club.league.country})
 - Transfer Budget: €${budgetEur}M
 - Current Registered Squad (${club.players.length} players):
   ${mySquadList}
 
-NEXT OPPONENT & FIXTURE:
+NEXT OPPONENT & UPCOMING FIXTURE:
 ${opponentDataSummary}
 
-IN-GAME TRANSFER MARKET POOL (AVAILABLE IN POSTGRESQL):
-Free Agents (Instant Sign):
+LEAGUES IN PMB:
+${leaguesList}
+
+CLUBS IN PMB:
+${clubsList}
+
+IN-GAME TRANSFER MARKET POOL:
+Free Agents Available:
   ${freeAgentsList}
 
-Rival Club Players (Transfer/Loan Prospects):
+Rival Club Players:
   ${rivalPlayersList}
 
-=== STRICT OPERATING GUIDELINES ===
-1. GROUNDING MANDATE: You are strictly restricted to the players, ratings, statistics, and clubs listed above from the in-game database. NEVER mention real-world squad memberships or players not found in this data.
-2. In this universe, whatever club a player is listed under in the data is their true club.
-3. Be professional, tactical, budget-conscious, and decisive like an elite Director of Football.
-4. If asked about nationality (e.g. Moroccan, French, Brazilian, Senegalese), filter by the exact nationality listed in the data.
-5. If asked about tactics against the opponent, analyze their actual registered players and top scorers shown above and suggest specific formations and marking duties.
-6. Format your response cleanly using bold markdown, bullet points, and relevant emojis.
+${liveAuctions.length > 0 ? `Active Auctions in PMB:\n  ${liveAuctionsList}\n` : ""}
+
+=== CRITICAL BEHAVIOR & LANGUAGE RULES ===
+1. LANGUAGE ADAPTABILITY (MANDATORY):
+   - If the manager prompts in Moroccan Darija or Arabic: Respond 100% in natural, fluent Moroccan Darija / Arabic (الدارجة المغربية). Use authentic Moroccan football terminology (الميزانية، الهجوم، القناص، القتالية، التسديد، المدافعين، الكلاسيكو، الخصم، نقاط القوة والضعف، التشكيلة، نصف المساحات Half-Spaces).
+   - If the manager prompts in French: Respond 100% in natural, elegant French.
+   - If the manager prompts in English: Respond in English.
+   - If the manager asks about ANY topic (leagues, opponents, players, budgets, tactics, starting XI, transfers, rules, what-if scenarios): Answer with full analytical depth and authority. Never give generic refusal responses.
+2. OUTPUT STRUCTURE:
+   - When giving match plans, tactical analyses, or scout recommendations, structure your response using clear section headers:
+     - 🎯 MATCH PLAN / خطة المباراة
+     - ⚔️ OPPONENT ANALYSIS / تحليل الخصم
+     - ⭐ KEY DANGER MEN / أخطر اللاعبين
+     - 🧠 TACTICAL RECOMMENDATION / التوصيات التكتيكية
+     - 📋 RECOMMENDED XI / التشكيلة المقترحة
+     - 🔥 KEY INSTRUCTIONS / التعليمات الأساسية
+     - 💎 TRANSFER RECOMMENDATIONS / توصيات الانتقالات
+3. NO RAW ASTERISKS:
+   - Avoid awkward markdown clutter like raw asterisks around quotes. Write clean, readable text.
+4. GROUNDED DATA:
+   - Always reference exact real players, clubs, ratings, and budgets from the database provided above.
 `;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              systemInstruction: {
-                parts: [{ text: systemPrompt }],
-              },
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: message }],
+      const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+      if (Array.isArray(history) && history.length > 0) {
+        for (const h of history.slice(-6)) {
+          if (h.content && typeof h.content === "string" && h.content.trim()) {
+            contents.push({
+              role: h.role === "user" ? "user" : "model",
+              parts: [{ text: h.content.trim() }],
+            });
+          }
+        }
+      }
+      contents.push({
+        role: "user",
+        parts: [{ text: message }],
+      });
+
+      for (const modelName of candidateModels) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                systemInstruction: {
+                  parts: [{ text: systemPrompt }],
                 },
-              ],
-              generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 4096,
-              },
-            }),
-          }
-        );
+                contents,
+                generationConfig: {
+                  temperature: 0.3,
+                  maxOutputTokens: 4096,
+                },
+              }),
+            }
+          );
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (generatedText && generatedText.trim()) {
-            return NextResponse.json({ reply: generatedText.trim() });
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (generatedText && generatedText.trim()) {
+              return await sendResponse(generatedText.trim());
+            }
           }
-        } else {
-          console.warn("Gemini API error status:", geminiRes.status, await geminiRes.text());
+        } catch (modelErr) {
+          console.warn(`[Chief Scout] Gemini model ${modelName} failed, attempting next model in cascade...`);
         }
-      } catch (geminiErr) {
-        console.error("Gemini call failed, falling back to database engine:", geminiErr);
       }
     }
 
-    // ── FALLBACK / NATIVE IN-DATABASE ENGINE ──────────────────────────────
+    // ── 2. FULL SEMANTIC IN-DATABASE ENGINE (FALLBACK) ────────────────────────
+    // If Gemini APIs are unavailable, seamlessly generate full structured responses
 
-    // ── 1. PARSE NATIONALITY INTENT ───────────────────────────────────────
-    let nationalityFilter: string | null = null;
+    const isGK = (pos: string) => /gk/i.test(pos);
+    const isDEF = (pos: string) => /cb|lb|rb|def/i.test(pos);
+    const isMID = (pos: string) => /dmf|cmf|amf|mid/i.test(pos);
+    const isATT = (pos: string) => /cf|st|lwf|rwf|att|fw/i.test(pos);
 
-    const nationalityMap: Record<string, string> = {
-      moroccan: "Moroc",
-      morocco: "Moroc",
-      maroc: "Moroc",
-      french: "France",
-      france: "France",
-      senegalese: "Senegal",
-      senegal: "Senegal",
-      brazilian: "Brazil",
-      brazil: "Brazil",
-      spanish: "Spain",
-      spain: "Spain",
-      portuguese: "Portugal",
-      portugal: "Portugal",
-      nigerian: "Nigeria",
-      nigeria: "Nigeria",
-      german: "Germany",
-      germany: "Germany",
-      english: "England",
-      england: "England",
-      british: "England",
-      tunisian: "Tunis",
-      tunisia: "Tunis",
-      dutch: "Netherlands",
-      netherlands: "Netherlands",
-      ivorian: "Cote",
-      "cote d'ivoire": "Cote",
-      "ivory coast": "Cote",
-      congo: "Congo",
-      congolese: "Congo",
-      bolivia: "Bolivia",
-      bolivian: "Bolivia",
-      mauritania: "muritania",
+    const calcAvg = (arr: Array<{ overallRating: number | null }>) => {
+      if (arr.length === 0) return 0;
+      const total = arr.reduce((sum, p) => sum + (p.overallRating ?? 75), 0);
+      return Math.round(total / arr.length);
     };
 
-    for (const [key, dbVal] of Object.entries(nationalityMap)) {
-      const regex = new RegExp(`\\b${key}\\b`, "i");
-      if (regex.test(lower)) {
-        nationalityFilter = dbVal;
-        break;
-      }
-    }
+    const mySquad = club.players;
+    const myGks = mySquad.filter((p) => isGK(p.position));
+    const myDefs = mySquad.filter((p) => isDEF(p.position));
+    const myMids = mySquad.filter((p) => isMID(p.position));
+    const myAtts = mySquad.filter((p) => isATT(p.position));
 
-    // ── 2. PARSE POSITION INTENT ──────────────────────────────────────────
-    let positionCategory: "GK" | "CB" | "LB" | "RB" | "DEF" | "DMF" | "CMF" | "AMF" | "MID" | "LWF" | "RWF" | "CF" | "ATT" | null = null;
+    const squadOvr = calcAvg(mySquad);
+    const gkOvr = calcAvg(myGks);
+    const defOvr = calcAvg(myDefs);
+    const midOvr = calcAvg(myMids);
+    const attOvr = calcAvg(myAtts);
 
-    if (/\b(gk|goalkeeper|goalkeepers|keeper|keepers|gardien)\b/i.test(lower)) {
-      positionCategory = "GK";
-    } else if (/\b(cb|center back|centre back|center-back|centre-back)\b/i.test(lower)) {
-      positionCategory = "CB";
-    } else if (/\b(lb|left back|left-back)\b/i.test(lower)) {
-      positionCategory = "LB";
-    } else if (/\b(rb|right back|right-back)\b/i.test(lower)) {
-      positionCategory = "RB";
-    } else if (/\b(def|defender|defenders|defense|defence|backline)\b/i.test(lower)) {
-      positionCategory = "DEF";
-    } else if (/\b(dmf|dm|defensive mid|defensive midfielder)\b/i.test(lower)) {
-      positionCategory = "DMF";
-    } else if (/\b(amf|cam|attacking mid|attacking midfielder|playmaker)\b/i.test(lower)) {
-      positionCategory = "AMF";
-    } else if (/\b(cmf|cm|mid|midfielder|midfielders|midfield)\b/i.test(lower)) {
-      positionCategory = "MID";
-    } else if (/\b(lwf|lw|left wing|left winger)\b/i.test(lower)) {
-      positionCategory = "LWF";
-    } else if (/\b(rwf|rw|right wing|right winger)\b/i.test(lower)) {
-      positionCategory = "RWF";
-    } else if (/\b(cf|st|striker|strikers|forward|forwards|finisher)\b/i.test(lower)) {
-      positionCategory = "CF";
-    } else if (/\b(att|attacker|attackers|attack|winger|wingers)\b/i.test(lower)) {
-      positionCategory = "ATT";
-    }
-
-    // Rating filter (e.g. 80+, 85+, over 80, 82 rating)
-    let minRating: number | null = null;
-    const ratingMatch = lower.match(/\b([789][0-9])\s*(?:\+|plus|over|higher|rating|\b)/i);
-    if (ratingMatch && !/(\d+)\s*(?:m|million|k)/i.test(ratingMatch[0])) {
-      const parsed = parseInt(ratingMatch[1], 10);
-      if (parsed >= 70 && parsed <= 99) {
-        minRating = parsed;
-      }
-    }
-
-    // Price cap (e.g. under 15M, under 10 million, 8M max)
-    let maxPriceEur: number | null = null;
-    const priceMatch = lower.match(/(?:under|below|less than|max|budget)\s*€?\s*(\d+(?:\.\d+)?)\s*(?:m|million|k)?/i);
-    if (priceMatch) {
-      const num = parseFloat(priceMatch[1]);
-      maxPriceEur = num < 500 ? num * 1_000_000 : num;
-    }
-
-    // ── 3. SPECIAL INTENT HANDLERS ────────────────────────────────────────
-
-    // INTENT A: "Best Available for My Budget" / "Best player I can afford"
+    // ── MATCH PLAN / OPPONENT QUERY (Arabic + English + French) ──────────────
     if (
-      /\b(best available|best player i can afford|best for my budget|top targets|who can i afford)\b/i.test(
-        lower
-      )
+      /خطة|ماتش|خصم|مباراة|مواجهة|الرجاء|الوداد|الجيش|تكتيك|تشكيلة|match|opponent|fixture|plan|tactical|lineup|starting xi/i.test(lower)
     ) {
-      const allTargets = await prisma.player.findMany({
+      if (isArabic) {
+        let reply = `🎯 خطة المباراة والتحليل التكتيكي الشامل\n\n`;
+        if (upcomingMatch) {
+          const isHome = upcomingMatch.homeClubId === club.id;
+          const oppClub = isHome ? upcomingMatch.awayClub : upcomingMatch.homeClub;
+          reply += `مواجهة الجولة ${upcomingMatch.matchday}: ${club.name} ضد ${oppClub.name} (${isHome ? "داخل الميدان 🏠" : "خارج الميدان ✈️"})\n\n`;
+          reply += `⚔️ تحليل الخصم: نقاط القوة والضعف\n`;
+          reply += `• نقاط القوة: هجمات مرتدة سريعة وضغط عالي في أول 20 دقيقة.\n`;
+          reply += `• نقطة الضعف: ${opponentDossier.tacticalPlan.vulnerabilityZone || "المساحات النصفية خلف لاعبي الارتكاز"}.\n\n`;
+          reply += `⭐ أخطر اللاعبين في صفوف الخصم\n`;
+          reply += `• ${opponentDossier.tacticalPlan.keyThreat || "المهاجم الأساسي"}: مراقبة لصيقة وتضييق مساحات التسديد.\n\n`;
+          reply += `🧠 التوصيات التكتيكية والخطة المقترحة\n`;
+          reply += `• التشكيلة الموصى بها: ${opponentDossier.tacticalPlan.recommendedFormation} (${opponentDossier.tacticalPlan.mentalityLabel})\n`;
+          reply += `• نسبة الفوز المتوقعة: ${opponentDossier.simulationOutcome.winProbability}%\n`;
+          reply += `• واجب الرقابة: ${opponentDossier.tacticalPlan.manMarkingDuty}\n\n`;
+          reply += `📋 التشكيلة الأساسية المقترحة\n`;
+          mySquad.slice(0, 11).forEach((p, i) => {
+            reply += `• ${p.fullName} (${p.position.toUpperCase()}, ${p.overallRating} OVR)\n`;
+          });
+          reply += `\n🔥 التعليمات الأساسية\n`;
+          reply += `• تدوير الكرة بهدوء واستغلال ثغرات الخصم.\n• الحذر من الكرات الثابتة والمرتدات السريعة.`;
+        } else {
+          reply += `لا توجد مباراة رسمية مجدولة حالياً في الدوري.\n\nالخطة العامة الموصى بها لتشكيلة ${club.name} هي **4-3-3 Balanced** للاستفادة القصوى من جودة لاعبيك.`;
+        }
+        return await sendResponse(reply);
+      } else {
+        let reply = `🎯 **MATCH PLAN & TACTICAL DOSSIER**\n\n`;
+        if (upcomingMatch) {
+          const isHome = upcomingMatch.homeClubId === club.id;
+          const oppClub = isHome ? upcomingMatch.awayClub : upcomingMatch.homeClub;
+          reply += `Matchday ${upcomingMatch.matchday}: **${club.name}** vs **${oppClub.name}** (${isHome ? "HOME 🏠" : "AWAY ✈️"})\n\n`;
+          reply += `⚔️ **OPPONENT ANALYSIS**\n`;
+          reply += `• Vulnerability Zone: ${opponentDossier.tacticalPlan.vulnerabilityZone}\n`;
+          reply += `• Key Threat to Mark: **${opponentDossier.tacticalPlan.keyThreat}**\n\n`;
+          reply += `🧠 **TACTICAL RECOMMENDATION**\n`;
+          reply += `• Recommended Formation: \`${opponentDossier.tacticalPlan.recommendedFormation}\` (${opponentDossier.tacticalPlan.mentalityLabel})\n`;
+          reply += `• Win Probability: **${opponentDossier.simulationOutcome.winProbability}%** (Projected: ${opponentDossier.simulationOutcome.projectedScore})\n\n`;
+          reply += `📋 **RECOMMENDED STARTING XI**\n`;
+          mySquad.slice(0, 11).forEach((p) => {
+            reply += `• **${p.fullName}** (\`${p.position.toUpperCase()}\`, ${p.overallRating} OVR)\n`;
+          });
+        } else {
+          reply += `No upcoming fixture currently scheduled. General recommended tactical setup for ${club.name} is **4-3-3 Control**.`;
+        }
+        return await sendResponse(reply);
+      }
+    }
+
+    // ── POSITIONAL TRANSFER SEARCH ───────────────────────────────────────────
+    const requestedPos = getPositionCategory(lower);
+    if (requestedPos || /مهاجم|حارس|مدافع|وسط|جناح|striker|keeper|defender|midfielder|target|sign|buy/i.test(lower)) {
+      const pos = requestedPos || "CF";
+      const candidates = await prisma.player.findMany({
         where: {
-          OR: [
-            { status: "AVAILABLE", pmbClubId: null },
-            { status: "REGISTERED", pmbClubId: { not: club.id } },
-          ],
-          marketValue: { lte: budgetNum > 0 ? budgetNum : 50_000_000 },
+          position: { contains: pos, mode: "insensitive" },
+          status: "AVAILABLE",
+          pmbClubId: null,
         },
         orderBy: [{ overallRating: "desc" }, { marketValue: "asc" }],
-        take: 15,
-        include: { pmbClub: { select: { name: true } } },
+        take: 4,
       });
 
-      const squadAvg =
-        club.players.length > 0
-          ? Math.round(
-              club.players.reduce((sum, p) => sum + (p.overallRating ?? 75), 0) /
-                club.players.length
-            )
-          : 75;
+      if (isArabic) {
+        let reply = `💎 توصيات الانتقالات: أفضل اللاعبين المتاحين في مركز ${pos}\n\n`;
+        candidates.forEach((p, idx) => {
+          reply += `${idx + 1}. **${p.fullName}** (${p.position.toUpperCase()}, ${p.overallRating} OVR)\n`;
+          reply += `   • القيمة السوقية: €${(Number(p.marketValue || 0)/1e6).toFixed(1)}M | الجنسية: 🇲🇦 ${p.nationality}\n`;
+          reply += `   • تقييم الكشاف: إضافة قوية ومباشرة لتشكيلتك.\n\n`;
+        });
+        return await sendResponse(reply);
+      } else {
+        let reply = `💎 **TRANSFER RECOMMENDATIONS: TOP ${pos} TARGETS**\n\n`;
+        candidates.forEach((p, idx) => {
+          reply += `${idx + 1}. **${p.fullName}** — \`${p.position.toUpperCase()}\` | **${p.overallRating} OVR**\n`;
+          reply += `   • Market Value: **€${(Number(p.marketValue || 0)/1e6).toFixed(1)}M** | Nationality: 🇲🇦 ${p.nationality}\n`;
+          reply += `   • Chief Scout Verdict: High-impact addition within your €${budgetEur}M treasury.\n\n`;
+        });
+        return await sendResponse(reply);
+      }
+    }
 
-      const ranked = allTargets
-        .map((p) => {
-          const ovr = p.overallRating ?? 75;
-          const cost = Number(p.marketValue ?? 0);
-          const delta = ovr - squadAvg;
-          return {
-            player: p,
-            ovr,
-            cost,
-            delta,
-            score: ovr * 1.5 + delta * 3 - (cost / 1_000_000) * 0.5,
-          };
-        })
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
-
-      let reply = `🎯 **Chief Scout: Best Realistic Targets for Your €${budgetEur}M Budget**\n\n`;
-      ranked.forEach((item, idx) => {
-        const p = item.player;
-        const clubLabel = p.pmbClub?.name ? `Club: *${p.pmbClub.name}* (Transfer/Loan)` : `*Free Agent (Instant Sign)*`;
-        reply += `${idx + 1}. **${p.fullName}** — \`${p.position.toUpperCase()}\` | **${item.ovr} OVR**\n`;
-        reply += `   • Status: ${clubLabel} | Nationality: 🇲🇦 ${p.nationality}\n`;
-        reply += `   • Market Fee: **€${(item.cost / 1_000_000).toFixed(1)}M** (${item.delta >= 0 ? `+${item.delta}` : item.delta} OVR vs team avg)\n`;
-        reply += `   • Tactical Verdict: ${item.delta > 0 ? "🌟 Instant starting XI upgrade." : "Solid squad depth & rotation option."} Leaves **€${((budgetNum - item.cost) / 1_000_000).toFixed(1)}M** reserve.\n\n`;
+    // ── GENERAL SQUAD BREAKDOWN ──────────────────────────────────────────────
+    if (isArabic) {
+      let reply = `📋 تقرير المدير الرياضي والكشاف الذكي (${club.name})\n\n`;
+      reply += `• حجم التشكيلة: ${mySquad.length} لاعباً مسجلاً\n`;
+      reply += `• الميزانية المتاحة: €${budgetEur}M\n`;
+      reply += `• متوسط تقييم التشكيلة: ${squadOvr} OVR (حراسة: ${gkOvr} | دفاع: ${defOvr} | وسط: ${midOvr} | هجوم: ${attOvr})\n\n`;
+      reply += `⭐ أبرز نجوم الفريق:\n`;
+      mySquad.slice(0, 4).forEach((p, i) => {
+        reply += `${i + 1}. **${p.fullName}** (${p.position.toUpperCase()}, ${p.overallRating} OVR)\n`;
       });
-      reply += `💡 *All candidates above are verified in your PostgreSQL database and fit within your cash balance.*`;
-      return NextResponse.json({ reply });
-    }
-
-    // INTENT B: "Improve My Starting XI" / "Replace my [position]"
-    if (/\b(improve my starting xi|upgrade my squad|improve my team|alternatives to my|replace my)\b/i.test(lower)) {
-      const weakestPos = positionCategory || "CF";
-      const currentStarters = club.players.filter((p) =>
-        p.position.toUpperCase().includes(weakestPos)
-      );
-      const currentStarter = currentStarters[0] || null;
-      const starterOvr = currentStarter ? currentStarter.overallRating ?? 75 : 75;
-
-      const upgrades = await prisma.player.findMany({
-        where: {
-          position: { contains: weakestPos, mode: "insensitive" },
-          overallRating: { gte: starterOvr },
-          OR: [
-            { status: "AVAILABLE", pmbClubId: null },
-            { status: "REGISTERED", pmbClubId: { not: club.id } },
-          ],
-        },
-        orderBy: [{ overallRating: "desc" }, { marketValue: "asc" }],
-        take: 3,
-        include: { pmbClub: { select: { name: true } } },
+      reply += `\n💡 يمكنك سؤالي عن خطة أي مباراة، استكشاف صفقات بالاسم أو المركز، أو تحليل أندية الدوري!`;
+      return await sendResponse(reply);
+    } else {
+      let reply = `📋 **CHIEF SCOUT SQUAD AUDIT (${club.name})**\n\n`;
+      reply += `• Squad Size: ${mySquad.length} Registered Players\n`;
+      reply += `• Available Budget: **€${budgetEur}M**\n`;
+      reply += `• Overall Squad Rating: **${squadOvr} OVR** (GK: ${gkOvr} | DEF: ${defOvr} | MID: ${midOvr} | ATT: ${attOvr})\n\n`;
+      reply += `⭐ **Key Squad Anchors**:\n`;
+      mySquad.slice(0, 4).forEach((p, i) => {
+        reply += `${i + 1}. **${p.fullName}** (\`${p.position.toUpperCase()}\`, **${p.overallRating} OVR**)\n`;
       });
-
-      let reply = `⚡ **Chief Scout: Starting XI Upgrade Plan for ${weakestPos}**\n\n`;
-      reply += `Current Starting Option: **${currentStarter ? currentStarter.fullName : "None"}** (${starterOvr} OVR)\n\n`;
-
-      if (upgrades.length === 0) {
-        reply += `No higher-rated ${weakestPos} players currently available within your league. Scout other positions or monitor live auctions!`;
-      } else {
-        reply += `Recommended Immediate Upgrades:\n`;
-        upgrades.forEach((p, idx) => {
-          const ovr = p.overallRating ?? 75;
-          const delta = ovr - starterOvr;
-          reply += `${idx + 1}. **${p.fullName}** (\`${p.position.toUpperCase()}\` | **${ovr} OVR** • **+${delta} OVR Upgrade**)\n`;
-          reply += `   • Club: ${p.pmbClub?.name ?? "Free Agent"} | Fee: **€${(Number(p.marketValue ?? 0) / 1_000_000).toFixed(1)}M**\n`;
-          reply += `   • ROI: Elevates your frontline standard above the current league average.\n\n`;
-        });
-      }
-      return NextResponse.json({ reply });
+      reply += `\n💡 Ask me anything about upcoming match plans, transfer targets by position/budget, or rival team analysis!`;
+      return await sendResponse(reply);
     }
-
-    // INTENT C: Financial "What If I spend" / "Can I afford"
-    if (/\b(what if i spend|can i afford|budget planner|financial advice)\b/i.test(lower)) {
-      const requestedSpendMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:m|million)/i);
-      const spendAmount = requestedSpendMatch ? parseFloat(requestedSpendMatch[1]) * 1_000_000 : 20_000_000;
-      const remaining = budgetNum - spendAmount;
-
-      let reply = `💼 **Chief Scout: Financial Simulation Report**\n\n`;
-      reply += `• Current Transfer Budget: **€${budgetEur}M**\n`;
-      reply += `• Simulated Expenditure: **€${(spendAmount / 1_000_000).toFixed(1)}M**\n`;
-      reply += `• Projected Remaining Cash: **€${(remaining / 1_000_000).toFixed(1)}M**\n\n`;
-
-      if (remaining < 0) {
-        reply += `⚠️ **Deficit Warning**: This expenditure exceeds your cash balance by €${(Math.abs(remaining) / 1_000_000).toFixed(1)}M. You must complete player sales or auction off squad depth first.`;
-      } else if (remaining < 5_000_000) {
-        reply += `🟡 **Tight Margin**: Spending this leaves only €${(remaining / 1_000_000).toFixed(1)}M. You will have no buffer for unexpected loan cancellations or live auction bidding wars.`;
-      } else {
-        reply += `🟢 **Financially Sound**: Leaves a healthy €${(remaining / 1_000_000).toFixed(1)}M reserve for backup depth and matchday rewards.`;
-      }
-      return NextResponse.json({ reply });
-    }
-
-    // INTENT D: Scout Next Opponent or Specific Rival Club by Name
-    const isOpponentQuery = /\b(opponent|next match|next game|fixture|scout next|scouting report|beat|vs)\b/i.test(lower);
-    const scoutClubMatch = lower.match(/\b(?:scout|analyze|breakdown|examine|how to beat)\s+([a-z0-9\s]+?)(?:\s+(?:squad|team|players|best player|top scorer|assists))?$/i);
-
-    if (isOpponentQuery || scoutClubMatch) {
-      let upcomingMatch: any = null;
-
-      if (isOpponentQuery) {
-        upcomingMatch = await prisma.match.findFirst({
-          where: {
-            OR: [{ homeClubId: club.id }, { awayClubId: club.id }],
-            status: "UPCOMING",
-          },
-          orderBy: { matchday: "asc" },
-          include: {
-            homeClub: {
-              include: {
-                manager: { select: { username: true } },
-                players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
-              },
-            },
-            awayClub: {
-              include: {
-                manager: { select: { username: true } },
-                players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
-              },
-            },
-            season: {
-              include: { competitionSeason: true },
-            },
-          },
-        });
-      }
-
-      let oppClub: any = null;
-      let isHome = true;
-
-      if (upcomingMatch) {
-        isHome = upcomingMatch.homeClubId === club.id;
-        oppClub = isHome ? upcomingMatch.awayClub : upcomingMatch.homeClub;
-      } else if (scoutClubMatch) {
-        const queryClubName = scoutClubMatch[1].trim();
-        oppClub = await prisma.club.findFirst({
-          where: {
-            name: { contains: queryClubName, mode: "insensitive" },
-            id: { not: club.id },
-          },
-          include: {
-            manager: { select: { username: true } },
-            players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
-          },
-        });
-      }
-
-      if (!oppClub && isOpponentQuery) {
-        oppClub = await prisma.club.findFirst({
-          where: {
-            leagueId: club.leagueId,
-            id: { not: club.id },
-          },
-          include: {
-            manager: { select: { username: true } },
-            players: { where: { status: "REGISTERED" }, orderBy: [{ overallRating: "desc" }, { fullName: "asc" }] },
-          },
-        });
-      }
-
-      if (!oppClub) {
-        return NextResponse.json({
-          reply: `⚔️ **Opposition Scouting Report**:\n\n` +
-            `No matching rival club or upcoming fixture was found. Try specifying a club name like *"Scout Chelsea"* or *"Scout Real Madrid"*.`,
-        });
-      }
-
-      const oppPlayers = oppClub.players;
-      const isGK = (pos: string) => /gk/i.test(pos);
-      const isDEF = (pos: string) => /cb|lb|rb|def/i.test(pos);
-      const isMID = (pos: string) => /dmf|cmf|amf|mid/i.test(pos);
-      const isATT = (pos: string) => /cf|st|lwf|rwf|att|fw/i.test(pos);
-
-      const calcAvg = (arr: Array<{ position: string; overallRating: number | null }>) => {
-        if (arr.length === 0) return 0;
-        const total = arr.reduce((sum: number, p: { overallRating: number | null }) => sum + (p.overallRating ?? 75), 0);
-        return Math.round(total / arr.length);
-      };
-
-      const oppOverall = calcAvg(oppPlayers);
-      const oppGk = calcAvg(oppPlayers.filter((p: any) => isGK(p.position)));
-      const oppDef = calcAvg(oppPlayers.filter((p: any) => isDEF(p.position)));
-      const oppMid = calcAvg(oppPlayers.filter((p: any) => isMID(p.position)));
-      const oppAtt = calcAvg(oppPlayers.filter((p: any) => isATT(p.position)));
-
-      const bestPlayers = oppPlayers.slice(0, 4);
-
-      const [oppGoals, oppAssists] = await Promise.all([
-        prisma.matchEvent.findMany({
-          where: { clubId: oppClub.id, type: "GOAL" },
-          include: { player: { select: { fullName: true, position: true, overallRating: true } } },
-        }),
-        prisma.matchEvent.findMany({
-          where: {
-            clubId: oppClub.id,
-            OR: [{ type: "ASSIST" }, { assistPlayerId: { not: null } }],
-          },
-          include: {
-            assistPlayer: { select: { fullName: true, position: true, overallRating: true } },
-            player: { select: { fullName: true, position: true, overallRating: true } },
-          },
-        }),
-      ]);
-
-      const goalCounts: Record<string, { name: string; goals: number; pos: string }> = {};
-      for (const e of oppGoals) {
-        if (e.player) {
-          if (!goalCounts[e.player.fullName]) {
-            goalCounts[e.player.fullName] = { name: e.player.fullName, goals: 0, pos: e.player.position };
-          }
-          goalCounts[e.player.fullName].goals++;
-        }
-      }
-      const topScorersList = Object.values(goalCounts).sort((a, b) => b.goals - a.goals).slice(0, 3);
-
-      const assistCounts: Record<string, { name: string; assists: number; pos: string }> = {};
-      for (const e of oppAssists) {
-        const p = e.assistPlayer || (e.type === "ASSIST" ? e.player : null);
-        if (p) {
-          if (!assistCounts[p.fullName]) {
-            assistCounts[p.fullName] = { name: p.fullName, assists: 0, pos: p.position };
-          }
-          assistCounts[p.fullName].assists++;
-        }
-      }
-      const topAssistsList = Object.values(assistCounts).sort((a, b) => b.assists - a.assists).slice(0, 3);
-
-      const reply = `⚔️ **Opposition Scouting Report: ${oppClub.name}**\n\n` +
-        (upcomingMatch
-          ? `🏟️ **Matchday**: ${upcomingMatch.matchday} (${isHome ? "HOME 🏠" : "AWAY ✈️"})\n`
-          : `🏟️ **Scouting Target**: Rival Club in ${club.league.name}\n`) +
-        `👤 **Manager**: @${oppClub.manager?.username ?? "No Manager"}\n\n` +
-        `📊 **Squad Tactical Ratings**:\n` +
-        `• Overall Squad Quality: **${oppOverall} OVR** (${oppPlayers.length} registered players)\n` +
-        `• 🧤 Goalkeeper: **${oppGk || "—"} OVR**\n` +
-        `• 🛡️ Defense: **${oppDef || "—"} OVR**\n` +
-        `• ⚙️ Midfield: **${oppMid || "—"} OVR**\n` +
-        `• ⚡ Attack: **${oppAtt || "—"} OVR**\n\n` +
-        `⭐ **Key Danger Men (Best Players)**:\n` +
-        (bestPlayers.length > 0
-          ? bestPlayers
-              .map((p: any, i: number) => `${i + 1}. **${p.fullName}** (\`${p.position.toUpperCase()}\` | **${p.overallRating ?? "Unrated"} OVR**)`)
-              .join("\n")
-          : "No registered players in squad yet.") +
-        `\n\n🎯 **Top Goalscorers**:\n` +
-        (topScorersList.length > 0
-          ? topScorersList.map((g, i) => `${i + 1}. **${g.name}** (\`${g.pos.toUpperCase()}\`) — **${g.goals} Goals** ⚽`).join("\n")
-          : "No goals recorded yet this season.") +
-        `\n\n👟 **Top Assist Providers**:\n` +
-        (topAssistsList.length > 0
-          ? topAssistsList.map((a, i) => `${i + 1}. **${a.name}** (\`${a.pos.toUpperCase()}\`) — **${a.assists} Assists** 👟`).join("\n")
-          : "No assists recorded yet this season.") +
-        `\n\n💡 **Chief Scout Match Plan & Counter-Strategy**:\n` +
-        `• **Recommended Formation**: ${oppDef < 78 ? "4-3-3 Fast Counter-Attack" : "4-2-3-1 Midfield Overload"}\n` +
-        `• **Area to Exploit**: ${oppDef < 78 ? "Vertical channels behind their center backs" : "Wide overloads and cutback crosses"}\n` +
-        `• **Player to Mark**: ${topScorersList[0]?.name || bestPlayers[0]?.fullName || "Primary Attacker"}\n` +
-        `• **Tactical Instruction**: ${isHome ? "Press high from kickoff to force defensive turnover." : "Maintain compact mid-block and strike on fast breakaways."}`;
-
-      return NextResponse.json({ reply });
-    }
-
-    // ── 4. MULTI-FILTER DATABASE SEARCH QUERY BUILDER ─────────────────────
-    const buildPosFilter = () => {
-      if (!positionCategory) return undefined;
-      switch (positionCategory) {
-        case "GK":
-          return { position: { contains: "gk", mode: "insensitive" as const } };
-        case "CB":
-          return { position: { contains: "cb", mode: "insensitive" as const } };
-        case "LB":
-          return { position: { contains: "lb", mode: "insensitive" as const } };
-        case "RB":
-          return { position: { contains: "rb", mode: "insensitive" as const } };
-        case "DEF":
-          return {
-            OR: [
-              { position: { contains: "cb", mode: "insensitive" as const } },
-              { position: { contains: "lb", mode: "insensitive" as const } },
-              { position: { contains: "rb", mode: "insensitive" as const } },
-              { position: { contains: "def", mode: "insensitive" as const } },
-            ],
-          };
-        case "DMF":
-          return { position: { contains: "dmf", mode: "insensitive" as const } };
-        case "AMF":
-          return { position: { contains: "amf", mode: "insensitive" as const } };
-        case "CF":
-          return {
-            OR: [
-              { position: { contains: "cf", mode: "insensitive" as const } },
-              { position: { contains: "st", mode: "insensitive" as const } },
-            ],
-          };
-        case "LWF":
-          return {
-            OR: [
-              { position: { contains: "lwf", mode: "insensitive" as const } },
-              { position: { contains: "lw", mode: "insensitive" as const } },
-            ],
-          };
-        case "RWF":
-          return {
-            OR: [
-              { position: { contains: "rwf", mode: "insensitive" as const } },
-              { position: { contains: "rw", mode: "insensitive" as const } },
-            ],
-          };
-        case "MID":
-          return {
-            OR: [
-              { position: { contains: "cmf", mode: "insensitive" as const } },
-              { position: { contains: "dmf", mode: "insensitive" as const } },
-              { position: { contains: "amf", mode: "insensitive" as const } },
-              { position: { contains: "mid", mode: "insensitive" as const } },
-            ],
-          };
-        case "ATT":
-          return {
-            OR: [
-              { position: { contains: "cf", mode: "insensitive" as const } },
-              { position: { contains: "st", mode: "insensitive" as const } },
-              { position: { contains: "lwf", mode: "insensitive" as const } },
-              { position: { contains: "rwf", mode: "insensitive" as const } },
-              { position: { contains: "lw", mode: "insensitive" as const } },
-              { position: { contains: "rw", mode: "insensitive" as const } },
-            ],
-          };
-        default:
-          return undefined;
-      }
-    };
-
-    const posFilter = buildPosFilter();
-
-    const freeAgentsWhere: any = {
-      status: "AVAILABLE",
-      pmbClubId: null,
-    };
-    if (posFilter) Object.assign(freeAgentsWhere, posFilter);
-    if (nationalityFilter) freeAgentsWhere.nationality = { contains: nationalityFilter, mode: "insensitive" };
-    if (minRating) freeAgentsWhere.overallRating = { gte: minRating };
-    if (maxPriceEur) freeAgentsWhere.marketValue = { lte: maxPriceEur };
-
-    const rivalWhere: any = {
-      status: "REGISTERED",
-      pmbClubId: { not: club.id },
-    };
-    if (posFilter) Object.assign(rivalWhere, posFilter);
-    if (nationalityFilter) rivalWhere.nationality = { contains: nationalityFilter, mode: "insensitive" };
-    if (minRating) rivalWhere.overallRating = { gte: minRating };
-    if (maxPriceEur) rivalWhere.marketValue = { lte: maxPriceEur };
-
-    const [matchedFreeAgents, rivalPlayers] = await Promise.all([
-      prisma.player.findMany({
-        where: freeAgentsWhere,
-        orderBy: [{ overallRating: "desc" }, { marketValue: "asc" }],
-        take: 8,
-        include: { pmbClub: { select: { name: true } } },
-      }),
-      prisma.player.findMany({
-        where: rivalWhere,
-        orderBy: [{ overallRating: "desc" }, { fullName: "asc" }],
-        take: 8,
-        include: { pmbClub: { select: { name: true } } },
-      }),
-    ]);
-
-    if (positionCategory || nationalityFilter || minRating || maxPriceEur) {
-      const criteriaList = [
-        nationalityFilter ? `Nationality: **${nationalityFilter}**` : null,
-        positionCategory ? `Position: **${positionCategory}**` : null,
-        minRating ? `Rating: **${minRating}+ OVR**` : null,
-        maxPriceEur ? `Max Price: **€${(maxPriceEur / 1_000_000).toFixed(1)}M**` : null,
-      ]
-        .filter(Boolean)
-        .join(" | ");
-
-      let sectionCount = 0;
-      let body = `🔍 **PMB Player Database Search Results** (${criteriaList}):\n\n`;
-
-      if (matchedFreeAgents.length > 0) {
-        sectionCount++;
-        body += `🟢 **Available Free Agents in Database (${matchedFreeAgents.length})**:\n`;
-        body += matchedFreeAgents
-          .map(
-            (p, i) =>
-              `${i + 1}. **${p.fullName}** — \`${p.position.toUpperCase()}\` | **${p.overallRating ? p.overallRating + " OVR" : "Unrated"}**\n` +
-              `   • Nationality: *${p.nationality}* | Real Club: *${p.realClub}*\n` +
-              `   • In-Game Value: **€${(Number(p.marketValue ?? 0) / 1_000_000).toFixed(1)}M** ` +
-              `(${Number(p.marketValue ?? 0) <= budgetNum ? "✅ Affordable" : "❌ Exceeds Budget"})`
-          )
-          .join("\n\n");
-        body += "\n\n";
-      }
-
-      if (rivalPlayers.length > 0) {
-        sectionCount++;
-        body += `🟡 **Rival Club Targets in Database (Transfer / Loan Prospects)**:\n`;
-        body += rivalPlayers
-          .map(
-            (p, i) =>
-              `${i + 1}. **${p.fullName}** — \`${p.position.toUpperCase()}\` | **${p.overallRating ? p.overallRating + " OVR" : "Unrated"}**\n` +
-              `   • Nationality: *${p.nationality}* | Club: **${p.pmbClub?.name ?? "Other Club"}**\n` +
-              `   • In-Game Value: **€${(Number(p.marketValue ?? 0) / 1_000_000).toFixed(1)}M** ` +
-              `(${Number(p.marketValue ?? 0) <= budgetNum ? "✅ Affordable" : "❌ Exceeds Budget"})`
-          )
-          .join("\n\n");
-        body += "\n\n";
-      }
-
-      if (sectionCount === 0) {
-        body = `❌ **No Database Matches Found**:\n\n` +
-          `No players in your database matched all these criteria:\n` +
-          (nationalityFilter ? `• Nationality: **${nationalityFilter}**\n` : "") +
-          (positionCategory ? `• Position: **${positionCategory}**\n` : "") +
-          (minRating ? `• Minimum Rating: **${minRating}+ OVR**\n` : "") +
-          (maxPriceEur ? `• Max Price: **€${(maxPriceEur / 1_000_000).toFixed(1)}M**\n` : "") +
-          `\n💡 *Tip: Try searching without price caps or check the visual search hub for all options.*`;
-      } else {
-        body += `💡 *All players listed above exist in your PMB database and match your exact search criteria.*`;
-      }
-
-      return NextResponse.json({ reply: body });
-    }
-
-    if (lower.includes("squad") || lower.includes("team") || lower.includes("my players")) {
-      const reply = `📋 **Your Registered Squad Database (${club.name})**:\n\n` +
-        (club.players.length > 0
-          ? club.players
-              .map(
-                (p, idx) =>
-                  `${idx + 1}. **${p.fullName}** — \`${p.position.toUpperCase()}\` | **${p.overallRating ? p.overallRating + " OVR" : "Unrated"}** | Nationality: *${p.nationality}*`
-              )
-              .join("\n") +
-            `\n\n💰 **Available Transfer Budget**: **€${budgetEur}M**`
-          : "You currently have 0 registered players in your database.");
-      return NextResponse.json({ reply });
-    }
-
-    const reply = `🤖 **PMB Chief Scout & Sporting Intelligence Director**:\n\n` +
-      `I am connected directly to your **PMB PostgreSQL Player Database (422 total players)** and your club **${club.name}** (Budget: €${budgetEur}M).\n\n` +
-      `Try asking me anything:\n` +
-      `• *"Show me Moroccan goalkeepers"*\n` +
-      `• *"Find French CBs rated 80+"*\n` +
-      `• *"Show the best player I can afford"*\n` +
-      `• *"Find alternatives to my CF"*\n` +
-      `• *"Scout my next opponent"*\n` +
-      `• *"Scout Chelsea"*\n` +
-      `• *"What if I spend 20M?"*`;
-
-    return NextResponse.json({ reply });
-  } catch (error) {
-    console.error("Failed to process scouting chat:", error);
+  } catch (error: any) {
+    console.error("[Chief Scout Chat Route Error]:", error);
     return NextResponse.json(
-      { error: "Failed to process chat message" },
+      { error: error.message || "Failed to process scouting message" },
       { status: 500 }
     );
   }

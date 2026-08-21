@@ -9,6 +9,21 @@ export type CreateAuctionInput = {
   durationMinutes: number;
 };
 
+export type CreateAuctionWithPlayerInput = {
+  playerId?: string;
+  newPlayer?: {
+    fullName: string;
+    position: string;
+    overallRating: number;
+    nationality: string;
+    realClub: string;
+    photo?: string | null;
+  };
+  startingPrice: number;
+  minIncrement?: number;
+  durationMinutes: number;
+};
+
 export type PlaceBidInput = {
   auctionId: string;
   userId: string;
@@ -17,42 +32,97 @@ export type PlaceBidInput = {
 };
 
 /**
- * Creates and starts a new live auction for a free agent player.
+ * Creates and starts a new live auction, with contract check and on-the-fly player creation.
  */
-export async function createAuction(adminUserId: string, input: CreateAuctionInput) {
+export async function createAuctionWithPlayer(adminUserId: string, input: CreateAuctionWithPlayerInput) {
+  let resolvedPlayerId = input.playerId;
+
+  if (!resolvedPlayerId && input.newPlayer) {
+    const rawName = input.newPlayer.fullName?.trim();
+    if (!rawName) {
+      throw new Error("Player name is required.");
+    }
+
+    // Check if player with this exact/case-insensitive name already exists in database
+    const existing = await prisma.player.findFirst({
+      where: {
+        fullName: {
+          equals: rawName,
+          mode: "insensitive",
+        },
+      },
+      include: {
+        pmbClub: { select: { name: true } },
+      },
+    });
+
+    if (existing) {
+      if (existing.pmbClubId != null && existing.status === "REGISTERED") {
+        throw new Error(
+          `Impossible: Player '${existing.fullName}' is currently registered to '${existing.pmbClub?.name}'. Players with active club contracts cannot be placed on auction.`
+        );
+      }
+      resolvedPlayerId = existing.id;
+    } else {
+      // Create new player in database
+      const created = await prisma.player.create({
+        data: {
+          fullName: rawName,
+          position: (input.newPlayer.position || "CF").trim().toUpperCase(),
+          overallRating: Number(input.newPlayer.overallRating) || 75,
+          nationality: (input.newPlayer.nationality || "Morocco").trim(),
+          realClub: (input.newPlayer.realClub || "Free Agent").trim(),
+          photo: input.newPlayer.photo?.trim() || null,
+          marketValue: new Prisma.Decimal(input.startingPrice),
+          status: "AVAILABLE",
+          pmbClubId: null,
+        },
+      });
+      resolvedPlayerId = created.id;
+    }
+  }
+
+  if (!resolvedPlayerId) {
+    throw new Error("No player specified for auction.");
+  }
+
   const player = await prisma.player.findUnique({
-    where: { id: input.playerId },
-    select: { id: true, fullName: true, pmbClubId: true, status: true },
+    where: { id: resolvedPlayerId },
+    include: {
+      pmbClub: { select: { name: true } },
+    },
   });
 
   if (!player) {
-    throw new Error("Player not found.");
+    throw new Error("Player not found in database.");
   }
 
   if (player.pmbClubId != null && player.status === "REGISTERED") {
-    throw new Error("Only unattached / free agent players can be placed on auction.");
+    throw new Error(
+      `Impossible: Player '${player.fullName}' is currently registered to '${player.pmbClub?.name}'. Players with active club contracts cannot be placed on auction.`
+    );
   }
 
   // Check if there is already an active auction for this player
   const existingActive = await prisma.auction.findFirst({
     where: {
-      playerId: input.playerId,
+      playerId: resolvedPlayerId,
       status: "ACTIVE",
     },
   });
 
   if (existingActive) {
-    throw new Error("This player already has an active auction.");
+    throw new Error(`Player '${player.fullName}' already has an active live auction.`);
   }
 
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + input.durationMinutes * 60 * 1000);
+  const expiresAt = new Date(now.getTime() + (input.durationMinutes || 15) * 60 * 1000);
   const startingPrice = new Prisma.Decimal(input.startingPrice);
   const minIncrement = new Prisma.Decimal(input.minIncrement ?? 500000);
 
   const auction = await prisma.auction.create({
     data: {
-      playerId: input.playerId,
+      playerId: resolvedPlayerId,
       adminUserId,
       startingPrice,
       minIncrement,
@@ -68,6 +138,13 @@ export async function createAuction(adminUserId: string, input: CreateAuctionInp
   });
 
   return auction;
+}
+
+/**
+ * Creates and starts a new live auction for a free agent player.
+ */
+export async function createAuction(adminUserId: string, input: CreateAuctionInput) {
+  return createAuctionWithPlayer(adminUserId, input);
 }
 
 /**

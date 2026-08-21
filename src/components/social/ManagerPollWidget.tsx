@@ -82,33 +82,41 @@ export function ManagerPollWidget() {
           className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pmb-dark-surface via-pmb-black to-pmb-dark-surface border-2 border-pmb-gold/50 shadow-xl shadow-pmb-gold/10 p-5 space-y-4"
         >
           {/* Header */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🗳️</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏆</span>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-pmb-gold/20 text-pmb-gold border border-pmb-gold/30">
                     Official PMB Vote
                   </span>
-                  <span className="text-xs text-gray-500 font-medium">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    60% AI Score + 40% Community Vote
+                  </span>
+                  <span className="text-xs text-gray-400 font-medium">
                     {poll.totalVotes} {poll.totalVotes === 1 ? "vote" : "votes"}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-white tracking-tight mt-0.5">
+                <h3 className="text-base font-bold text-white tracking-tight mt-1">
                   {poll.title}
                 </h3>
               </div>
             </div>
 
-            {poll.hasVoted && (
-              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
-                <span>✓</span> Voted
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-pmb-gold/10 text-pmb-gold border border-pmb-gold/20">
+                💰 Prize: €1,000,000
               </span>
-            )}
+              {poll.hasVoted && (
+                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span>✓</span> Voted
+                </span>
+              )}
+            </div>
           </div>
 
           {poll.description && (
-            <p className="text-xs text-gray-400">{poll.description}</p>
+            <p className="text-xs text-gray-300 leading-relaxed">{poll.description}</p>
           )}
 
           {/* Candidates List */}

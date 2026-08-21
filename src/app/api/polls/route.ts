@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { TeamOfTheMonthService } from "@/lib/services/team-of-month-service";
 
 export const dynamic = "force-dynamic";
 
@@ -9,49 +10,12 @@ export async function GET() {
   try {
     const session = await auth();
 
-    const polls = await prisma.managerPoll.findMany({
-      where: { isActive: true },
-      include: {
-        options: {
-          orderBy: { voteCount: "desc" },
-        },
-        votes: session?.user?.id
-          ? {
-              where: { userId: session.user.id },
-            }
-          : false,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const globalPoll = await TeamOfTheMonthService.getOrGenerateMonthlyPoll(session?.user?.id);
+    if (globalPoll) {
+      return NextResponse.json({ polls: [globalPoll] });
+    }
 
-    const enrichedPolls = polls.map((poll) => {
-      const totalVotes = poll.options.reduce((sum, opt) => sum + opt.voteCount, 0);
-      const userVotedOptionId =
-        poll.votes && poll.votes.length > 0 ? poll.votes[0].optionId : null;
-
-      return {
-        id: poll.id,
-        title: poll.title,
-        description: poll.description,
-        month: poll.month,
-        totalVotes,
-        userVotedOptionId,
-        hasVoted: Boolean(userVotedOptionId),
-        options: poll.options.map((opt) => ({
-          id: opt.id,
-          managerId: opt.managerId,
-          managerName: opt.managerName,
-          clubName: opt.clubName,
-          clubLogo: opt.clubLogo,
-          statement: opt.statement,
-          voteCount: opt.voteCount,
-          percentage:
-            totalVotes > 0 ? Math.round((opt.voteCount / totalVotes) * 100) : 0,
-        })),
-      };
-    });
-
-    return NextResponse.json({ polls: enrichedPolls });
+    return NextResponse.json({ polls: [] });
   } catch (error) {
     console.error("Error fetching polls:", error);
     return NextResponse.json({ error: "Failed to fetch polls" }, { status: 500 });

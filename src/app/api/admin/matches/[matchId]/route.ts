@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { applyMatchRewards } from "@/lib/services/match-reward-service";
+import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 import { MatchEventType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -180,6 +181,11 @@ export async function PATCH(
     );
 
     return updatedMatch;
+  });
+
+  // Automatically generate breaking post-match report, Ultras comments & manager inbox direct messages
+  UltrasSocialService.publishPostMatchReport(params.matchId).catch((err) => {
+    console.error("[MatchdayAdmin] Failed to trigger Ultras post-match report:", err);
   });
 
   return NextResponse.json({ success: true, match: updated });

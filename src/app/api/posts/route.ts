@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { PostTag } from "@prisma/client";
+import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,13 @@ export async function POST(req: Request) {
         reactions: true,
       },
     });
+
+    // Automatically trigger AI Ultras reaction comment if posted by a club manager
+    if (!session.user.username.includes("_ultras") && session.user.username !== "pmb_sports_media") {
+      UltrasSocialService.respondToManagerPost(newPost.id).catch((err) => {
+        console.error("[PostsAPI] Failed to trigger AI Ultras reply:", err);
+      });
+    }
 
     return NextResponse.json({ post: newPost }, { status: 201 });
   } catch (error) {

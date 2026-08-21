@@ -5,6 +5,7 @@ import {
   TransferServiceError,
 } from "@/lib/services/transfer-service";
 import { serializeTransfer } from "@/lib/serialize-transfer";
+import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 
 export async function POST(
   req: Request,
@@ -40,6 +41,20 @@ export async function POST(
 
   try {
     const transfer = await completeTransfer(session.user.id, id);
+
+    // Automatically trigger "Here We Go!" breaking news post and Ultras reactions
+    UltrasSocialService.publishTransferAnnouncement({
+      playerName: transfer.playerName,
+      position: "Target",
+      overallRating: 78,
+      feeEur: Number(transfer.fee || 0),
+      fromClubName: transfer.fromClubName,
+      toClubName: transfer.toClubName,
+      buyerClubId: transfer.toClubId,
+      transferType: transfer.type,
+    }).catch((err) => {
+      console.error("[TransferComplete] Failed to trigger Ultras transfer announcement:", err);
+    });
 
     return NextResponse.json({
       transfer: serializeTransfer(transfer),
