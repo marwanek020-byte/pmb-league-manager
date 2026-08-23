@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { ClubBadge } from "@/components/ClubBadge";
 
 type TotwPlayerItem = {
@@ -38,6 +37,54 @@ type Props = {
   totalMatchdays: number;
 };
 
+function TotwPlayerAvatar({
+  photo,
+  fullName,
+  isMotm,
+}: {
+  photo: string | null;
+  fullName: string;
+  isMotm: boolean;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const initials = fullName
+    ? fullName
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase() || "P"
+    : "P";
+
+  return (
+    <div className="relative w-11 h-11 sm:w-13 sm:h-13 my-0.5 flex-shrink-0 flex items-center justify-center">
+      {photo && !imgError ? (
+        <img
+          src={photo}
+          alt=""
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover rounded-full border-2 border-pmb-gold/50 shadow-inner"
+        />
+      ) : (
+        <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-500/30 via-pmb-dark-surface to-black flex items-center justify-center text-xs font-black text-pmb-gold border border-pmb-gold/40 shadow-sm shadow-pmb-gold/20">
+          {initials}
+        </div>
+      )}
+
+      {/* MOTM Star badge */}
+      {isMotm && (
+        <span
+          className="absolute -top-1 -right-1 text-[10px] bg-pmb-black/90 rounded-full p-0.5 border border-pmb-gold shadow-sm animate-pulse z-10"
+          title="Man of the Match"
+        >
+          ⭐
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) {
   const [matchday, setMatchday] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -45,6 +92,7 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
   const [availableDays, setAvailableDays] = useState<number[]>([]);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [adminCandidates, setAdminCandidates] = useState<any[]>([]);
+  const [suggestedLineup, setSuggestedLineup] = useState<any[]>([]);
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
 
@@ -81,8 +129,9 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
     try {
       const res = await fetch(`/api/admin/totw?seasonId=${seasonId}&matchday=${matchday}`);
       const data = await res.json();
-      if (res.ok && data.candidates) {
-        setAdminCandidates(data.candidates);
+      if (res.ok) {
+        if (data.candidates) setAdminCandidates(data.candidates);
+        if (data.suggestedLineup) setSuggestedLineup(data.suggestedLineup);
       }
     } catch (err) {
       console.error(err);
@@ -91,76 +140,74 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
 
   // Admin: auto-generate & publish TOTW
   async function handleAutoGenerate() {
-    if (adminCandidates.length < 11) {
-      setAdminMessage("Need at least 11 player candidates from completed matches.");
+    if (adminCandidates.length === 0) {
+      setAdminMessage("No candidates found for this matchday. Please record match results first.");
       return;
     }
 
     setAdminSaving(true);
     try {
-      // Pick top performers by position
-      const gks = adminCandidates.filter((c) => c.position === "GK");
-      const defs = adminCandidates.filter((c) => ["CB", "LB", "RB"].includes(c.position));
-      const mids = adminCandidates.filter((c) => ["DMF", "CMF", "AMF", "LMF", "RMF"].includes(c.position));
-      const fwds = adminCandidates.filter((c) => ["CF", "SS", "LWF", "RWF"].includes(c.position));
+      let payloadPlayers: any[] = [];
 
-      // Fallbacks if positional count is low
-      const selectedGk = gks[0] || adminCandidates[0];
-      const remaining1 = adminCandidates.filter((c) => c.playerId !== selectedGk.playerId);
+      // Use suggested lineup from backend if available (guaranteed 11 unique players)
+      if (suggestedLineup.length === 11) {
+        payloadPlayers = suggestedLineup.map((slot) => ({
+          playerId: slot.player.playerId,
+          clubId: slot.player.clubId,
+          position: slot.key,
+          ratingBoost: 2,
+          goalsInMatchday: slot.player.goals || 0,
+          assistsInMatchday: slot.player.assists || 0,
+          isMotm: slot.player.isMotm || false,
+        }));
+      } else {
+        // Fallback frontend deduplication
+        const usedIds = new Set<string>();
+        const pick = (candidates: any[]) => {
+          for (const c of candidates) {
+            if (!usedIds.has(c.playerId)) {
+              usedIds.add(c.playerId);
+              return c;
+            }
+          }
+          return null;
+        };
 
-      const selectedDefs = defs.slice(0, 4);
-      while (selectedDefs.length < 4 && remaining1.length > 0) {
-        const next = remaining1.find((c) => !selectedDefs.some((d) => d.playerId === c.playerId));
-        if (next) selectedDefs.push(next);
-        else break;
+        const gks = adminCandidates.filter((c) => c.normalizedGroup === "GK" || c.position === "GK");
+        const defs = adminCandidates.filter((c) => c.normalizedGroup === "DEF" || ["CB", "LB", "RB"].includes(c.position));
+        const mids = adminCandidates.filter((c) => c.normalizedGroup === "MID" || ["DMF", "CMF", "AMF"].includes(c.position));
+        const fwds = adminCandidates.filter((c) => c.normalizedGroup === "FWD" || ["CF", "SS", "LWF", "RWF"].includes(c.position));
+
+        const slots = [
+          { key: "GK", p: pick(gks) || pick(adminCandidates) },
+          { key: "LB", p: pick(defs) || pick(mids) || pick(adminCandidates) },
+          { key: "CB1", p: pick(defs) || pick(mids) || pick(adminCandidates) },
+          { key: "CB2", p: pick(defs) || pick(mids) || pick(adminCandidates) },
+          { key: "RB", p: pick(defs) || pick(mids) || pick(adminCandidates) },
+          { key: "DMF", p: pick(mids) || pick(defs) || pick(adminCandidates) },
+          { key: "CMF", p: pick(mids) || pick(adminCandidates) },
+          { key: "AMF", p: pick(mids) || pick(fwds) || pick(adminCandidates) },
+          { key: "LWF", p: pick(fwds) || pick(mids) || pick(adminCandidates) },
+          { key: "CF", p: pick(fwds) || pick(adminCandidates) },
+          { key: "RWF", p: pick(fwds) || pick(mids) || pick(adminCandidates) },
+        ];
+
+        payloadPlayers = slots.filter((s) => s.p !== null).map((s) => ({
+          playerId: s.p.playerId,
+          clubId: s.p.clubId,
+          position: s.key,
+          ratingBoost: 2,
+          goalsInMatchday: s.p.goals || 0,
+          assistsInMatchday: s.p.assists || 0,
+          isMotm: s.p.isMotm || false,
+        }));
       }
 
-      const selectedMids = mids.slice(0, 3);
-      while (selectedMids.length < 3 && remaining1.length > 0) {
-        const next = remaining1.find(
-          (c) =>
-            !selectedDefs.some((d) => d.playerId === c.playerId) &&
-            !selectedMids.some((m) => m.playerId === c.playerId)
-        );
-        if (next) selectedMids.push(next);
-        else break;
+      if (payloadPlayers.length < 11) {
+        setAdminMessage(`Need 11 unique players (only found ${payloadPlayers.length}).`);
+        setAdminSaving(false);
+        return;
       }
-
-      const selectedFwds = fwds.slice(0, 3);
-      while (selectedFwds.length < 3 && remaining1.length > 0) {
-        const next = remaining1.find(
-          (c) =>
-            !selectedDefs.some((d) => d.playerId === c.playerId) &&
-            !selectedMids.some((m) => m.playerId === c.playerId) &&
-            !selectedFwds.some((f) => f.playerId === c.playerId)
-        );
-        if (next) selectedFwds.push(next);
-        else break;
-      }
-
-      const positions = [
-        { key: "GK", player: selectedGk },
-        { key: "LB", player: selectedDefs[0] || remaining1[0] },
-        { key: "CB1", player: selectedDefs[1] || remaining1[1] },
-        { key: "CB2", player: selectedDefs[2] || remaining1[2] },
-        { key: "RB", player: selectedDefs[3] || remaining1[3] },
-        { key: "DMF", player: selectedMids[0] || remaining1[4] },
-        { key: "CMF", player: selectedMids[1] || remaining1[5] },
-        { key: "AMF", player: selectedMids[2] || remaining1[6] },
-        { key: "LWF", player: selectedFwds[0] || remaining1[7] },
-        { key: "CF", player: selectedFwds[1] || remaining1[8] },
-        { key: "RWF", player: selectedFwds[2] || remaining1[9] },
-      ];
-
-      const payloadPlayers = positions.map((pos) => ({
-        playerId: pos.player.playerId,
-        clubId: pos.player.clubId,
-        position: pos.key,
-        ratingBoost: 2,
-        goalsInMatchday: pos.player.goals || 0,
-        assistsInMatchday: pos.player.assists || 0,
-        isMotm: pos.player.isMotm || false,
-      }));
 
       const res = await fetch(`/api/admin/totw`, {
         method: "POST",
@@ -208,48 +255,29 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
       );
     }
 
-    const boostedOvr = (item.player.overallRating || 75) + (item.ratingBoost || 2);
+    const boostedOvr = (item.player.overallRating || 76) + (item.ratingBoost || 2);
 
     return (
-      <div className="group relative flex flex-col items-center justify-between w-20 h-28 sm:w-24 sm:h-34 p-1.5 rounded-xl bg-gradient-to-b from-pmb-gold/30 via-pmb-dark-surface to-pmb-black border border-pmb-gold/70 shadow-lg shadow-pmb-gold/20 hover:scale-110 hover:z-20 transition-all duration-300">
+      <div className="group relative flex flex-col items-center justify-between w-20 h-28 sm:w-24 sm:h-34 p-1.5 rounded-xl bg-gradient-to-b from-pmb-gold/25 via-pmb-dark-surface to-pmb-black border border-pmb-gold/70 shadow-lg shadow-pmb-gold/20 hover:scale-110 hover:z-20 transition-all duration-300">
         {/* Holographic animated sheen */}
         <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-transparent via-pmb-gold/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-        {/* Top Header: OVR + Position */}
+        {/* Top Header: OVR + Tactical Slot */}
         <div className="flex items-center justify-between w-full px-0.5">
           <span className="text-[11px] sm:text-xs font-black text-pmb-gold tracking-tight">
             {boostedOvr}
           </span>
-          <span className="text-[9px] font-bold text-gray-300 uppercase">
-            {item.player.position || defaultLabel}
+          <span className="text-[9px] font-black text-gray-200 bg-black/50 px-1 py-0.2 rounded border border-white/10 uppercase">
+            {slotKey}
           </span>
         </div>
 
-        {/* Player Avatar */}
-        <div className="relative w-11 h-11 sm:w-13 sm:h-13 my-0.5">
-          {item.player.photo ? (
-            <Image
-              src={item.player.photo}
-              alt={item.player.fullName}
-              fill
-              className="object-cover rounded-full border border-pmb-gold/40"
-            />
-          ) : (
-            <div className="w-full h-full rounded-full bg-pmb-gold/20 flex items-center justify-center text-xs font-bold text-pmb-gold border border-pmb-gold/30">
-              {item.player.fullName.charAt(0)}
-            </div>
-          )}
-
-          {/* MOTM Star badge */}
-          {item.isMotm && (
-            <span
-              className="absolute -top-1 -right-1 text-[10px] bg-pmb-black/80 rounded-full p-0.5 border border-pmb-gold"
-              title="Man of the Match"
-            >
-              ⭐
-            </span>
-          )}
-        </div>
+        {/* Player Avatar with graceful error fallback */}
+        <TotwPlayerAvatar
+          photo={item.player.photo}
+          fullName={item.player.fullName}
+          isMotm={item.isMotm}
+        />
 
         {/* Player Name & Club */}
         <div className="w-full text-center">
@@ -413,10 +441,37 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
             </div>
 
             <p className="text-xs text-gray-400">
-              The system automatically selects the highest-scoring players based on goals, assists, clean sheets, and Man of the Match awards for Matchday {matchday}.
+              The system automatically selects the highest-scoring unique players across Goalkeepers, Defenders, Midfielders, and Forwards based on matchday performance.
             </p>
 
-            {adminCandidates.length > 0 ? (
+            {suggestedLineup.length > 0 ? (
+              <div className="max-h-60 overflow-y-auto space-y-1.5 p-2 bg-pmb-dark rounded-xl border border-pmb-border text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-pmb-gold px-2">
+                  Selected Starting 11 by Position ({suggestedLineup.length}/11)
+                </span>
+                {suggestedLineup.map((slot) => (
+                  <div
+                    key={slot.key}
+                    className="flex items-center justify-between p-2 rounded-lg bg-pmb-dark-surface/60 border border-pmb-border/40"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-pmb-gold w-10 text-[10px] px-1.5 py-0.5 rounded bg-black/40 border border-pmb-gold/30 text-center">
+                        {slot.key}
+                      </span>
+                      <span className="font-semibold text-white">{slot.player.fullName}</span>
+                      <span className="text-[10px] text-gray-400">({slot.player.position})</span>
+                      <span className="text-[10px] text-gray-500">{slot.player.clubName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-bold">
+                      {slot.player.goals > 0 && <span className="text-emerald-400">⚽ {slot.player.goals}</span>}
+                      {slot.player.assists > 0 && <span className="text-sky-400">👟 {slot.player.assists}</span>}
+                      {slot.player.cleanSheet && <span className="text-yellow-400">🧤 CS</span>}
+                      {slot.player.isMotm && <span className="text-pmb-gold">⭐ MOTM</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : adminCandidates.length > 0 ? (
               <div className="max-h-60 overflow-y-auto space-y-1.5 p-2 bg-pmb-dark rounded-xl border border-pmb-border text-xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-pmb-gold px-2">
                   Top Matchday Candidates ({adminCandidates.length})
@@ -464,7 +519,7 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
               </button>
               <button
                 onClick={handleAutoGenerate}
-                disabled={adminSaving || adminCandidates.length === 0}
+                disabled={adminSaving || (suggestedLineup.length === 0 && adminCandidates.length === 0)}
                 className="pmb-btn-primary text-xs px-4 py-2 disabled:opacity-50"
               >
                 {adminSaving ? "Publishing..." : "⚡ Generate & Publish TOTW"}
