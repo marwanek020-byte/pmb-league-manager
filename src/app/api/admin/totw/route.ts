@@ -437,7 +437,7 @@ export async function POST(req: Request) {
       await applyTotwRewards(tx, matchday, players);
 
       return created;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     return NextResponse.json({ success: true, totw });
   } catch (error) {
