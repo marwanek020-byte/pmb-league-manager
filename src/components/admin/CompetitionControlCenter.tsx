@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
-import { TotmAdminStudio } from "@/components/admin/TotmAdminStudio";
 
 type League = {
   id: string;
@@ -344,11 +343,6 @@ export function CompetitionControlCenter({
       {/* ─── GLOBAL TEAM OF THE WEEK (ALL-STARS STUDIO) ───────────────── */}
       <div className="pt-8 border-t border-pmb-border/60">
         <GlobalTotwPitch isAdmin={true} />
-      </div>
-
-      {/* ─── OFFICIAL PMB TEAM OF THE MONTH (TOTM STUDIO) ─────────────── */}
-      <div className="pt-8 border-t border-pmb-border/60">
-        <TotmAdminStudio />
       </div>
     </div>
   );

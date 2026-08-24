@@ -739,7 +739,7 @@ export function ManagerSocialHub({
         )}
 
         {/* Pinned Monthly Manager Poll */}
-        <ManagerPollWidget />
+        <ManagerPollWidget isAdmin={myUsername === "admin"} />
 
         {/* Create Post Box */}
         <div className="pmb-card p-5 border-white/15">
