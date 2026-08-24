@@ -141,24 +141,33 @@ export function ManagerPollWidget({ isAdmin = false }: Props) {
 
   return (
     <div className="space-y-4 mb-6">
-      {polls.length === 0 && isAdmin ? (
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-pmb-dark-surface via-pmb-black to-pmb-dark-surface border-2 border-pmb-gold/50 shadow-xl shadow-pmb-gold/10 text-center space-y-3">
-          <span className="text-3xl">🏆</span>
-          <h3 className="text-base font-bold text-white">Official PMB Team of the Month (TOTM)</h3>
-          <p className="text-xs text-gray-400 max-w-md mx-auto">
-            Click below to analyze the last 4 rounds across all leagues, calculate AI performance scores, and nominate the Top 4 Clubs for the €53,000,000 monthly prizes!
-          </p>
-          <button
-            onClick={handleNominate}
-            disabled={processing}
-            className="pmb-btn-primary text-xs px-4 py-2"
-          >
-            {processing ? "Analyzing Last 4 Rounds..." : "⚡ Analyze Last 4 Rounds & Nominate Top 4 Teams"}
-          </button>
-          {adminMsg && (
-            <p className="text-xs text-emerald-400 font-bold mt-2">{adminMsg.text}</p>
-          )}
-        </div>
+      {polls.length === 0 ? (
+        isAdmin ? (
+          <div className="p-6 rounded-2xl bg-gradient-to-br from-pmb-dark-surface via-pmb-black to-pmb-dark-surface border-2 border-pmb-gold/60 shadow-xl shadow-pmb-gold/15 text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-pmb-gold/20 border border-pmb-gold/40 text-2xl">
+              🏆
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">Official PMB Team of the Month (TOTM)</h3>
+              <p className="text-xs text-gray-300 max-w-lg mx-auto mt-1 leading-relaxed">
+                Click below to run the AI calculus on the <strong className="text-white">last 4 rounds across all leagues</strong> and nominate the Top 4 Clubs for the <strong className="text-emerald-400">€53,000,000</strong> prize pool (1st: €20M, 2nd: €12M, 3rd: €11M, 4th: €10M).
+              </p>
+            </div>
+            <div>
+              <button
+                onClick={handleNominate}
+                disabled={processing}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pmb-gold to-yellow-400 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-pmb-gold/20 transition disabled:opacity-50 inline-flex items-center gap-2 cursor-pointer"
+              >
+                <span>⚡</span>
+                <span>{processing ? "Running AI Calculus on Last 4 Rounds..." : "Run AI Analysis on Last 4 Rounds & Launch TOTM"}</span>
+              </button>
+            </div>
+            {adminMsg && (
+              <p className="text-xs text-emerald-400 font-bold mt-2">{adminMsg.text}</p>
+            )}
+          </div>
+        ) : null
       ) : (
         polls.map((poll) => (
           <div

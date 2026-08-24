@@ -267,12 +267,12 @@ export class TeamOfTheMonthService {
   }
 
   /**
-   * 3. Retrieves the current monthly poll with voting options.
+   * 3. Retrieves the current active monthly poll with voting options (Only if initiated by Admin).
    */
   public static async getOrGenerateMonthlyPoll(userId?: string) {
     const currentMonth = new Date().toISOString().slice(0, 7);
 
-    let poll = await (prisma as any).managerPoll.findFirst({
+    const poll = await (prisma as any).managerPoll.findFirst({
       where: { month: currentMonth, isActive: true },
       include: {
         options: { orderBy: { voteCount: "desc" } },
@@ -281,12 +281,7 @@ export class TeamOfTheMonthService {
     });
 
     if (!poll) {
-      try {
-        const generated = await this.nominateTop4Teams();
-        poll = generated.poll;
-      } catch (err) {
-        return null;
-      }
+      return null;
     }
 
     return this.formatPollResponse(poll, userId);
