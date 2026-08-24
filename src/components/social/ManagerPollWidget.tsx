@@ -104,8 +104,8 @@ export function ManagerPollWidget() {
             </div>
 
             <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-pmb-gold/10 text-pmb-gold border border-pmb-gold/20">
-                💰 Prize: €1,000,000
+              <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                💰 Top 4 Prizes: 🥇 €20M • 🥈 €12M • 🥉 €11M • 🏅 €10M
               </span>
               {poll.hasVoted && (
                 <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">

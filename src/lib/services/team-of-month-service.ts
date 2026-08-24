@@ -1,10 +1,22 @@
+import { Prisma, BudgetTransactionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
+
+export const TOTM_PRIZES = {
+  FIRST: new Prisma.Decimal("20000000"),  // 20M EUR for 1st Place
+  SECOND: new Prisma.Decimal("12000000"), // 12M EUR for 2nd Place
+  THIRD: new Prisma.Decimal("11000000"),  // 11M EUR for 3rd Place
+  FOURTH: new Prisma.Decimal("10000000"), // 10M EUR for 4th Place
+};
 
 export interface ClubMonthlyStats {
   clubId: string;
   clubName: string;
   clubLogo: string | null;
+  leagueId: string;
+  leagueName: string;
+  leagueLogo: string | null;
   managerId: string | null;
   managerName: string;
   matchesPlayed: number;
@@ -31,16 +43,45 @@ export interface ClubMonthlyStats {
 
 export class TeamOfTheMonthService {
   /**
-   * Calculates the 60% AI Performance Score for all clubs across a 4-round window.
+   * 1. Calculate the 60% AI Performance Score for all clubs across their latest 4-round window.
    */
-  public static async calculateMonthlyPerformance(
-    startRound = 1,
-    endRound = 4
-  ): Promise<ClubMonthlyStats[]> {
+  public static async calculateMonthlyPerformance(): Promise<ClubMonthlyStats[]> {
+    // A. Detect latest completed matchday per league
+    const leagues = await prisma.league.findMany({
+      include: {
+        matches: {
+          where: { status: "COMPLETED" },
+          select: { matchday: true },
+        },
+      },
+    });
+
+    const leagueRoundFilters: { leagueId: string; startRound: number; endRound: number }[] = [];
+
+    for (const league of leagues) {
+      if (league.matches.length === 0) continue;
+      const matchdays = league.matches.map((m) => m.matchday);
+      const maxMD = Math.max(...matchdays);
+      const startRound = Math.max(1, maxMD - 3);
+      leagueRoundFilters.push({
+        leagueId: league.id,
+        startRound,
+        endRound: maxMD,
+      });
+    }
+
+    if (leagueRoundFilters.length === 0) return [];
+
+    // B. Fetch matches within each league's last 4-round window
+    const orClauses = leagueRoundFilters.map((f) => ({
+      leagueId: f.leagueId,
+      matchday: { gte: f.startRound, lte: f.endRound },
+      status: "COMPLETED" as const,
+    }));
+
     const matches = await prisma.match.findMany({
       where: {
-        matchday: { gte: startRound, lte: endRound },
-        status: "COMPLETED",
+        OR: orClauses,
       },
       include: {
         homeClub: { include: { manager: true } },
@@ -54,12 +95,15 @@ export class TeamOfTheMonthService {
 
     const statsMap = new Map<string, ClubMonthlyStats>();
 
-    const getOrInitStats = (club: any): ClubMonthlyStats => {
+    const getOrInitStats = (club: any, league: any): ClubMonthlyStats => {
       if (!statsMap.has(club.id)) {
         statsMap.set(club.id, {
           clubId: club.id,
           clubName: club.name,
           clubLogo: club.logo,
+          leagueId: league.id,
+          leagueName: league.name,
+          leagueLogo: league.logo,
           managerId: club.manager?.id || null,
           managerName: club.manager?.username || `@${club.name.toLowerCase().replace(/\s+/g, "_")}`,
           matchesPlayed: 0,
@@ -89,8 +133,10 @@ export class TeamOfTheMonthService {
 
     // Process all match outcomes
     for (const match of matches) {
-      const homeStats = getOrInitStats(match.homeClub);
-      const awayStats = getOrInitStats(match.awayClub);
+      if (!match.homeClub || !match.awayClub || !match.league) continue;
+
+      const homeStats = getOrInitStats(match.homeClub, match.league);
+      const awayStats = getOrInitStats(match.awayClub, match.league);
 
       const hG = match.homeGoals ?? 0;
       const aG = match.awayGoals ?? 0;
@@ -137,27 +183,23 @@ export class TeamOfTheMonthService {
       stats.goalDifference = stats.goalsFor - stats.goalsAgainst;
 
       // 1. Result Points (Max 40 pts)
-      // Home Win = 10, Away Win = 13 (so +3 extra), Draw = 4
       const rawResult = stats.wins * 10 + stats.awayWins * 3 + stats.draws * 4;
       const resultScore = Math.min(40, Math.max(0, rawResult));
 
       // 2. Attack Power (Max 25 pts)
-      // Goals * 2.5 + Big margin wins * 3
       const rawAttack = stats.goalsFor * 2.5 + stats.bigMarginWins * 3;
       const attackScore = Math.min(25, Math.max(0, rawAttack));
 
       // 3. Defensive Solidity (Max 20 pts)
-      // Clean sheet = +5, Goal conceded = -1.5
       const rawDefense = stats.cleanSheets * 5 - stats.goalsAgainst * 1.5;
       const defenseScore = Math.min(20, Math.max(0, rawDefense));
 
       // 4. Streak & Form Bonus (Max 15 pts)
       let bonusScore = 0;
       if (stats.isUndefeated && stats.matchesPlayed >= 2) bonusScore += 7;
-      if (stats.winStreak >= 3) bonusScore += 8;
+      if (stats.winStreak >= 2) bonusScore += 8;
 
-      // Total Score
-      const totalScore = Math.min(100, Math.round(resultScore + attackScore + defenseScore + bonusScore));
+      const totalScore = Math.min(100, Math.max(10, Math.round(resultScore + attackScore + defenseScore + bonusScore)));
 
       stats.aiScore = totalScore;
       stats.breakdown = {
@@ -177,13 +219,59 @@ export class TeamOfTheMonthService {
   }
 
   /**
-   * Retrieves or automatically generates the official Global Manager of the Month Poll.
-   * Only activates if at least 4 rounds (or 16 completed matches) exist.
+   * 2. Nominate Top 4 Teams and Open/Refresh the Community Voting Poll.
+   */
+  public static async nominateTop4Teams() {
+    const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2026-08"
+    const monthName = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+
+    const rankedClubs = await this.calculateMonthlyPerformance();
+    if (rankedClubs.length < 2) {
+      throw new Error("Not enough completed match data across the leagues to analyze the last 4 rounds.");
+    }
+
+    // Pick top 4 standout clubs across all leagues
+    const top4Candidates = rankedClubs.slice(0, 4);
+
+    // Deactivate previous active poll for this month if regenerating
+    await (prisma as any).managerPoll.updateMany({
+      where: { month: currentMonth, isActive: true },
+      data: { isActive: false },
+    });
+
+    const poll = await (prisma as any).managerPoll.create({
+      data: {
+        title: `🏆 PMB Team of the Month — ${monthName}`,
+        description: `Official 60% AI Performance + 40% Community Vote. Top 4 Clubs Win €53,000,000 (1st: €20M, 2nd: €12M, 3rd: €11M, 4th: €10M)!`,
+        month: currentMonth,
+        isActive: true,
+        options: {
+          create: top4Candidates.map((c, index) => ({
+            managerId: c.clubId,
+            managerName: c.managerName,
+            clubName: c.clubName,
+            clubLogo: c.clubLogo,
+            statement: `[${c.leagueName}] ${c.summaryText} (AI Rank #${index + 1})`,
+          })),
+        },
+      },
+      include: {
+        options: { orderBy: { voteCount: "desc" } },
+      },
+    });
+
+    return {
+      poll,
+      top4Candidates,
+    };
+  }
+
+  /**
+   * 3. Retrieves the current monthly poll with voting options.
    */
   public static async getOrGenerateMonthlyPoll(userId?: string) {
-    const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2026-08"
+    const currentMonth = new Date().toISOString().slice(0, 7);
 
-    // 1. Check existing active poll
     let poll = await (prisma as any).managerPoll.findFirst({
       where: { month: currentMonth, isActive: true },
       include: {
@@ -192,163 +280,161 @@ export class TeamOfTheMonthService {
       },
     });
 
-    if (poll) {
-      return this.formatPollResponse(poll, userId);
+    if (!poll) {
+      try {
+        const generated = await this.nominateTop4Teams();
+        poll = generated.poll;
+      } catch (err) {
+        return null;
+      }
     }
-
-    // 2. Scan completed matches
-    const completedMatches = await prisma.match.findMany({
-      where: { status: "COMPLETED" },
-      select: { matchday: true },
-    });
-
-    const maxRound = completedMatches.reduce((max, m) => Math.max(max, m.matchday || 0), 0);
-
-    // Require at least 4 matchdays completed across the league
-    if (maxRound < 4 && completedMatches.length < 16) {
-      return null;
-    }
-
-    // Determine 4-round window (e.g. 1-4, 5-8, etc.)
-    const windowStart = Math.floor((maxRound - 1) / 4) * 4 + 1;
-    const windowEnd = windowStart + 3;
-
-    const rankedClubs = await this.calculateMonthlyPerformance(windowStart, windowEnd);
-    if (rankedClubs.length < 2) return null;
-
-    // Pick top 4 standout clubs
-    const topCandidates = rankedClubs.slice(0, 4);
-
-    const monthName = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
-
-    poll = await (prisma as any).managerPoll.create({
-      data: {
-        title: `🏆 Global Manager of the Month — ${monthName}`,
-        description: `Official 60% AI Performance + 40% Manager Community Vote. The winning tactician claims €1,000,000 & Golden MOTM honors!`,
-        month: currentMonth,
-        options: {
-          create: topCandidates.map((c) => ({
-            managerId: c.managerId || c.clubId,
-            managerName: c.managerName,
-            clubName: c.clubName,
-            clubLogo: c.clubLogo,
-            statement: c.summaryText,
-          })),
-        },
-      },
-      include: {
-        options: { orderBy: { voteCount: "desc" } },
-        votes: userId ? { where: { userId } } : false,
-      },
-    });
 
     return this.formatPollResponse(poll, userId);
   }
 
   /**
-   * Resolves the monthly poll using the 60% AI + 40% Vote Formula and awards the €1,000,000 prize!
+   * 4. Finalizes the Monthly Award, ranks the Top 4 clubs (60% AI + 40% Votes),
+   * and distributes the €53,000,000 prize pool (1st: 20M, 2nd: 12M, 3rd: 11M, 4th: 10M)!
    */
-  public static async resolveAndAwardWinner(pollId: string) {
-    const poll = await (prisma as any).managerPoll.findUnique({
-      where: { id: pollId },
-      include: { options: true, votes: true },
-    });
+  public static async resolveAndAwardWinner(pollId?: string) {
+    const currentMonth = new Date().toISOString().slice(0, 7);
 
-    if (!poll || !poll.isActive) return null;
+    // Find target poll
+    let poll: any = null;
+    if (pollId) {
+      poll = await (prisma as any).managerPoll.findUnique({
+        where: { id: pollId },
+        include: { options: true, votes: true },
+      });
+    } else {
+      poll = await (prisma as any).managerPoll.findFirst({
+        where: { month: currentMonth, isActive: true },
+        include: { options: true, votes: true },
+      });
+    }
+
+    if (!poll) {
+      throw new Error("No active Team of the Month poll found to finalize.");
+    }
 
     const totalVotes = poll.options.reduce((sum: number, o: any) => sum + o.voteCount, 0);
 
-    // Calculate AI scores for the window
-    const rankedClubs = await this.calculateMonthlyPerformance(1, 4);
+    // Calculate AI scores across the last 4 rounds
+    const rankedClubs = await this.calculateMonthlyPerformance();
     const clubScoreMap = new Map<string, number>();
     rankedClubs.forEach((c) => clubScoreMap.set(c.clubName.toLowerCase(), c.aiScore));
 
-    let winningOption: any = null;
-    let highestFinalScore = -1;
-
+    // Calculate Combined Final Score (60% AI + 40% Votes) for each of the 4 nominees
     const candidateResults = poll.options.map((opt: any) => {
       const aiScore = clubScoreMap.get(opt.clubName.toLowerCase()) || 75;
       const votePercent = totalVotes > 0 ? (opt.voteCount / totalVotes) * 100 : 25;
-
-      // 60% AI + 40% Vote
       const finalScore = Number((aiScore * 0.6 + votePercent * 0.4).toFixed(1));
 
-      if (finalScore > highestFinalScore) {
-        highestFinalScore = finalScore;
-        winningOption = opt;
-      }
-
       return {
-        ...opt,
-        aiScore,
+        optionId: opt.id,
+        clubName: opt.clubName,
+        managerName: opt.managerName,
+        clubLogo: opt.clubLogo,
+        voteCount: opt.voteCount,
         votePercent: Math.round(votePercent),
+        aiScore,
         finalScore,
       };
     });
 
-    if (!winningOption) return null;
+    // Sort by final score descending (1st, 2nd, 3rd, 4th)
+    candidateResults.sort((a: any, b: any) => b.finalScore - a.finalScore);
 
-    // 1. Award €1,000,000 Prize to Winning Club Treasury
-    const winningClub = await prisma.club.findFirst({
-      where: {
-        OR: [
-          { name: { equals: winningOption.clubName, mode: "insensitive" } },
-          { manager: { username: winningOption.managerName } },
-        ],
+    const prizeTiers = [
+      { rank: 1, label: "1st Place (Champion)", prize: TOTM_PRIZES.FIRST, amountNumber: 20000000, emoji: "🥇" },
+      { rank: 2, label: "2nd Place", prize: TOTM_PRIZES.SECOND, amountNumber: 12000000, emoji: "🥈" },
+      { rank: 3, label: "3rd Place", prize: TOTM_PRIZES.THIRD, amountNumber: 11000000, emoji: "🥉" },
+      { rank: 4, label: "4th Place", prize: TOTM_PRIZES.FOURTH, amountNumber: 10000000, emoji: "🏅" },
+    ];
+
+    const awardedClubs: any[] = [];
+
+    // Distribute prizes inside a single interactive transaction
+    await prisma.$transaction(
+      async (tx) => {
+        for (let i = 0; i < candidateResults.length && i < prizeTiers.length; i++) {
+          const candidate = candidateResults[i];
+          const tier = prizeTiers[i];
+
+          const club = await tx.club.findFirst({
+            where: {
+              name: { equals: candidate.clubName, mode: "insensitive" },
+            },
+          });
+
+          if (club) {
+            const currentBudget = await lockClubBudget(tx, club.id);
+            await applyBudgetTransaction(tx, {
+              clubId: club.id,
+              amount: tier.prize,
+              currentBudget,
+              type: BudgetTransactionType.COMPETITION_REWARD,
+              description: `Team of the Month (${poll.month}): ${tier.label} Award (€${(tier.amountNumber / 1000000).toFixed(0)}M)`,
+            });
+
+            awardedClubs.push({
+              rank: tier.rank,
+              label: tier.label,
+              emoji: tier.emoji,
+              clubId: club.id,
+              clubName: club.name,
+              managerName: candidate.managerName,
+              finalScore: candidate.finalScore,
+              prizeAmount: tier.amountNumber,
+            });
+          }
+        }
+
+        // Mark poll as completed/inactive
+        await (tx as any).managerPoll.update({
+          where: { id: poll.id },
+          data: { isActive: false },
+        });
       },
-      include: { manager: true },
-    });
+      { maxWait: 15000, timeout: 30000 }
+    );
 
-    if (winningClub) {
-      await prisma.club.update({
-        where: { id: winningClub.id },
-        data: { budget: { increment: 1_000_000 } },
-      });
-
-      await (prisma as any).clubBudgetTransaction.create({
-        data: {
-          clubId: winningClub.id,
-          amount: 1_000_000,
-          type: "BONUS",
-          description: `🏆 Official PMB Global Manager of the Month Award (${poll.month})`,
-        },
-      });
-
-      // 2. Publish Breaking Social Announcement
+    // Publish Breaking Media Announcement
+    try {
       const mediaBotId = await (UltrasSocialService as any).getOrCreateBotUser("pmb_sports_media", "ADMINISTRATOR");
-      const postContent = `🏆 **رسمياً: تتويج مدرب الشهر في الدوري | GLOBAL MANAGER OF THE MONTH** 👑
-━━━━━━━━━━━━━━━━━━━━
-✍️ تعلن رابطة **PMB League** عن تتويج المدرب **${winningOption.managerName}** (${winningOption.clubName}) بجائزة مدرب الشهر بعد تفوقه في التقييم التكتيكي للذكاء الاصطناعي (60%) وتصويت الجماهير (40%)!
+      const postContent = `🏆 **رسمياً: تتويج أفضل 4 فرق في الشهر | TEAM OF THE MONTH AWARDS** 👑
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+✍️ تعلن رابطة **PMB League** عن نتائج جائزة **فريق الشهر (${poll.month})** بعد احتساب الأداء التكتيكي لآخر 4 جولات عبر الذكاء الاصطناعي (60%) وتصويت المدربين (40%):
 
-📊 **تفاصيل النتيجة النهائية**:
-• 🤖 تقييم الأداء التكتيكي (AI): **${highestFinalScore} pts**
-• 💰 المكافأة المالية: **€1,000,000** أُضيفت لخزينة النادي
-• 🎖️ وسام التميز الذهبي الرسمي المعتمد
+🥇 **المركز الأول (بطل الشهر):** **${awardedClubs[0]?.clubName || candidateResults[0]?.clubName}** 
+💰 المكافأة: **€20,000,000** أُضيفت لخزينة النادي!
 
-تهانينا لنادي **${winningOption.clubName}** وللمدرب المتألق! 🔥👏
+🥈 **المركز الثاني:** **${awardedClubs[1]?.clubName || candidateResults[1]?.clubName}** — **€12,000,000**
+🥉 **المركز الثالث:** **${awardedClubs[2]?.clubName || candidateResults[2]?.clubName}** — **€11,000,000**
+🏅 **المركز الرابع:** **${awardedClubs[3]?.clubName || candidateResults[3]?.clubName}** — **€10,000,000**
 
-#ManagerOfTheMonth #${winningOption.clubName.replace(/\s+/g, "")} #PMBAwards #مدرب_الشهر`;
+📊 إجمالي الجوائز الموزعة: **€53,000,000** مبروك لجميع الأندية الفائزة! 🔥👏
+
+#TeamOfTheMonth #PMBAwards #فريق_الشهر #جوائز_PMB`;
 
       await prisma.post.create({
         data: {
           content: postContent,
           tag: "VICTORY",
           userId: mediaBotId,
-          clubId: winningClub.id,
+          clubId: awardedClubs[0]?.clubId || null,
         },
       });
+    } catch (socialErr) {
+      console.error("Failed to post social announcement:", socialErr);
     }
 
-    // 3. Mark Poll as Completed
-    await (prisma as any).managerPoll.update({
-      where: { id: pollId },
-      data: { isActive: false },
-    });
-
     return {
-      winner: winningOption,
-      highestFinalScore,
+      success: true,
+      month: poll.month,
+      awardedClubs,
       candidateResults,
+      totalDistributed: 53000000,
     };
   }
 
