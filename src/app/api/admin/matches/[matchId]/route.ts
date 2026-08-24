@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { applyMatchRewards } from "@/lib/services/match-reward-service";
+import { applyMatchRewards, reverseMatchRewards } from "@/lib/services/match-reward-service";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 import { MatchEventType } from "@prisma/client";
 
@@ -189,4 +189,69 @@ export async function PATCH(
   });
 
   return NextResponse.json({ success: true, match: updated });
+}
+
+// DELETE /api/admin/matches/[matchId]
+// Completely CANCEL and RESET a match result back to UPCOMING (as if it never happened)
+export async function DELETE(
+  _req: Request,
+  { params }: RouteContext
+) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const match = await prisma.match.findUnique({
+    where: { id: params.matchId },
+    include: {
+      competitionSeason: { select: { status: true } },
+    },
+  });
+
+  if (!match) {
+    return NextResponse.json({ error: "Match not found." }, { status: 404 });
+  }
+
+  if (match.competitionSeason.status === "FINISHED") {
+    return NextResponse.json(
+      { error: "Cannot cancel results — competition season is finished." },
+      { status: 409 }
+    );
+  }
+
+  // Atomically reverse financial rewards, clear match events, and reset match to UPCOMING
+  const resetMatch = await prisma.$transaction(async (tx) => {
+    // 1. Reverse all budget rewards for this match
+    await reverseMatchRewards(tx, params.matchId);
+
+    // 2. Delete all match events (goals, assists, cards, etc.)
+    await tx.matchEvent.deleteMany({
+      where: { matchId: params.matchId },
+    });
+
+    // 3. Reset match properties back to UPCOMING
+    const updated = await tx.match.update({
+      where: { id: params.matchId },
+      data: {
+        homeGoals: null,
+        awayGoals: null,
+        manOfTheMatchId: null,
+        status: "UPCOMING",
+        playedAt: null,
+      },
+      include: {
+        homeClub: { select: { id: true, name: true, logo: true } },
+        awayClub: { select: { id: true, name: true, logo: true } },
+      },
+    });
+
+    return updated;
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: "Match result successfully cancelled and reset to UPCOMING.",
+    match: resetMatch,
+  });
 }

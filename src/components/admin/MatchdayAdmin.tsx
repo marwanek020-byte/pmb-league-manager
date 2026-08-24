@@ -255,6 +255,70 @@ export function MatchdayAdmin({
     }
   }
 
+  async function cancelMatchResult(matchId: string) {
+    if (
+      !confirm(
+        "Are you sure you want to cancel this match result?\n\nThis will reset the match back to UPCOMING (as if it never began), delete all match goals/assists, and reverse club budget rewards."
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setMatchErrors((prev) => ({ ...prev, [matchId]: "" }));
+    setMatchSuccesses((prev) => ({ ...prev, [matchId]: "" }));
+
+    try {
+      const res = await fetch(`/api/admin/matches/${matchId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMatchErrors((prev) => ({
+          ...prev,
+          [matchId]: data.error ?? "Failed to cancel match result.",
+        }));
+        return;
+      }
+
+      // Update state to set status back to UPCOMING
+      const day = currentMatchday;
+      setMatchesByDay((prev) => {
+        const current = prev[day] ?? [];
+        const updated = current.map((m) =>
+          m.id === matchId
+            ? {
+                ...m,
+                homeGoals: null,
+                awayGoals: null,
+                manOfTheMatchId: null,
+                manOfTheMatch: null,
+                events: [],
+                status: "UPCOMING" as const,
+              }
+            : m
+        );
+        return { ...prev, [day]: updated };
+      });
+
+      setMatchSuccesses((prev) => ({
+        ...prev,
+        [matchId]: "✓ Match result cancelled and reset to UPCOMING.",
+      }));
+      setEditingId(null);
+      setMatchSquads(null);
+
+      // Reload after 800ms so standings & leaderboards immediately refresh
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } catch {
+      setMatchErrors((prev) => ({ ...prev, [matchId]: "Network error." }));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const currentMatches = matchesByDay[currentMatchday] ?? [];
 
   return (
@@ -402,7 +466,7 @@ export function MatchdayAdmin({
 
                 {/* Action buttons */}
                 {canEdit && (
-                  <div className="flex items-center justify-center gap-2 sm:ml-4 sm:justify-end">
+                  <div className="flex items-center justify-center gap-2 sm:ml-4 sm:justify-end flex-wrap">
                     {isEditing ? (
                       <>
                         <button
@@ -419,19 +483,45 @@ export function MatchdayAdmin({
                         >
                           Cancel
                         </button>
+                        {isCompleted && (
+                          <button
+                            type="button"
+                            onClick={() => cancelMatchResult(match.id)}
+                            disabled={saving}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold transition bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 hover:text-red-300 disabled:opacity-50 flex items-center gap-1"
+                            title="Reset match result back to UPCOMING as if it never began"
+                          >
+                            <span>↺</span>
+                            <span>Reset Match</span>
+                          </button>
+                        )}
                       </>
                     ) : (
-                      <button
-                        onClick={() => startEdit(match)}
-                        className={[
-                          "text-xs px-3 py-1.5 rounded-lg font-semibold transition",
-                          isCompleted
-                            ? "border border-pmb-border text-gray-400 hover:border-pmb-gold/40 hover:text-pmb-gold"
-                            : "pmb-btn-primary",
-                        ].join(" ")}
-                      >
-                        {isCompleted ? "Edit Stats" : "Enter Result"}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => startEdit(match)}
+                          className={[
+                            "text-xs px-3 py-1.5 rounded-lg font-semibold transition",
+                            isCompleted
+                              ? "border border-pmb-border text-gray-400 hover:border-pmb-gold/40 hover:text-pmb-gold"
+                              : "pmb-btn-primary",
+                          ].join(" ")}
+                        >
+                          {isCompleted ? "Edit Stats" : "Enter Result"}
+                        </button>
+                        {isCompleted && (
+                          <button
+                            type="button"
+                            onClick={() => cancelMatchResult(match.id)}
+                            disabled={saving}
+                            className="text-xs px-2.5 py-1.5 rounded-lg font-semibold transition bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 flex items-center gap-1"
+                            title="Reset match result back to UPCOMING as if it never began"
+                          >
+                            <span>↺</span>
+                            <span>Reset</span>
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

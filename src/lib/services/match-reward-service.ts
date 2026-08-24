@@ -20,22 +20,18 @@ const DRAW_REWARD = new Prisma.Decimal("500000");
  *
  * Locking order: clubs are locked in ascending ID order to avoid deadlocks.
  */
-export async function applyMatchRewards(
+/**
+ * Completely reverse all budget rewards associated with a match.
+ */
+export async function reverseMatchRewards(
   tx: TxClient,
-  matchId: string,
-  homeClubId: string,
-  awayClubId: string,
-  homeGoals: number,
-  awayGoals: number,
+  matchId: string
 ): Promise<void> {
-  // ── Step 1: find previous rewards for this match ──────────────────────
   const previousTxns = await tx.clubBudgetTransaction.findMany({
     where: { matchId, type: BudgetTransactionType.COMPETITION_REWARD },
     select: { id: true, clubId: true, amount: true },
   });
 
-  // ── Step 2: reverse previous rewards ──────────────────────────────────
-  // Group reversals by club and sum them so we only lock each club once.
   const reversalByClub = new Map<string, Prisma.Decimal>();
 
   for (const prev of previousTxns) {
@@ -44,7 +40,6 @@ export async function applyMatchRewards(
     reversalByClub.set(prev.clubId, current.plus(negated));
   }
 
-  // Process reversals in deterministic club-ID order to prevent deadlocks.
   const reversalClubIds = [...reversalByClub.keys()].sort();
 
   for (const clubId of reversalClubIds) {
@@ -57,10 +52,22 @@ export async function applyMatchRewards(
       amount: reversalAmount,
       currentBudget,
       type: BudgetTransactionType.COMPETITION_REWARD,
-      description: "Reversed: Competition reward (result correction)",
+      description: "Reversed: Competition reward (match cancelled/reset)",
       matchId,
     });
   }
+}
+
+export async function applyMatchRewards(
+  tx: TxClient,
+  matchId: string,
+  homeClubId: string,
+  awayClubId: string,
+  homeGoals: number,
+  awayGoals: number,
+): Promise<void> {
+  // ── Step 1 & 2: reverse previous rewards ──────────────────────────────
+  await reverseMatchRewards(tx, matchId);
 
   // ── Step 3: determine new rewards ─────────────────────────────────────
   let homeReward = new Prisma.Decimal("0");
