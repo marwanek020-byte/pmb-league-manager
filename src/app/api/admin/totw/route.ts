@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { applyTotwRewards } from "@/lib/services/totw-reward-service";
 
 export const dynamic = "force-dynamic";
 
@@ -244,6 +245,10 @@ export async function GET(req: Request) {
     candidates.sort((a, b) => b.score - a.score);
 
     // 5. Generate guaranteed 11 unique players for standard 4-3-3 formation
+    // Rule: Maximum 3 players from the same club in Team of the Week!
+    const MAX_PLAYERS_PER_CLUB = 3;
+    const clubPlayerCounts = new Map<string, number>();
+
     const gks = candidates.filter((c) => c.normalizedGroup === "GK");
     const defs = candidates.filter((c) => c.normalizedGroup === "DEF");
     const mids = candidates.filter((c) => c.normalizedGroup === "MID");
@@ -267,18 +272,22 @@ export async function GET(req: Request) {
       preferred: Candidate[],
       fallbacks: Candidate[][] = []
     ): Candidate | null {
-      // 1. Try preferred pool
+      // 1. Try preferred pool respecting max 3 players per club
       for (const cand of preferred) {
-        if (!usedPlayerIds.has(cand.playerId)) {
+        const count = clubPlayerCounts.get(cand.clubId) || 0;
+        if (!usedPlayerIds.has(cand.playerId) && count < MAX_PLAYERS_PER_CLUB) {
           usedPlayerIds.add(cand.playerId);
+          clubPlayerCounts.set(cand.clubId, count + 1);
           return cand;
         }
       }
-      // 2. Try fallbacks in order
+      // 2. Try fallbacks in order respecting max 3 players per club
       for (const fallback of fallbacks) {
         for (const cand of fallback) {
-          if (!usedPlayerIds.has(cand.playerId)) {
+          const count = clubPlayerCounts.get(cand.clubId) || 0;
+          if (!usedPlayerIds.has(cand.playerId) && count < MAX_PLAYERS_PER_CLUB) {
             usedPlayerIds.add(cand.playerId);
+            clubPlayerCounts.set(cand.clubId, count + 1);
             return cand;
           }
         }
@@ -307,12 +316,17 @@ export async function GET(req: Request) {
         player: s.player!,
       }));
 
+    // Find Player of the Week (POTW): Top scoring candidate or MOTM
+    const topScorerInLineup = suggestedLineup.slice().sort((a, b) => (b.player.score || 0) - (a.player.score || 0))[0]?.player;
+
     return NextResponse.json({
       season,
       matchday,
       existingTotw,
       candidates,
       suggestedLineup,
+      potwPlayerId: topScorerInLineup?.playerId || null,
+      maxPerClub: MAX_PLAYERS_PER_CLUB,
     });
   } catch (error) {
     console.error("Error fetching admin TOTW:", error);
@@ -321,7 +335,7 @@ export async function GET(req: Request) {
 }
 
 // POST /api/admin/totw
-// Publish or update TOTW
+// Publish or update TOTW and apply financial prizes (500k per player, 2M for POTW)
 export async function POST(req: Request) {
   const session = await requireAdmin();
   if (!session) {
@@ -343,8 +357,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Deduplicate players check
+    // Deduplicate players check & club limit check (Max 3 players per club)
     const seenIds = new Set<string>();
+    const clubCounts = new Map<string, number>();
+
     for (const p of players) {
       if (seenIds.has(p.playerId)) {
         return NextResponse.json(
@@ -353,6 +369,15 @@ export async function POST(req: Request) {
         );
       }
       seenIds.add(p.playerId);
+
+      const count = (clubCounts.get(p.clubId) || 0) + 1;
+      if (count > 3) {
+        return NextResponse.json(
+          { error: `Club limit exceeded: A maximum of 3 players from the same club can be selected in Team of the Week.` },
+          { status: 400 }
+        );
+      }
+      clubCounts.set(p.clubId, count);
     }
 
     const compSeasonId =
@@ -363,7 +388,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Competition season ID not found" }, { status: 400 });
     }
 
-    // Upsert TeamOfTheWeek
+    // Upsert TeamOfTheWeek & Apply Budget Rewards in a single transaction
     const totw = await prisma.$transaction(async (tx) => {
       // Delete existing for this matchday if any
       const existing = await tx.teamOfTheWeek.findFirst({
@@ -407,6 +432,9 @@ export async function POST(req: Request) {
           },
         },
       });
+
+      // Apply Competition Budget Rewards: 500k EUR per player + 2M EUR for POTW
+      await applyTotwRewards(tx, matchday, players);
 
       return created;
     });

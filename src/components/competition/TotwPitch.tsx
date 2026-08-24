@@ -41,10 +41,12 @@ function TotwPlayerAvatar({
   photo,
   fullName,
   isMotm,
+  isPotw,
 }: {
   photo: string | null;
   fullName: string;
   isMotm: boolean;
+  isPotw: boolean;
 }) {
   const [imgError, setImgError] = useState(false);
   const initials = fullName
@@ -64,7 +66,10 @@ function TotwPlayerAvatar({
           src={photo}
           alt=""
           onError={() => setImgError(true)}
-          className="w-full h-full object-cover rounded-full border-2 border-pmb-gold/50 shadow-inner"
+          className={[
+            "w-full h-full object-cover rounded-full border-2 shadow-inner",
+            isPotw ? "border-yellow-400 shadow-yellow-400/50 ring-2 ring-yellow-400/30" : "border-pmb-gold/50",
+          ].join(" ")}
         />
       ) : (
         <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-500/30 via-pmb-dark-surface to-black flex items-center justify-center text-xs font-black text-pmb-gold border border-pmb-gold/40 shadow-sm shadow-pmb-gold/20">
@@ -72,15 +77,22 @@ function TotwPlayerAvatar({
         </div>
       )}
 
-      {/* MOTM Star badge */}
-      {isMotm && (
+      {/* POTW Crown or MOTM Star badge */}
+      {isPotw ? (
+        <span
+          className="absolute -top-2 -right-1 text-[13px] filter drop-shadow-md z-10 animate-bounce"
+          title="Player of the Week — €2,000,000 Club Prize"
+        >
+          👑
+        </span>
+      ) : isMotm ? (
         <span
           className="absolute -top-1 -right-1 text-[10px] bg-pmb-black/90 rounded-full p-0.5 border border-pmb-gold shadow-sm animate-pulse z-10"
           title="Man of the Match"
         >
           ⭐
         </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -149,7 +161,7 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
     try {
       let payloadPlayers: any[] = [];
 
-      // Use suggested lineup from backend if available (guaranteed 11 unique players)
+      // Use suggested lineup from backend if available (guaranteed 11 unique players & max 3 per club)
       if (suggestedLineup.length === 11) {
         payloadPlayers = suggestedLineup.map((slot) => ({
           playerId: slot.player.playerId,
@@ -161,12 +173,16 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
           isMotm: slot.player.isMotm || false,
         }));
       } else {
-        // Fallback frontend deduplication
+        // Fallback frontend deduplication with max 3 players per club
         const usedIds = new Set<string>();
+        const clubCounts = new Map<string, number>();
+
         const pick = (candidates: any[]) => {
           for (const c of candidates) {
-            if (!usedIds.has(c.playerId)) {
+            const count = clubCounts.get(c.clubId) || 0;
+            if (!usedIds.has(c.playerId) && count < 3) {
               usedIds.add(c.playerId);
+              clubCounts.set(c.clubId, count + 1);
               return c;
             }
           }
@@ -223,8 +239,8 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
       const data = await res.json();
       if (res.ok && data.totw) {
         setTotw(data.totw);
-        setAdminMessage("✅ TOTW Published Successfully!");
-        setTimeout(() => setAdminModalOpen(false), 1200);
+        setAdminMessage("✅ TOTW Published & Prizes Distributed (€2M POTW + €500k per player)!");
+        setTimeout(() => setAdminModalOpen(false), 1400);
       } else {
         setAdminMessage(data.error || "Failed to publish TOTW");
       }
@@ -238,10 +254,21 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
 
   // Map 11 players by tactical slot
   const playerSlots: Record<string, TotwPlayerItem | undefined> = {};
-  if (totw?.players) {
+  let potwPlayerId: string | null = null;
+
+  if (totw?.players && totw.players.length > 0) {
     totw.players.forEach((p) => {
       playerSlots[p.position] = p;
     });
+
+    // Determine POTW: Player with isMotm, or highest goals/assists
+    const motmPlayer = totw.players.find((p) => p.isMotm);
+    if (motmPlayer) {
+      potwPlayerId = motmPlayer.player.id;
+    } else {
+      const topPerformer = totw.players.slice().sort((a, b) => (b.goalsInMatchday * 4 + b.assistsInMatchday * 3) - (a.goalsInMatchday * 4 + a.assistsInMatchday * 3))[0];
+      potwPlayerId = topPerformer?.player.id || null;
+    }
   }
 
   const renderCard = (slotKey: string, defaultLabel: string) => {
@@ -256,15 +283,26 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
     }
 
     const boostedOvr = (item.player.overallRating || 76) + (item.ratingBoost || 2);
+    const isPotw = potwPlayerId === item.player.id;
 
     return (
-      <div className="group relative flex flex-col items-center justify-between w-20 h-28 sm:w-24 sm:h-34 p-1.5 rounded-xl bg-gradient-to-b from-pmb-gold/25 via-pmb-dark-surface to-pmb-black border border-pmb-gold/70 shadow-lg shadow-pmb-gold/20 hover:scale-110 hover:z-20 transition-all duration-300">
+      <div
+        className={[
+          "group relative flex flex-col items-center justify-between w-20 h-28 sm:w-24 sm:h-34 p-1.5 rounded-xl bg-gradient-to-b transition-all duration-300 hover:scale-110 hover:z-20",
+          isPotw
+            ? "from-yellow-400/40 via-pmb-dark-surface to-pmb-black border-2 border-yellow-400 shadow-xl shadow-yellow-400/30"
+            : "from-pmb-gold/25 via-pmb-dark-surface to-pmb-black border border-pmb-gold/70 shadow-lg shadow-pmb-gold/20",
+        ].join(" ")}
+      >
         {/* Holographic animated sheen */}
         <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-transparent via-pmb-gold/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
         {/* Top Header: OVR + Tactical Slot */}
         <div className="flex items-center justify-between w-full px-0.5">
-          <span className="text-[11px] sm:text-xs font-black text-pmb-gold tracking-tight">
+          <span className={[
+            "text-[11px] sm:text-xs font-black tracking-tight",
+            isPotw ? "text-yellow-400" : "text-pmb-gold",
+          ].join(" ")}>
             {boostedOvr}
           </span>
           <span className="text-[9px] font-black text-gray-200 bg-black/50 px-1 py-0.2 rounded border border-white/10 uppercase">
@@ -277,6 +315,7 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
           photo={item.player.photo}
           fullName={item.player.fullName}
           isMotm={item.isMotm}
+          isPotw={isPotw}
         />
 
         {/* Player Name & Club */}
@@ -292,13 +331,24 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
           </div>
         </div>
 
-        {/* Matchday Stats Pill */}
-        {(item.goalsInMatchday > 0 || item.assistsInMatchday > 0) && (
-          <div className="absolute -bottom-2 flex items-center gap-1 bg-pmb-black/90 border border-pmb-gold/60 px-1.5 py-0.5 rounded-full text-[8px] text-pmb-gold font-bold shadow-md">
-            {item.goalsInMatchday > 0 && <span>⚽{item.goalsInMatchday}</span>}
-            {item.assistsInMatchday > 0 && <span>👟{item.assistsInMatchday}</span>}
-          </div>
-        )}
+        {/* Matchday Stats & POTW / Reward Pill */}
+        <div className="absolute -bottom-2 flex items-center gap-1">
+          {isPotw ? (
+            <span className="bg-yellow-400 text-black px-1.5 py-0.5 rounded-full text-[7.5px] font-black shadow-md border border-yellow-200">
+              👑 POTW +2M€
+            </span>
+          ) : (item.goalsInMatchday > 0 || item.assistsInMatchday > 0) ? (
+            <div className="flex items-center gap-1 bg-pmb-black/95 border border-pmb-gold/70 px-1.5 py-0.5 rounded-full text-[8px] text-pmb-gold font-bold shadow-md">
+              {item.goalsInMatchday > 0 && <span>⚽{item.goalsInMatchday}</span>}
+              {item.assistsInMatchday > 0 && <span>👟{item.assistsInMatchday}</span>}
+              <span className="text-emerald-400 text-[7px] font-extrabold">+500k</span>
+            </div>
+          ) : (
+            <span className="bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded-full text-[7.5px] font-bold shadow">
+              +500k €
+            </span>
+          )}
+        </div>
       </div>
     );
   };
@@ -318,9 +368,19 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
               Official PMB Team of the Week
             </h2>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
-            The top 11 performing eFootball superstars with +2 OVR Holographic Boosts
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400 mt-1">
+            <span>The top 11 eFootball superstars (+2 OVR Boost)</span>
+            <span className="text-gray-600">•</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[10px]">
+              💰 +€500,000 per Player
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-bold text-[10px]">
+              👑 +€2,000,000 POTW Prize
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pmb-gold/10 border border-pmb-gold/30 text-pmb-gold font-bold text-[10px]">
+              🛡️ Max 3 / Club
+            </span>
+          </div>
         </div>
 
         {/* Controls */}
@@ -440,8 +500,24 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
               </button>
             </div>
 
+            {/* Prize Explanation */}
+            <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-pmb-dark border border-pmb-border text-[11px]">
+              <div className="text-center">
+                <span className="text-gray-400 block text-[9px] uppercase font-bold">Player Reward</span>
+                <span className="text-emerald-400 font-extrabold">+€500,000</span>
+              </div>
+              <div className="text-center border-x border-pmb-border">
+                <span className="text-gray-400 block text-[9px] uppercase font-bold">POTW Prize</span>
+                <span className="text-yellow-400 font-extrabold">+€2,000,000</span>
+              </div>
+              <div className="text-center">
+                <span className="text-gray-400 block text-[9px] uppercase font-bold">Club Limit</span>
+                <span className="text-pmb-gold font-extrabold">Max 3 Players</span>
+              </div>
+            </div>
+
             <p className="text-xs text-gray-400">
-              The system automatically selects the highest-scoring unique players across Goalkeepers, Defenders, Midfielders, and Forwards based on matchday performance.
+              The system automatically selects the 11 highest-scoring unique players across all positions (capped at max 3 players per club), and automatically rewards their clubs upon publishing.
             </p>
 
             {suggestedLineup.length > 0 ? (
@@ -449,10 +525,15 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
                 <span className="text-[10px] font-bold uppercase tracking-wider text-pmb-gold px-2">
                   Selected Starting 11 by Position ({suggestedLineup.length}/11)
                 </span>
-                {suggestedLineup.map((slot) => (
+                {suggestedLineup.map((slot, index) => (
                   <div
                     key={slot.key}
-                    className="flex items-center justify-between p-2 rounded-lg bg-pmb-dark-surface/60 border border-pmb-border/40"
+                    className={[
+                      "flex items-center justify-between p-2 rounded-lg border",
+                      index === 0
+                        ? "bg-yellow-500/10 border-yellow-500/40 shadow-sm shadow-yellow-500/10"
+                        : "bg-pmb-dark-surface/60 border-pmb-border/40",
+                    ].join(" ")}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-pmb-gold w-10 text-[10px] px-1.5 py-0.5 rounded bg-black/40 border border-pmb-gold/30 text-center">
@@ -466,7 +547,15 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
                       {slot.player.goals > 0 && <span className="text-emerald-400">⚽ {slot.player.goals}</span>}
                       {slot.player.assists > 0 && <span className="text-sky-400">👟 {slot.player.assists}</span>}
                       {slot.player.cleanSheet && <span className="text-yellow-400">🧤 CS</span>}
-                      {slot.player.isMotm && <span className="text-pmb-gold">⭐ MOTM</span>}
+                      {index === 0 ? (
+                        <span className="text-yellow-400 font-extrabold bg-yellow-400/20 px-1.5 py-0.5 rounded border border-yellow-400/30">
+                          👑 POTW +2.5M€
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                          +500k€
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -522,7 +611,7 @@ export function TotwPitch({ seasonId, isAdmin = false, totalMatchdays }: Props) 
                 disabled={adminSaving || (suggestedLineup.length === 0 && adminCandidates.length === 0)}
                 className="pmb-btn-primary text-xs px-4 py-2 disabled:opacity-50"
               >
-                {adminSaving ? "Publishing..." : "⚡ Generate & Publish TOTW"}
+                {adminSaving ? "Publishing..." : "⚡ Generate & Publish TOTW + Distribute Prizes"}
               </button>
             </div>
           </div>
