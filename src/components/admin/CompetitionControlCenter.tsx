@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
+import { RegistrationLockToggle } from "@/components/admin/RegistrationLockToggle";
 
 type League = {
   id: string;
@@ -247,6 +248,9 @@ export function CompetitionControlCenter({
           </p>
         )}
       </div>
+
+      {/* Master Player Registration Lock Switch */}
+      <RegistrationLockToggle />
 
       {/* League cards */}
       <div className="space-y-3">

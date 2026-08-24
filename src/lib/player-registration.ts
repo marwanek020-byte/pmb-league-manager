@@ -1,8 +1,9 @@
 import { Prisma, PlayerStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { SystemSettingsService } from "@/lib/services/system-settings-service";
 
 export class PlayerRegistrationError extends Error {
-  code: "NOT_FOUND" | "ALREADY_REGISTERED" | "RACE_LOST" | "FORBIDDEN";
+  code: "NOT_FOUND" | "ALREADY_REGISTERED" | "RACE_LOST" | "FORBIDDEN" | "LOCKED";
 
   constructor(code: PlayerRegistrationError["code"], message: string) {
     super(message);
@@ -19,27 +20,20 @@ type LockedPlayerRow = {
 
 /**
  * Registers an available player to a club.
- *
- * This is the one function in the whole app allowed to move a player from
- * Available -> Registered, and it is the single place the "one player, one
- * club, ever" rule is enforced. Two managers can call this for the same
- * player at the exact same millisecond; only one will succeed.
- *
- * How the race is closed:
- * 1. `SELECT ... FOR UPDATE` inside a transaction takes a row lock on the
- *    specific player. If another request already holds that lock (because
- *    it's mid-registration for the same player), Postgres makes this call
- *    wait until the first transaction commits or rolls back - they cannot
- *    interleave.
- * 2. Once the lock is acquired, we re-check status inside the transaction
- *    (not the value the caller saw before making the request, which could
- *    already be stale). If it's no longer Available, we abort with
- *    RACE_LOST instead of ever writing a second club onto the same player.
  */
 export async function registerPlayerToClub(
   playerId: string,
   clubId: string
 ): Promise<{ id: string; fullName: string }> {
+  // Check master registration lock
+  const isLocked = await SystemSettingsService.isRegistrationLocked();
+  if (isLocked) {
+    throw new PlayerRegistrationError(
+      "LOCKED",
+      "Player registrations are currently LOCKED by PMB League Administration. No club can add or register players at this time."
+    );
+  }
+
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<LockedPlayerRow[]>(
       Prisma.sql`SELECT "id", "status", "pmbClubId", "fullName" FROM "Player" WHERE "id" = ${playerId} FOR UPDATE`
@@ -101,11 +95,20 @@ export async function createPlayerForClub(
     marketValue?: number | null;
   }
 ) {
+  // Check master registration lock
+  const isLocked = await SystemSettingsService.isRegistrationLocked();
+  if (isLocked) {
+    throw new PlayerRegistrationError(
+      "LOCKED",
+      "Player registrations are currently LOCKED by PMB League Administration. No club can add or create players at this time."
+    );
+  }
+
   return prisma.$transaction(async (tx) => {
     const club = await tx.club.findUnique({
-  where: { id: clubId },
-  select: { id: true },
-});
+      where: { id: clubId },
+      select: { id: true },
+    });
 
 if (!club) {
   throw new PlayerRegistrationError("NOT_FOUND", "Club not found.");

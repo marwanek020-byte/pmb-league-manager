@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { LeagueOverview } from "@/components/admin/LeagueOverview";
 import { TransferWindowControls } from "@/components/admin/TransferWindowControls";
+import { RegistrationLockToggle } from "@/components/admin/RegistrationLockToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,9 @@ export default async function AdminDashboardPage() {
           <p className="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400">Club Managers</p>
         </div>
       </div>
+
+      {/* Master Player Registration & Roster Lock */}
+      <RegistrationLockToggle />
 
       {/* Season Management */}
       <div className="space-y-4 rounded-xl border border-pmb-border bg-pmb-charcoal/70 p-6">

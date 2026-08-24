@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof PlayerRegistrationError) {
       const status =
-        error.code === "FORBIDDEN"
+        error.code === "FORBIDDEN" || error.code === "LOCKED"
           ? 403
           : error.code === "NOT_FOUND"
           ? 404

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PlayerDTO } from "@/lib/serialize-player";
@@ -49,8 +49,20 @@ export function PlayerListClient({
     useState<PlayerDTO | null>(null);
 
   const [adminRemoving, setAdminRemoving] = useState(false);
+  const [registrationLocked, setRegistrationLocked] = useState(false);
 
   const { toast, showSuccess, showError, dismiss } = useToast();
+
+  useEffect(() => {
+    fetch("/api/system/registration-lock")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.locked !== undefined) {
+          setRegistrationLocked(Boolean(data.locked));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -159,6 +171,21 @@ export function PlayerListClient({
 
   return (
     <div className="space-y-4">
+      {/* Registration Locked Warning Banner */}
+      {registrationLocked && !readOnly && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-950/30 border border-red-500/40 text-red-300 text-xs shadow-md">
+          <span className="text-xl">🔒</span>
+          <div>
+            <p className="font-bold text-red-200">
+              Player Registrations & Additions are FROZEN
+            </p>
+            <p className="text-gray-400 mt-0.5">
+              The player registration window is currently closed by PMB League Administration. You cannot add or register new players at this time.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Search / controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
@@ -214,13 +241,25 @@ export function PlayerListClient({
           </Link>
 
           {!readOnly && (
-            <button
-              type="button"
-              onClick={() => setShowAddChoice(true)}
-              className="pmb-btn-primary whitespace-nowrap"
-            >
-              Add Player
-            </button>
+            registrationLocked ? (
+              <button
+                type="button"
+                disabled
+                className="whitespace-nowrap rounded-lg border border-red-500/40 bg-red-500/15 px-3.5 py-2 text-xs font-bold text-red-300 opacity-75 cursor-not-allowed flex items-center gap-1.5 shadow-sm"
+                title="Player registrations are currently locked by administration"
+              >
+                <span>🔒</span>
+                <span>Registrations Locked</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddChoice(true)}
+                className="pmb-btn-primary whitespace-nowrap"
+              >
+                Add Player
+              </button>
+            )
           )}
         </div>
       </div>
