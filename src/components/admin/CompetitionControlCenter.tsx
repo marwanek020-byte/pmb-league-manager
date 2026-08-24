@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 
 type League = {
   id: string;
@@ -337,6 +338,11 @@ export function CompetitionControlCenter({
             </div>
           );
         })}
+      </div>
+
+      {/* ─── GLOBAL TEAM OF THE WEEK (ALL-STARS STUDIO) ───────────────── */}
+      <div className="pt-8 border-t border-pmb-border/60">
+        <GlobalTotwPitch isAdmin={true} />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { MatchdayAdmin } from "@/components/admin/MatchdayAdmin";
 import { computeStandings } from "@/lib/services/standings-service";
 import { TotwPitch } from "@/components/competition/TotwPitch";
+import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 
 export const dynamic = "force-dynamic";
@@ -218,6 +219,11 @@ export default async function LeagueMatchdayPage({
           isAdmin={true}
           totalMatchdays={totalMatchdays}
         />
+      </section>
+
+      {/* ─── OFFICIAL GLOBAL TEAM OF THE WEEK (GLOBAL ALL-STARS) ───── */}
+      <section className="space-y-4 pt-4 border-t border-pmb-border/60">
+        <GlobalTotwPitch isAdmin={true} />
       </section>
 
       {/* ─── LEAGUE STATS & BALLON D'OR AWARDS ─────────────────────── */}
