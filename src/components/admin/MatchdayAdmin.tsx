@@ -488,11 +488,11 @@ export function MatchdayAdmin({
                             type="button"
                             onClick={() => cancelMatchResult(match.id)}
                             disabled={saving}
-                            className="text-xs px-3 py-1.5 rounded-lg font-semibold transition bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 hover:text-red-300 disabled:opacity-50 flex items-center gap-1"
+                            className="text-xs px-3 py-1.5 rounded-lg font-bold transition bg-red-600/30 border border-red-500/60 text-red-200 hover:bg-red-600/50 hover:text-white disabled:opacity-50 flex items-center gap-1 shadow-md shadow-red-900/20"
                             title="Reset match result back to UPCOMING as if it never began"
                           >
                             <span>↺</span>
-                            <span>Reset Match</span>
+                            <span>Cancel Result</span>
                           </button>
                         )}
                       </>
@@ -514,11 +514,11 @@ export function MatchdayAdmin({
                             type="button"
                             onClick={() => cancelMatchResult(match.id)}
                             disabled={saving}
-                            className="text-xs px-2.5 py-1.5 rounded-lg font-semibold transition bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 flex items-center gap-1"
+                            className="text-xs px-3 py-1.5 rounded-lg font-bold transition bg-red-600/25 border border-red-500/50 text-red-300 hover:bg-red-600/40 hover:text-white disabled:opacity-50 flex items-center gap-1 shadow-sm"
                             title="Reset match result back to UPCOMING as if it never began"
                           >
                             <span>↺</span>
-                            <span>Reset</span>
+                            <span>Cancel Result</span>
                           </button>
                         )}
                       </>
