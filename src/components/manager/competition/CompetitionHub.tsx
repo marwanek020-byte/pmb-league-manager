@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ClubBadge } from "@/components/ClubBadge";
 import { TotwPitch } from "@/components/competition/TotwPitch";
+import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 
 type Club = {
@@ -50,7 +51,7 @@ type Props = {
   isAdmin?: boolean;
 };
 
-const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "STATS & AWARDS", "TOTW", "MY CLUB"] as const;
+const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "STATS & AWARDS", "TOTW", "GLOBAL TOTW", "MY CLUB"] as const;
 type Tab = (typeof TABS)[number];
 
 const ordinal = (n: number) => {
@@ -827,6 +828,13 @@ export function CompetitionHub({
                 No active season data found for Team of the Week.
               </div>
             )}
+          </div>
+        )}
+
+        {/* GLOBAL TOTW TAB */}
+        {activeTab === "GLOBAL TOTW" && (
+          <div className="space-y-6">
+            <GlobalTotwPitch isAdmin={isAdmin} />
           </div>
         )}
 

@@ -42,6 +42,7 @@ model CompetitionSeason {
   seasons   Season[]
   matches   Match[]
   totws     TeamOfTheWeek[]
+  globalTotws GlobalTeamOfTheWeek[]
 
   @@index([status])
 }
@@ -57,6 +58,7 @@ model League {
   seasons   Season[]
   matches   Match[]
   totws     TeamOfTheWeek[]
+  globalTotwPlayers GlobalTotwPlayer[]
 }
 
 model Club {
@@ -89,6 +91,7 @@ model Club {
   postComments                           PostComment[]
   matchEvents                            MatchEvent[]
   totwPlayers                            TotwPlayer[]
+  globalTotwPlayers                      GlobalTotwPlayer[]
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -118,6 +121,7 @@ model Player {
   matchEvents        MatchEvent[]            @relation("PlayerMatchEvents")
   assistedEvents     MatchEvent[]            @relation("PlayerAssists")
   totwSelections     TotwPlayer[]
+  globalTotwSelections GlobalTotwPlayer[]
 
   @@index([fullName])
   @@index([position])
@@ -632,6 +636,53 @@ model TotwPlayer {
   @@index([totwId])
   @@index([playerId])
   @@index([clubId])
+}
+
+model GlobalTeamOfTheWeek {
+  id                  String              @id @default(cuid())
+  competitionSeasonId String?
+  edition             Int                 @unique
+  title               String              @default("Global All-Stars")
+  formation           String              @default("4-3-3")
+  leagueRounds        Json                // Array of { leagueId: string, leagueName: string, matchday: number }
+  isPublished         Boolean             @default(true)
+  firstPlacePlayerId  String?
+  secondPlacePlayerId String?
+  thirdPlacePlayerId  String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  players             GlobalTotwPlayer[]
+  competitionSeason   CompetitionSeason?  @relation(fields: [competitionSeasonId], references: [id], onDelete: SetNull)
+
+  @@index([edition])
+  @@index([isPublished])
+}
+
+model GlobalTotwPlayer {
+  id                String              @id @default(cuid())
+  globalTotwId      String
+  playerId          String
+  clubId            String
+  leagueId          String?
+  position          String              // "GK", "LB", "CB1", "CB2", "RB", "DMF", "CMF", "AMF", "LWF", "CF", "RWF"
+  ratingBoost       Int                 @default(3)
+  goalsInMatchday   Int                 @default(0)
+  assistsInMatchday Int                 @default(0)
+  isMotm            Boolean             @default(false)
+  podiumRank        Int?                // 1 (1st MVP +3M), 2 (2nd Star +1.75M), 3 (3rd Star +1.5M), null
+  createdAt         DateTime            @default(now())
+
+  globalTotw        GlobalTeamOfTheWeek @relation(fields: [globalTotwId], references: [id], onDelete: Cascade)
+  player            Player              @relation(fields: [playerId], references: [id])
+  club              Club                @relation(fields: [clubId], references: [id])
+  league            League?             @relation(fields: [leagueId], references: [id], onDelete: SetNull)
+
+  @@unique([globalTotwId, position])
+  @@index([globalTotwId])
+  @@index([playerId])
+  @@index([clubId])
+  @@index([leagueId])
 }
 
 model ManagerPoll {
