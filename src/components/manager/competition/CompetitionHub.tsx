@@ -255,16 +255,16 @@ export function CompetitionHub({
         <div className="flex items-center gap-1 min-w-max px-1">
           {Array.from({ length: totalMatchdays }, (_, i) => i + 1).map((day, idx) => {
             const isCompleted = day <= lastCompletedMatchday;
-            const isCurrent = day === selectedMatchday;
+            const isCurrent = activeTab === "MATCHDAY" && day === selectedMatchday;
             const isNext =
               !isCompleted && day === lastCompletedMatchday + 1;
 
             return (
-              <div key={day} className="flex items-center">
+              <div key={day} className="flex items-center gap-1">
                 {idx > 0 && (
                   <div
                     className={[
-                      "h-px w-4 sm:w-6 shrink-0",
+                      "h-px w-3 sm:w-5 shrink-0",
                       isCompleted ? "bg-pmb-gold/50" : "bg-pmb-border",
                     ].join(" ")}
                   />
@@ -288,6 +288,71 @@ export function CompetitionHub({
                 >
                   {day}
                 </button>
+
+                {/* Throne Cup Stages after MD 4, 8, 12, 16 */}
+                {day === 4 && (
+                  <button
+                    onClick={() => setActiveTab("THRONE CUP 👑")}
+                    title="Throne Cup: Round of 16 (8 Matches · €2M Prize)"
+                    className={[
+                      "h-7 px-2.5 rounded-full text-[10px] font-black tracking-wide shrink-0 transition flex items-center gap-1 border shadow-sm",
+                      activeTab === "THRONE CUP 👑"
+                        ? "bg-gradient-to-r from-amber-400 via-pmb-gold to-yellow-500 text-black border-yellow-300 scale-105"
+                        : "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25",
+                    ].join(" ")}
+                  >
+                    <span>👑</span>
+                    <span>CUP R16</span>
+                  </button>
+                )}
+
+                {day === 8 && (
+                  <button
+                    onClick={() => setActiveTab("THRONE CUP 👑")}
+                    title="Throne Cup: Quarter-Finals (4 Matches · €4M Prize)"
+                    className={[
+                      "h-7 px-2.5 rounded-full text-[10px] font-black tracking-wide shrink-0 transition flex items-center gap-1 border shadow-sm",
+                      activeTab === "THRONE CUP 👑"
+                        ? "bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 text-black border-emerald-300 scale-105"
+                        : "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25",
+                    ].join(" ")}
+                  >
+                    <span>👑</span>
+                    <span>CUP QF</span>
+                  </button>
+                )}
+
+                {day === 12 && (
+                  <button
+                    onClick={() => setActiveTab("THRONE CUP 👑")}
+                    title="Throne Cup: Semi-Finals (2 Matches · €6M Prize)"
+                    className={[
+                      "h-7 px-2.5 rounded-full text-[10px] font-black tracking-wide shrink-0 transition flex items-center gap-1 border shadow-sm",
+                      activeTab === "THRONE CUP 👑"
+                        ? "bg-gradient-to-r from-blue-400 via-sky-400 to-indigo-500 text-black border-blue-300 scale-105"
+                        : "bg-blue-500/15 border-blue-500/40 text-blue-300 hover:bg-blue-500/25",
+                    ].join(" ")}
+                  >
+                    <span>👑</span>
+                    <span>CUP SF</span>
+                  </button>
+                )}
+
+                {day === 16 && (
+                  <button
+                    onClick={() => setActiveTab("THRONE CUP 👑")}
+                    title="Throne Cup: Grand Final (1 Match · €8M Champion Prize)"
+                    className={[
+                      "h-7 px-2.5 rounded-full text-[10px] font-black tracking-wide shrink-0 transition flex items-center gap-1 border shadow-sm",
+                      activeTab === "THRONE CUP 👑"
+                        ? "bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500 text-black border-yellow-200 scale-105"
+                        : "bg-yellow-500/20 border-yellow-400/50 text-yellow-300 hover:bg-yellow-500/30",
+                    ].join(" ")}
+                  >
+                    <span>🏆</span>
+                    <span>FINAL</span>
+                  </button>
+                )}
               </div>
             );
           })}
