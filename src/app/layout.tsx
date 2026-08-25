@@ -6,6 +6,9 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "PMB League Manager",
   description: "Professional football league management for the PMB organization.",
+  other: {
+    monetag: "88b435aea520a594f9d18d82cfc78c94",
+  },
 };
 
 export default function RootLayout({
@@ -15,8 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <meta name="monetag" content="88b435aea520a594f9d18d82cfc78c94" />
+      </head>
       <body className="min-h-screen bg-pmb-black font-sans text-white antialiased">
-<PMBMusic />
+        <PMBMusic />
         <Providers>{children}</Providers>
       </body>
     </html>
