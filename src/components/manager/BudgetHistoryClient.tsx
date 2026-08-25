@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Skeleton } from "@/components/Skeleton";
+import { SponsorAdBoost } from "@/components/manager/SponsorAdBoost";
 
 type BudgetTransactionDTO = {
   id: string;
@@ -92,6 +93,9 @@ export function BudgetHistoryClient() {
 
   return (
     <div className="space-y-6">
+      {/* ─── DAILY SPONSOR VIDEO BOOST (+€200,000) ────────────────── */}
+      <SponsorAdBoost onRewardClaimed={() => load()} />
+
       {/* ─── FINANCIAL KPI OVERVIEW ─────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* Main Budget Card */}
