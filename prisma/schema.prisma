@@ -59,6 +59,7 @@ model League {
   matches   Match[]
   totws     TeamOfTheWeek[]
   globalTotwPlayers GlobalTotwPlayer[]
+  throneCups ThroneCup[]
 }
 
 model Club {
@@ -92,6 +93,10 @@ model Club {
   matchEvents                            MatchEvent[]
   totwPlayers                            TotwPlayer[]
   globalTotwPlayers                      GlobalTotwPlayer[]
+  throneCupHomeMatches                   ThroneCupMatch[]        @relation("ThroneCupHomeMatches")
+  throneCupAwayMatches                   ThroneCupMatch[]        @relation("ThroneCupAwayMatches")
+  throneCupWinnerMatches                 ThroneCupMatch[]        @relation("ThroneCupWinnerMatches")
+  throneCupTitles                        ThroneCup[]             @relation("ThroneCupChampion")
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -122,6 +127,8 @@ model Player {
   assistedEvents     MatchEvent[]            @relation("PlayerAssists")
   totwSelections     TotwPlayer[]
   globalTotwSelections GlobalTotwPlayer[]
+  throneCupMotmMatches ThroneCupMatch[]      @relation("ThroneCupMotmMatches")
+  throneCupEvents      ThroneCupMatchEvent[]
 
   @@index([fullName])
   @@index([position])
@@ -736,4 +743,89 @@ model SystemSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+enum CupStage {
+  ROUND_OF_16
+  QUARTER_FINALS
+  SEMI_FINALS
+  FINAL
+}
+
+enum CupMatchStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+}
+
+model ThroneCup {
+  id                  String                  @id @default(cuid())
+  competitionSeasonId String?
+  leagueId            String                  // Specifically Botola Pro
+  name                String                  @default("Throne Cup")
+  season              String                  @default("2026/2027")
+  status              CompetitionSeasonStatus @default(ACTIVE)
+  championClubId      String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  matches             ThroneCupMatch[]
+  championClub        Club?                   @relation("ThroneCupChampion", fields: [championClubId], references: [id])
+  league              League                  @relation(fields: [leagueId], references: [id])
+
+  @@index([leagueId])
+  @@index([competitionSeasonId])
+}
+
+model ThroneCupMatch {
+  id                  String              @id @default(cuid())
+  cupId               String
+  stage               CupStage            // ROUND_OF_16, QUARTER_FINALS, SEMI_FINALS, FINAL
+  matchOrder          Int                 // 1..8 for R16, 1..4 for QF, 1..2 for SF, 1 for Final
+  linkedMatchday      Int                 // 4 (for R16), 8 (for QF), 12 (for SF), 16 (for Final)
+  homeClubId          String?
+  awayClubId          String?
+  winnerClubId        String?
+  homeGoals           Int?
+  awayGoals           Int?
+  homePenalties       Int?
+  awayPenalties       Int?
+  isPenaltyShootout   Boolean             @default(false)
+  status              CupMatchStatus      @default(UPCOMING)
+  playedAt            DateTime?
+  manOfTheMatchId     String?
+  prizeAmount         Decimal             @default(0) @db.Decimal(14, 2)
+  prizeAwarded        Boolean             @default(false)
+  nextMatchOrder      Int?                // Target match in next round
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  cup                 ThroneCup           @relation(fields: [cupId], references: [id], onDelete: Cascade)
+  homeClub            Club?               @relation("ThroneCupHomeMatches", fields: [homeClubId], references: [id])
+  awayClub            Club?               @relation("ThroneCupAwayMatches", fields: [awayClubId], references: [id])
+  winnerClub          Club?               @relation("ThroneCupWinnerMatches", fields: [winnerClubId], references: [id])
+  manOfTheMatch       Player?             @relation("ThroneCupMotmMatches", fields: [manOfTheMatchId], references: [id])
+  events              ThroneCupMatchEvent[]
+
+  @@unique([cupId, stage, matchOrder])
+  @@index([cupId])
+  @@index([stage])
+  @@index([status])
+}
+
+model ThroneCupMatchEvent {
+  id             String          @id @default(cuid())
+  matchId        String
+  type           MatchEventType  // GOAL, ASSIST, YELLOW_CARD, RED_CARD, PENALTY
+  clubId         String
+  playerId       String
+  assistPlayerId String?
+  minute         Int?
+  createdAt      DateTime        @default(now())
+
+  match          ThroneCupMatch  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player         Player          @relation(fields: [playerId], references: [id])
+
+  @@index([matchId])
+  @@index([playerId])
 }

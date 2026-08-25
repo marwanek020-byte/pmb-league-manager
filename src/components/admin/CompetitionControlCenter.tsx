@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { RegistrationLockToggle } from "@/components/admin/RegistrationLockToggle";
+import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
 
 type League = {
   id: string;
@@ -347,6 +348,11 @@ export function CompetitionControlCenter({
       {/* ─── GLOBAL TEAM OF THE WEEK (ALL-STARS STUDIO) ───────────────── */}
       <div className="pt-8 border-t border-pmb-border/60">
         <GlobalTotwPitch isAdmin={true} />
+      </div>
+
+      {/* ─── BOTOLA PRO THRONE CUP (ROYAL KNOCKOUT TOURNAMENT) ──────────── */}
+      <div className="pt-8 border-t border-pmb-border/60">
+        <ThroneCupBracket isAdmin={true} />
       </div>
     </div>
   );

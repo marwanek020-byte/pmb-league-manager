@@ -5,6 +5,7 @@ import { ClubBadge } from "@/components/ClubBadge";
 import { TotwPitch } from "@/components/competition/TotwPitch";
 import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
+import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
 
 type Club = {
   id: string;
@@ -51,7 +52,7 @@ type Props = {
   isAdmin?: boolean;
 };
 
-const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "STATS & AWARDS", "TOTW", "GLOBAL TOTW", "MY CLUB"] as const;
+const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "STATS & AWARDS", "TOTW", "GLOBAL TOTW", "THRONE CUP 👑", "MY CLUB"] as const;
 type Tab = (typeof TABS)[number];
 
 const ordinal = (n: number) => {
@@ -835,6 +836,13 @@ export function CompetitionHub({
         {activeTab === "GLOBAL TOTW" && (
           <div className="space-y-6">
             <GlobalTotwPitch isAdmin={isAdmin} />
+          </div>
+        )}
+
+        {/* THRONE CUP TAB */}
+        {activeTab === "THRONE CUP 👑" && (
+          <div className="space-y-6">
+            <ThroneCupBracket isAdmin={isAdmin} />
           </div>
         )}
 
