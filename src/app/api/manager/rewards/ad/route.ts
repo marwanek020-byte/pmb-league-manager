@@ -10,12 +10,26 @@ const REWARD_AMOUNT = 200000; // €200,000 / $200k per ad view
 const MAX_DAILY_ADS = 10;     // 10 ads per 24 hours
 const AD_PREFIX = "📺 Daily Sponsor Video Ad Reward";
 
-async function getManagerClub() {
+async function getManagerClub(): Promise<{ session: any; clubId: string } | null> {
   const session = await auth();
-  if (!session || session.user.role !== "CLUB_MANAGER" || !session.user.clubId) {
-    return null;
+  if (!session) return null;
+
+  let clubId: string | null | undefined = session.user.clubId;
+  if (!clubId) {
+    const club = await prisma.club.findFirst({
+      where: { managerId: session.user.id },
+      select: { id: true },
+    });
+    clubId = club?.id ?? null;
   }
-  return { session, clubId: session.user.clubId };
+
+  if (!clubId && session.user.role === "ADMINISTRATOR") {
+    const club = await prisma.club.findFirst({ select: { id: true } });
+    clubId = club?.id ?? null;
+  }
+
+  if (!clubId) return null;
+  return { session, clubId };
 }
 
 // GET /api/manager/rewards/ad — Status of remaining daily ads

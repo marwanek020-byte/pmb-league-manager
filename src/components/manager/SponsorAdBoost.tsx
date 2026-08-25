@@ -104,24 +104,15 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
     }
   }
 
-  if (loading) {
-    return (
-      <div className="pmb-card p-5 border border-pmb-gold/30 animate-pulse flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-pmb-gold/20" />
-          <div className="space-y-1">
-            <div className="w-32 h-4 bg-pmb-gold/20 rounded" />
-            <div className="w-48 h-3 bg-gray-700 rounded" />
-          </div>
-        </div>
-        <div className="w-24 h-8 bg-pmb-gold/20 rounded-lg" />
-      </div>
-    );
-  }
+  const activeStatus: AdStatus = status ?? {
+    viewsInLast24h: 0,
+    maxDailyViews: 10,
+    remainingViews: 10,
+    rewardPerView: 200000,
+    canWatch: true,
+  };
 
-  if (!status) return null;
-
-  const progressPercent = Math.min(100, Math.round((status.viewsInLast24h / status.maxDailyViews) * 100));
+  const progressPercent = Math.min(100, Math.round((activeStatus.viewsInLast24h / activeStatus.maxDailyViews) * 100));
 
   return (
     <>
@@ -141,7 +132,7 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
                   +€200,000 per ad
                 </span>
                 <span className="text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-0.5 rounded-full font-bold">
-                  {status.viewsInLast24h} / {status.maxDailyViews} Today
+                  {activeStatus.viewsInLast24h} / {activeStatus.maxDailyViews} Today
                 </span>
               </div>
               <h3 className="text-lg sm:text-xl font-black text-white mt-1">
@@ -160,7 +151,7 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
                   />
                 </div>
                 <span className="text-[11px] font-bold text-gray-400 shrink-0">
-                  {status.remainingViews} claims left
+                  {activeStatus.remainingViews} claims left
                 </span>
               </div>
             </div>
@@ -168,7 +159,7 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
 
           {/* Action Button */}
           <div className="shrink-0 flex items-center justify-end">
-            {status.canWatch ? (
+            {activeStatus.canWatch ? (
               <button
                 type="button"
                 onClick={startWatchingAd}
