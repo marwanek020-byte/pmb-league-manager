@@ -62,19 +62,10 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
     setCanClaim(false);
     setIsWatching(true);
 
-    // 1. Open the Monetag sponsor direct link in a new tab so Monetag registers the high-paying view
+    // Open the Monetag sponsor direct link in a new tab when clicked
     try {
       if (typeof window !== "undefined") {
         window.open(DIRECT_AD_LINK, "_blank", "noopener,noreferrer");
-      }
-    } catch {
-      // ignore
-    }
-
-    // 2. Trigger Monetag multitag functions if present
-    try {
-      if (typeof window !== "undefined" && (window as any).show_88) {
-        (window as any).show_88();
       }
     } catch {
       // ignore

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ClubBadge } from "@/components/ClubBadge";
-import { SponsorAdBoost } from "@/components/manager/SponsorAdBoost";
 
 export const dynamic = "force-dynamic";
 
@@ -237,11 +236,6 @@ export default async function ManagerDashboardPage() {
             </div>
           </Link>
         </div>
-      </section>
-
-      {/* ─── DAILY SPONSOR VIDEO BOOST (+€200,000) ────────────────── */}
-      <section>
-        <SponsorAdBoost />
       </section>
 
       {/* ─── MAIN BENTO GRID ─────────────────────────────────────────── */}
