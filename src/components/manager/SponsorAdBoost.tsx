@@ -53,6 +53,8 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
     return () => clearInterval(timer);
   }, [isWatching, countdown]);
 
+  const DIRECT_AD_LINK = "https://omg10.com/4/11653649";
+
   function startWatchingAd() {
     setClaimError(null);
     setClaimSuccess(null);
@@ -60,7 +62,16 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
     setCanClaim(false);
     setIsWatching(true);
 
-    // If Monetag tag or custom ad trigger exists on window, invoke it
+    // 1. Open the Monetag sponsor direct link in a new tab so Monetag registers the high-paying view
+    try {
+      if (typeof window !== "undefined") {
+        window.open(DIRECT_AD_LINK, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Trigger Monetag multitag functions if present
     try {
       if (typeof window !== "undefined" && (window as any).show_88) {
         (window as any).show_88();
@@ -241,6 +252,14 @@ export function SponsorAdBoost({ onRewardClaimed }: { onRewardClaimed?: (newBala
                   <div>
                     <p className="text-xs font-bold text-white">Sponsor Ad Playing...</p>
                     <p className="text-[10px] text-gray-400 mt-0.5">Please wait {countdown} seconds to unlock your reward</p>
+                    <a
+                      href={DIRECT_AD_LINK}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-2 text-[10px] text-pmb-gold underline hover:text-yellow-300 font-semibold"
+                    >
+                      🔗 Open sponsor page in new tab
+                    </a>
                   </div>
                 </div>
               ) : (
