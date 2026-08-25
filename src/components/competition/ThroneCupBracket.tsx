@@ -285,7 +285,7 @@ export function ThroneCupBracket({ isAdmin = false }: { isAdmin?: boolean }) {
   };
 
   return (
-    <div className="space-y-8">
+    <div id="throne-cup-section" className="space-y-8">
       {/* Royal Moroccan Header */}
       <div className="relative overflow-hidden rounded-2xl border-2 border-pmb-gold/40 bg-gradient-to-r from-red-950/40 via-black to-emerald-950/40 p-6 sm:p-8 shadow-2xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">

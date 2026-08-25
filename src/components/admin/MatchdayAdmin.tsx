@@ -373,6 +373,60 @@ export function MatchdayAdmin({
         )}
       </div>
 
+      {/* Throne Cup Knockout Schedule Notice */}
+      {currentMatchday === 4 && (
+        <div className="p-3 rounded-xl bg-gradient-to-r from-amber-950/30 to-black border border-amber-500/40 text-xs text-amber-200 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">👑</span>
+            <span>
+              <strong>Throne Cup Round of 16 (8 Matches)</strong> takes place after this Matchday! (Prize: <strong>€2,000,000</strong> per winner)
+            </span>
+          </div>
+          <a href="#throne-cup-section" className="text-pmb-gold underline font-bold hover:text-white shrink-0 ml-2">
+            View Bracket ↓
+          </a>
+        </div>
+      )}
+      {currentMatchday === 8 && (
+        <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-950/30 to-black border border-emerald-500/40 text-xs text-emerald-200 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">👑</span>
+            <span>
+              <strong>Throne Cup Quarter-Finals (4 Matches)</strong> takes place after this Matchday! (Prize: <strong>€4,000,000</strong> per winner)
+            </span>
+          </div>
+          <a href="#throne-cup-section" className="text-emerald-400 underline font-bold hover:text-white shrink-0 ml-2">
+            View Bracket ↓
+          </a>
+        </div>
+      )}
+      {currentMatchday === 12 && (
+        <div className="p-3 rounded-xl bg-gradient-to-r from-blue-950/30 to-black border border-blue-500/40 text-xs text-blue-200 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">👑</span>
+            <span>
+              <strong>Throne Cup Semi-Finals (2 Matches)</strong> takes place after this Matchday! (Prize: <strong>€6,000,000</strong> per winner)
+            </span>
+          </div>
+          <a href="#throne-cup-section" className="text-blue-400 underline font-bold hover:text-white shrink-0 ml-2">
+            View Bracket ↓
+          </a>
+        </div>
+      )}
+      {currentMatchday === 16 && (
+        <div className="p-3 rounded-xl bg-gradient-to-r from-yellow-950/40 via-black to-yellow-950/40 border border-yellow-500/50 text-xs text-yellow-200 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏆</span>
+            <span>
+              <strong>Throne Cup Grand Final (1 Match)</strong> takes place after this Matchday! (Champion Prize: <strong>€8,000,000</strong>)
+            </span>
+          </div>
+          <a href="#throne-cup-section" className="text-yellow-400 underline font-bold hover:text-white shrink-0 ml-2">
+            View Bracket ↓
+          </a>
+        </div>
+      )}
+
       {/* Match list */}
       <div className="space-y-3">
         {currentMatches.length === 0 && (

@@ -7,6 +7,7 @@ import { computeStandings } from "@/lib/services/standings-service";
 import { TotwPitch } from "@/components/competition/TotwPitch";
 import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
+import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
 
 export const dynamic = "force-dynamic";
 
@@ -211,6 +212,13 @@ export default async function LeagueMatchdayPage({
           </p>
         </div>
       </div>
+
+      {/* ─── BOTOLA PRO THRONE CUP (ROYAL KNOCKOUT TOURNAMENT) ──────────── */}
+      {league.name.toUpperCase().includes("BOTOLA") && (
+        <section className="space-y-4 pt-4 border-t border-pmb-border/60">
+          <ThroneCupBracket isAdmin={true} />
+        </section>
+      )}
 
       {/* ─── OFFICIAL TEAM OF THE WEEK (TOTW) ───────────────────────── */}
       <section className="space-y-4 pt-4 border-t border-pmb-border/60">

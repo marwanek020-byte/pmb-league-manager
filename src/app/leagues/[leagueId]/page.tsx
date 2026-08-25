@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { computeStandings } from "@/lib/services/standings-service";
 import { ClubBadge } from "@/components/ClubBadge";
+import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
 
 export const dynamic = "force-dynamic";
 
@@ -400,6 +401,13 @@ export default async function PublicLeaguePage({ params }: Props) {
             </section>
           </div>
         </div>
+
+        {/* ─── BOTOLA PRO THRONE CUP (ROYAL KNOCKOUT TOURNAMENT) ──────────── */}
+        {league.name.toUpperCase().includes("BOTOLA") && (
+          <div className="mt-12 pt-8 border-t border-pmb-border/60">
+            <ThroneCupBracket isAdmin={false} />
+          </div>
+        )}
       </main>
 
       <footer className="border-t border-pmb-border/30 mt-16 py-8 text-center">
