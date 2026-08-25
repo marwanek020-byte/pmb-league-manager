@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { PMBMusic } from "@/components/PMBMusic";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -24,6 +25,12 @@ export default function RootLayout({
       <body className="min-h-screen bg-pmb-black font-sans text-white antialiased">
         <PMBMusic />
         <Providers>{children}</Providers>
+        <Script
+          src="https://quge5.com/88/tag.min.js"
+          data-zone="273231"
+          data-cfasync="false"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
