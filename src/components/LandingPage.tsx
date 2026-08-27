@@ -79,8 +79,8 @@ export function LandingPage() {
         <div className="flex justify-between items-center mx-auto" style={{ maxWidth: 1200, padding: "12px 32px" }}>
           <span className="font-montserrat" style={{ fontSize: 26, fontWeight: 800, color: "#e2e2e2" }}>PMB</span>
           <div className="flex items-center" style={{ gap: 20 }}>
-            {["ABOUT", "LEAGUES", "ADMINISTRATION"].map((item) => (
-              <a key={item} href={`#${item.toLowerCase()}`} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 500, color: "#c4c7c7", textDecoration: "none", padding: "6px 12px" }}>{item}</a>
+            {["ABOUT", "LEAGUES", "PACKS", "ADMINISTRATION"].map((item) => (
+              <a key={item} href={`#${item.toLowerCase()}`} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 500, color: item === "PACKS" ? "#e9c349" : "#c4c7c7", textDecoration: "none", padding: "6px 12px" }}>{item}</a>
             ))}
           </div>
           <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.4)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
@@ -98,8 +98,8 @@ export function LandingPage() {
         </div>
         {mobileMenu && (
           <div className="flex flex-col items-center gap-3 pb-4" style={{ borderTop: "1px solid #444748" }}>
-            {["ABOUT", "LEAGUES", "ADMINISTRATION"].map((item) => (
-              <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileMenu(false)} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#c4c7c7", textDecoration: "none", padding: "6px 0" }}>{item}</a>
+            {["ABOUT", "LEAGUES", "PACKS", "ADMINISTRATION"].map((item) => (
+              <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileMenu(false)} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", color: item === "PACKS" ? "#e9c349" : "#c4c7c7", textDecoration: "none", padding: "6px 0" }}>{item}</a>
             ))}
             <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.3)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
           </div>
@@ -275,6 +275,170 @@ export function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ═══ TOURNAMENT PACKS & PRICING ═══ */}
+      <section id="packs" className="relative overflow-hidden" style={{ background: "#0c0f0f", padding: "72px 0", borderTop: "1px solid rgba(233,195,73,0.15)", borderBottom: "1px solid rgba(233,195,73,0.15)" }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 20px" }}>
+          
+          <div className="text-center" style={{ marginBottom: 48 }}>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3" style={{ background: "rgba(233,195,73,0.1)", border: "1px solid rgba(233,195,73,0.3)" }}>
+              <span style={{ color: "#e9c349", fontSize: 13 }}>🏆</span>
+              <span className="font-jetbrains text-xs uppercase tracking-widest text-[#e9c349] font-bold">TOURNAMENT PACKS • باقات تنظيم البطولات</span>
+            </div>
+            <h2 className="font-montserrat" style={{ fontSize: "clamp(24px, 4vw, 36px)", fontWeight: 800, letterSpacing: "-0.02em", color: "#f4f4f5", textTransform: "uppercase", marginBottom: 10 }}>
+              POWER YOUR TOURNAMENT
+            </h2>
+            <p className="font-inter text-sm max-w-xl mx-auto" style={{ color: "#a1a1aa", lineHeight: "22px" }}>
+              اختر الباقة المناسبة لبطولتك (FIFA / EA FC, eFootball, أو دوريات كرة القدم المصغرة) مع منصة متكاملة ومزادات وانتقالات حية.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+            
+            {/* ─── PACK 1: MINI PACK ─── */}
+            <div className="rounded-2xl p-6 flex flex-col justify-between transition-all hover:translate-y-[-4px]" style={{ background: "#141718", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-jetbrains text-xs uppercase tracking-wider text-zinc-400 font-bold">STARTER • الباقة البسيطة</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-jetbrains">8-12 Teams</span>
+                </div>
+                <div className="mb-4">
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-montserrat text-3xl font-extrabold text-white">50 DH</span>
+                    <span className="text-xs text-zinc-500 font-jetbrains">/ بطولة (~$5)</span>
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1 font-inter">مثالية للدوريات السريعة والبطولات الكلاسيكية.</p>
+                </div>
+                <hr className="border-zinc-800 my-4" />
+                <ul className="space-y-2.5 text-xs text-zinc-300 font-inter mb-6">
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> جدول الترتيب المباشر (Standings)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> جدول المباريات والنتائج لكل جولة
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> قائمة الهدافين والإحصائيات
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> لوحة تحكم للمنظم لتسجيل النتائج
+                  </li>
+                </ul>
+              </div>
+              <a
+                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20Starter%20Pack%20(50%20DH)%20for%20my%20tournament"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full text-center py-2.5 rounded-lg font-jetbrains text-xs font-bold uppercase tracking-wider transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#f4f4f5" }}
+              >
+                احجز الباقة (50 DH)
+              </a>
+            </div>
+
+            {/* ─── PACK 2: PRO MASTER LEAGUE (FEATURED) ─── */}
+            <div className="rounded-2xl p-6 flex flex-col justify-between relative transition-all hover:translate-y-[-4px]" style={{ background: "#181b1c", border: "2px solid #e9c349", boxShadow: "0 0 30px rgba(233,195,73,0.15)" }}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full font-jetbrains text-[10px] font-extrabold uppercase tracking-widest text-black" style={{ background: "#e9c349" }}>
+                ⭐ MOST POPULAR • الأكثر طلباً
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-4 mt-1">
+                  <span className="font-jetbrains text-xs uppercase tracking-wider text-[#e9c349] font-bold">PRO • الماستر ليغ والمزادات</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-jetbrains" style={{ background: "rgba(233,195,73,0.15)", color: "#e9c349" }}>Full Season</span>
+                </div>
+                <div className="mb-4">
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-montserrat text-3xl font-extrabold text-[#e9c349]">150 DH</span>
+                    <span className="text-xs text-zinc-400 font-jetbrains">/ بطولة (~$15)</span>
+                  </div>
+                  <p className="text-xs text-[#e9c349]/90 mt-1 font-inter font-medium">
+                    (تطلع بـ <span className="font-bold underline">10 دراهم فقط</span> على كل لاعب في بطولة 15 فريق!)
+                  </p>
+                </div>
+                <hr className="border-zinc-700/60 my-4" />
+                <ul className="space-y-2.5 text-xs text-zinc-200 font-inter mb-6">
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> <strong>كل مميزات الباقة البسيطة</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> <strong>مزادات حية للاعبين (Live Bidding)</strong> بعد تنازلي
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> <strong>سوق الانتقالات والميزانيات والإعارات</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> <strong>كأس العرش / الأدوار الإقصائية (Knockout)</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> تسجيل البطاقات وصناع اللعب ورجل المباراة
+                  </li>
+                </ul>
+              </div>
+              <a
+                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20Master%20League%20Pro%20Pack%20(150%20DH)%20for%20my%20tournament"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full text-center py-3 rounded-lg font-jetbrains text-xs font-extrabold uppercase tracking-wider text-black transition-all hover:brightness-110 shadow-lg"
+                style={{ background: "linear-gradient(135deg, #e9c349, #d4a827)" }}
+              >
+                احجز باقة Pro الآن (150 DH)
+              </a>
+            </div>
+
+            {/* ─── PACK 3: VIP ULTIMATE ─── */}
+            <div className="rounded-2xl p-6 flex flex-col justify-between transition-all hover:translate-y-[-4px]" style={{ background: "#141718", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-jetbrains text-xs uppercase tracking-wider text-zinc-400 font-bold">VIP • الباقة الشاملة</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-jetbrains">Communities</span>
+                </div>
+                <div className="mb-4">
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-montserrat text-3xl font-extrabold text-white">300 DH</span>
+                    <span className="text-xs text-zinc-500 font-jetbrains">/ بطولة (~$30)</span>
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1 font-inter">المثالية لمراكز الألعاب والبطولات الكبرى.</p>
+                </div>
+                <hr className="border-zinc-800 my-4" />
+                <ul className="space-y-2.5 text-xs text-zinc-300 font-inter mb-6">
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> <strong>كل مميزات باقة Pro كاملة</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> <strong>تشكيلة الأسبوع (TOTW)</strong> مع ترقيات اللاعبين
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> <strong>منصة تواصل وشات خاص بين المدربين</strong>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> استطلاعات وتصويت أفضل مدرب في الشهر
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-[#e9c349] font-bold">✓</span> إضافة شعار بطولتكم ومساعدة كاملة في الإعداد
+                  </li>
+                </ul>
+              </div>
+              <a
+                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20VIP%20Ultimate%20Pack%20(300%20DH)%20for%20my%20tournament"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full text-center py-2.5 rounded-lg font-jetbrains text-xs font-bold uppercase tracking-wider transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#f4f4f5" }}
+              >
+                احجز باقة VIP (300 DH)
+              </a>
+            </div>
+
+          </div>
+
+          <div className="mt-8 text-center">
+            <p className="text-xs text-zinc-500 font-jetbrains">
+              💡 Need custom features or permanent ownership for your organization? Contact us directly.
+            </p>
+          </div>
+
         </div>
       </section>
 
