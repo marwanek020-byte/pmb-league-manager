@@ -306,8 +306,8 @@ export function LandingPage() {
                 </div>
                 <div className="mb-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-montserrat text-3xl font-extrabold text-white">50 DH</span>
-                    <span className="text-xs text-zinc-500 font-jetbrains">/ بطولة (~$5)</span>
+                    <span className="font-montserrat text-3xl font-extrabold text-white">30 DH</span>
+                    <span className="text-xs text-zinc-500 font-jetbrains">/ بطولة (~$3)</span>
                   </div>
                   <p className="text-xs text-zinc-400 mt-1 font-inter">مثالية للدوريات السريعة والبطولات الكلاسيكية.</p>
                 </div>
@@ -328,13 +328,13 @@ export function LandingPage() {
                 </ul>
               </div>
               <a
-                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20Starter%20Pack%20(50%20DH)%20for%20my%20tournament"
+                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20Starter%20Pack%20(30%20DH)%20for%20my%20tournament"
                 target="_blank"
                 rel="noreferrer"
                 className="w-full text-center py-2.5 rounded-lg font-jetbrains text-xs font-bold uppercase tracking-wider transition-all"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#f4f4f5" }}
               >
-                احجز الباقة (50 DH)
+                احجز الباقة (30 DH)
               </a>
             </div>
 
@@ -350,11 +350,11 @@ export function LandingPage() {
                 </div>
                 <div className="mb-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-montserrat text-3xl font-extrabold text-[#e9c349]">150 DH</span>
-                    <span className="text-xs text-zinc-400 font-jetbrains">/ بطولة (~$15)</span>
+                    <span className="font-montserrat text-3xl font-extrabold text-[#e9c349]">70 DH</span>
+                    <span className="text-xs text-zinc-400 font-jetbrains">/ بطولة (~$7)</span>
                   </div>
                   <p className="text-xs text-[#e9c349]/90 mt-1 font-inter font-medium">
-                    (تطلع بـ <span className="font-bold underline">10 دراهم فقط</span> على كل لاعب في بطولة 15 فريق!)
+                    (تطلع بأقل من <span className="font-bold underline">5 دراهم</span> على كل لاعب في بطولة 15 فريق!)
                   </p>
                 </div>
                 <hr className="border-zinc-700/60 my-4" />
@@ -377,13 +377,13 @@ export function LandingPage() {
                 </ul>
               </div>
               <a
-                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20Master%20League%20Pro%20Pack%20(150%20DH)%20for%20my%20tournament"
+                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20Master%20League%20Pro%20Pack%20(70%20DH)%20for%20my%20tournament"
                 target="_blank"
                 rel="noreferrer"
                 className="w-full text-center py-3 rounded-lg font-jetbrains text-xs font-extrabold uppercase tracking-wider text-black transition-all hover:brightness-110 shadow-lg"
                 style={{ background: "linear-gradient(135deg, #e9c349, #d4a827)" }}
               >
-                احجز باقة Pro الآن (150 DH)
+                احجز باقة Pro الآن (70 DH)
               </a>
             </div>
 
@@ -396,8 +396,8 @@ export function LandingPage() {
                 </div>
                 <div className="mb-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-montserrat text-3xl font-extrabold text-white">300 DH</span>
-                    <span className="text-xs text-zinc-500 font-jetbrains">/ بطولة (~$30)</span>
+                    <span className="font-montserrat text-3xl font-extrabold text-white">110 DH</span>
+                    <span className="text-xs text-zinc-500 font-jetbrains">/ بطولة (~$11)</span>
                   </div>
                   <p className="text-xs text-zinc-400 mt-1 font-inter">المثالية لمراكز الألعاب والبطولات الكبرى.</p>
                 </div>
@@ -421,13 +421,13 @@ export function LandingPage() {
                 </ul>
               </div>
               <a
-                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20VIP%20Ultimate%20Pack%20(300%20DH)%20for%20my%20tournament"
+                href="https://wa.me/?text=Hello%2C%20I%20want%20to%20order%20the%20VIP%20Ultimate%20Pack%20(110%20DH)%20for%20my%20tournament"
                 target="_blank"
                 rel="noreferrer"
                 className="w-full text-center py-2.5 rounded-lg font-jetbrains text-xs font-bold uppercase tracking-wider transition-all"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "#f4f4f5" }}
               >
-                احجز باقة VIP (300 DH)
+                احجز باقة VIP (110 DH)
               </a>
             </div>
 
