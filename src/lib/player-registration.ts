@@ -7,8 +7,19 @@ export class PlayerRegistrationError extends Error {
 
   constructor(code: PlayerRegistrationError["code"], message: string) {
     super(message);
+    this.name = "PlayerRegistrationError";
     this.code = code;
+    Object.setPrototypeOf(this, PlayerRegistrationError.prototype);
   }
+}
+
+export function isPlayerRegistrationError(err: unknown): err is PlayerRegistrationError {
+  if (!err || typeof err !== "object") return false;
+  if (err instanceof PlayerRegistrationError) return true;
+  return (
+    (err as any).name === "PlayerRegistrationError" ||
+    ("code" in err && ["NOT_FOUND", "ALREADY_REGISTERED", "RACE_LOST", "FORBIDDEN", "LOCKED"].includes((err as any).code))
+  );
 }
 
 type LockedPlayerRow = {
@@ -104,66 +115,79 @@ export async function createPlayerForClub(
     );
   }
 
+  const normalizedFullName = input.fullName.trim();
+  const normalizedPosition = input.position.trim().toUpperCase();
+  const normalizedNationality = input.nationality.trim();
+
   return prisma.$transaction(async (tx) => {
     const club = await tx.club.findUnique({
       where: { id: clubId },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
-if (!club) {
-  throw new PlayerRegistrationError("NOT_FOUND", "Club not found.");
-}
+    if (!club) {
+      throw new PlayerRegistrationError("NOT_FOUND", "Club not found.");
+    }
 
-const existingPlayer = await tx.player.findFirst({
-  where: {
-    fullName: {
-      equals: input.fullName,
-      mode: "insensitive",
-    },
-    position: {
-      equals: input.position,
-      mode: "insensitive",
-    },
-    nationality: {
-      equals: input.nationality,
-      mode: "insensitive",
-    },
-  },
-  select: {
-    id: true,
-    fullName: true,
-    status: true,
-    pmbClubId: true,
-    pmbClub: {
-      select: {
-        name: true,
+    const existingPlayer = await tx.player.findFirst({
+      where: {
+        fullName: {
+          equals: normalizedFullName,
+          mode: "insensitive",
+        },
       },
-    },
-  },
-});
+      select: {
+        id: true,
+        fullName: true,
+        status: true,
+        pmbClubId: true,
+        pmbClub: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
 
-if (existingPlayer) {
-  if (existingPlayer.status === "REGISTERED") {
-    throw new PlayerRegistrationError(
-      "ALREADY_REGISTERED",
-      `${existingPlayer.fullName} is already registered to another club.`
-    );
-  }
+    if (existingPlayer) {
+      if (existingPlayer.status === "REGISTERED") {
+        if (existingPlayer.pmbClubId === clubId) {
+          throw new PlayerRegistrationError(
+            "ALREADY_REGISTERED",
+            `"${existingPlayer.fullName}" is already registered to your club.`
+          );
+        }
+        throw new PlayerRegistrationError(
+          "ALREADY_REGISTERED",
+          `"${existingPlayer.fullName}" is already registered to ${existingPlayer.pmbClub?.name || "another club"}.`
+        );
+      }
 
-  throw new PlayerRegistrationError(
-    "ALREADY_REGISTERED",
-    `${existingPlayer.fullName} already exists in the player database. Use "Register Existing Player" instead.`
-  );
-}
+      throw new PlayerRegistrationError(
+        "ALREADY_REGISTERED",
+        `"${existingPlayer.fullName}" already exists in the player database (Free Agent). Use "Register Existing Player" instead.`
+      );
+    }
 
-return tx.player.create({
+    // Safely determine next playerId to avoid Postgres autoincrement sequence collisions
+    const maxPlayer = await tx.player.findFirst({
+      orderBy: { playerId: "desc" },
+      select: { playerId: true },
+    });
+    const nextPlayerId = (maxPlayer?.playerId ?? 0) + 1;
+
+    const defaultPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(normalizedFullName)}&background=16161a&color=d4af37&size=256&bold=true&font-size=0.38&rounded=true`;
+
+    return tx.player.create({
       data: {
-        fullName: input.fullName,
-        position: input.position,
-        nationality: input.nationality,
+        playerId: nextPlayerId,
+        fullName: normalizedFullName,
+        position: normalizedPosition,
+        nationality: normalizedNationality,
         realClub: "Free Agent",
+        photo: defaultPhoto,
         overallRating: input.overallRating ?? null,
-        marketValue: input.marketValue ?? null,
+        marketValue: input.marketValue != null ? new Prisma.Decimal(input.marketValue) : null,
         status: "REGISTERED",
         pmbClubId: clubId,
       },

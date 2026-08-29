@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
   registerPlayerToClub,
-  PlayerRegistrationError,
+  isPlayerRegistrationError,
 } from "@/lib/player-registration";
 
 type RegisterPlayerBody = {
@@ -51,8 +51,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       player,
     });
-  } catch (error) {
-    if (error instanceof PlayerRegistrationError) {
+  } catch (error: any) {
+    if (isPlayerRegistrationError(error)) {
       const status =
         error.code === "FORBIDDEN" || error.code === "LOCKED"
           ? 403
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       {
-        error: "Something went wrong while registering the player.",
+        error: error?.message || "Something went wrong while registering the player.",
         code: "UNKNOWN",
       },
       { status: 500 }

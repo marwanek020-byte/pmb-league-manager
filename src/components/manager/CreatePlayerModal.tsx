@@ -73,16 +73,16 @@ export function CreatePlayerModal({
         body: JSON.stringify({
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
-          position: form.position.trim(),
+          position: form.position.trim().toUpperCase(),
           nationality: form.nationality.trim(),
-          overallRating: form.overallRating ? Number(form.overallRating) : undefined,
-          marketValue: form.marketValue ? Number(form.marketValue) : undefined,
+          overallRating: form.overallRating.trim() ? Number(form.overallRating) : undefined,
+          marketValue: form.marketValue.trim() ? Number(form.marketValue) : undefined,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const message = data.error ?? "Could not create this player.";
+        const message = data.error || "Could not create this player.";
         setFormError(message);
         onError(message);
         return;
@@ -145,7 +145,7 @@ export function CreatePlayerModal({
               <input
                 required
                 value={form.position}
-                onChange={(e) => update("position", e.target.value)}
+                onChange={(e) => update("position", e.target.value.toUpperCase())}
                 className="pmb-input"
                 placeholder="e.g. RW"
               />
