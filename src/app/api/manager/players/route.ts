@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createPlayerForClub, PlayerRegistrationError } from "@/lib/player-registration";
+import { createPlayerForClub, isPlayerRegistrationError } from "@/lib/player-registration";
 import { serializePlayer } from "@/lib/serialize-player";
 
 type CreatePlayerBody = {
@@ -68,14 +68,23 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ player: serializePlayer(player) }, { status: 201 });
-  } catch (err) {
-    if (err instanceof PlayerRegistrationError) {
+  } catch (err: any) {
+    if (isPlayerRegistrationError(err)) {
+      const status =
+        err.code === "LOCKED" || err.code === "FORBIDDEN"
+          ? 403
+          : err.code === "NOT_FOUND"
+          ? 404
+          : 409;
       return NextResponse.json(
         { error: err.message, code: err.code },
-        { status: err.code === "NOT_FOUND" ? 404 : 409 }
+        { status }
       );
     }
-    console.error(err);
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    console.error("Failed to create player:", err);
+    return NextResponse.json(
+      { error: err?.message || "Something went wrong while creating the player. Please try again." },
+      { status: 500 }
+    );
   }
 }

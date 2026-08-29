@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
   removePlayerFromClub,
-  PlayerRegistrationError,
+  isPlayerRegistrationError,
 } from "@/lib/player-registration";
 import { serializePlayer } from "@/lib/serialize-player";
 
@@ -50,12 +50,12 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({
-  player,
-});
-  } catch (error) {
-    if (error instanceof PlayerRegistrationError) {
+      player,
+    });
+  } catch (error: any) {
+    if (isPlayerRegistrationError(error)) {
       const status =
-        error.code === "FORBIDDEN"
+        error.code === "FORBIDDEN" || error.code === "LOCKED"
           ? 403
           : error.code === "NOT_FOUND"
           ? 404
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       {
-        error: "Something went wrong while removing the player.",
+        error: error?.message || "Something went wrong while removing the player.",
         code: "UNKNOWN",
       },
       { status: 500 }
