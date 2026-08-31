@@ -46,11 +46,11 @@ export async function GET(req: Request) {
 
       return {
         id: p.id,
-        fullName: p.fullName,
-        position: p.position.toUpperCase(),
+        fullName: p.fullName || "Unknown Player",
+        position: (p.position || "CF").toUpperCase(),
         overallRating: p.overallRating ?? 75,
-        nationality: p.nationality,
-        realClub: p.realClub,
+        nationality: p.nationality || "Morocco",
+        realClub: p.realClub || "Free Agent",
         marketValue: Number(p.marketValue ?? 0),
         photo: p.photo,
         status: p.status,

@@ -24,26 +24,44 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await auth();
   if (!session || session.user.role !== "ADMINISTRATOR") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: "Unauthorized. Administrator access required." }, { status: 403 });
   }
 
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
+    }
+
     const { playerId, newPlayer, startingPrice, minIncrement, durationMinutes } = body;
 
-    if ((!playerId && !newPlayer?.fullName) || !startingPrice || !durationMinutes) {
+    const priceNum = Number(startingPrice);
+    const durNum = Number(durationMinutes);
+
+    if ((!playerId && !newPlayer?.fullName?.trim()) || isNaN(priceNum) || priceNum <= 0 || isNaN(durNum) || durNum <= 0) {
       return NextResponse.json(
-        { error: "Missing required fields (player identification, startingPrice, durationMinutes)." },
+        { error: "Missing required fields: specify a player, positive startingPrice, and durationMinutes." },
         { status: 400 }
       );
     }
 
-    const auction = await createAuctionWithPlayer(session.user.id, {
-      playerId,
-      newPlayer,
-      startingPrice: Number(startingPrice),
-      minIncrement: minIncrement ? Number(minIncrement) : undefined,
-      durationMinutes: Number(durationMinutes),
+    const adminUserId = session.user.id;
+
+    const auction = await createAuctionWithPlayer(adminUserId, {
+      playerId: playerId ? String(playerId) : undefined,
+      newPlayer: newPlayer
+        ? {
+            fullName: String(newPlayer.fullName).trim(),
+            position: newPlayer.position ? String(newPlayer.position).trim().toUpperCase() : "CF",
+            overallRating: Number(newPlayer.overallRating) || 75,
+            nationality: newPlayer.nationality ? String(newPlayer.nationality).trim() : "Morocco",
+            realClub: newPlayer.realClub ? String(newPlayer.realClub).trim() : "Free Agent",
+            photo: newPlayer.photo ? String(newPlayer.photo).trim() : null,
+          }
+        : undefined,
+      startingPrice: priceNum,
+      minIncrement: minIncrement && Number(minIncrement) > 0 ? Number(minIncrement) : undefined,
+      durationMinutes: durNum,
     });
 
     return NextResponse.json({ success: true, auction }, { status: 201 });

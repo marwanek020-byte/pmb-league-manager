@@ -50,12 +50,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         const u = user as typeof user & {
+          id?: string;
           role: "ADMINISTRATOR" | "CLUB_MANAGER";
           clubId: string | null;
           clubName: string | null;
           leagueName: string | null;
           username: string;
         };
+        token.id = u.id || user.id || token.sub;
+        token.sub = u.id || user.id || token.sub;
         token.role = u.role;
         token.clubId = u.clubId;
         token.clubName = u.clubName;
@@ -66,7 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub as string;
+        session.user.id = (token.id || token.sub) as string;
         session.user.role = token.role as "ADMINISTRATOR" | "CLUB_MANAGER";
         session.user.clubId = token.clubId as string | null;
         session.user.clubName = token.clubName as string | null;

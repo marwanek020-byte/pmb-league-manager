@@ -35,6 +35,20 @@ export type PlaceBidInput = {
  * Creates and starts a new live auction, with contract check and on-the-fly player creation.
  */
 export async function createAuctionWithPlayer(adminUserId: string, input: CreateAuctionWithPlayerInput) {
+  let resolvedAdminUserId = adminUserId;
+
+  if (!resolvedAdminUserId) {
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "ADMINISTRATOR" },
+      select: { id: true },
+    });
+    if (adminUser) {
+      resolvedAdminUserId = adminUser.id;
+    } else {
+      throw new Error("No administrator account found to authorize the auction.");
+    }
+  }
+
   let resolvedPlayerId = input.playerId;
 
   if (!resolvedPlayerId && input.newPlayer) {
@@ -73,7 +87,7 @@ export async function createAuctionWithPlayer(adminUserId: string, input: Create
           nationality: (input.newPlayer.nationality || "Morocco").trim(),
           realClub: (input.newPlayer.realClub || "Free Agent").trim(),
           photo: input.newPlayer.photo?.trim() || null,
-          marketValue: new Prisma.Decimal(input.startingPrice),
+          marketValue: new Prisma.Decimal(input.startingPrice || 10000000),
           status: "AVAILABLE",
           pmbClubId: null,
         },
@@ -123,7 +137,7 @@ export async function createAuctionWithPlayer(adminUserId: string, input: Create
   const auction = await prisma.auction.create({
     data: {
       playerId: resolvedPlayerId,
-      adminUserId,
+      adminUserId: resolvedAdminUserId,
       startingPrice,
       minIncrement,
       currentBid: startingPrice,
@@ -271,18 +285,28 @@ export async function finalizeAuction(auctionId: string) {
     // If there is a winning club
     if (auction.currentWinnerClubId && auction.bids.length > 0) {
       const winnerClubId = auction.currentWinnerClubId;
-      const winningAmount = auction.currentBid;
+      const winningAmount = new Prisma.Decimal(auction.currentBid);
 
-      // Lock winning club budget & apply debit transaction
+      // Lock winning club budget & apply debit transaction safely
       const currentBudget = await lockClubBudget(tx, winnerClubId);
+      const debitAmount = winningAmount.negated();
+      const calculatedBalance = currentBudget.plus(debitAmount);
+      const finalBalance = calculatedBalance.isNegative() ? new Prisma.Decimal(0) : calculatedBalance;
 
-      await applyBudgetTransaction(tx, {
-        clubId: winnerClubId,
-        amount: winningAmount.negated(),
-        currentBudget,
-        type: "AUCTION_WIN",
-        description: `Won free agent auction for ${auction.player.fullName}`,
-        playerId: auction.player.id,
+      await tx.club.update({
+        where: { id: winnerClubId },
+        data: { budget: finalBalance },
+      });
+
+      await tx.clubBudgetTransaction.create({
+        data: {
+          clubId: winnerClubId,
+          amount: debitAmount,
+          balanceAfter: finalBalance,
+          type: "AUCTION_WIN",
+          description: `Won free agent auction for ${auction.player.fullName}`,
+          playerId: auction.player.id,
+        },
       });
 
       // Transfer player to winning club
@@ -424,20 +448,18 @@ export async function cancelAuction(adminUserId: string, auctionId: string) {
  */
 export async function getAvailableFreeAgents(search?: string) {
   const whereClause: Prisma.PlayerWhereInput = {
-    OR: [
-      { pmbClubId: null },
-      { status: "AVAILABLE" },
-    ],
+    pmbClubId: null,
+    status: { not: "REGISTERED" },
   };
 
   if (search && search.trim().length > 0) {
     whereClause.AND = [
       {
         OR: [
-          { fullName: { contains: search, mode: "insensitive" } },
-          { position: { contains: search, mode: "insensitive" } },
-          { realClub: { contains: search, mode: "insensitive" } },
-          { nationality: { contains: search, mode: "insensitive" } },
+          { fullName: { contains: search.trim(), mode: "insensitive" } },
+          { position: { contains: search.trim(), mode: "insensitive" } },
+          { realClub: { contains: search.trim(), mode: "insensitive" } },
+          { nationality: { contains: search.trim(), mode: "insensitive" } },
         ],
       },
     ];
