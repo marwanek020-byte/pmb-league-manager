@@ -338,6 +338,14 @@ export function AdminAuctionManager() {
 
       // Refresh listings
       await Promise.all([fetchAuctions(), fetchAvailablePlayers()]);
+
+      // Scroll to active auctions section so admin sees the launched auction immediately
+      setTimeout(() => {
+        const el = document.getElementById("active-auctions-section");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 300);
     } catch (err: any) {
       setError(err.message || "Error launching auction. Please try again.");
     } finally {
@@ -990,7 +998,7 @@ export function AdminAuctionManager() {
       </section>
 
       {/* ─── ACTIVE LIVE AUCTIONS TABLE ─────────────────────────────── */}
-      <section className="rounded-3xl border border-white/10 bg-black/60 p-6 sm:p-8 space-y-5 shadow-2xl">
+      <section id="active-auctions-section" className="rounded-3xl border border-white/10 bg-black/60 p-6 sm:p-8 space-y-5 shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <span className="flex h-3 w-3 relative">

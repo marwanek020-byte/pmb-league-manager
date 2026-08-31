@@ -37,7 +37,14 @@ export type PlaceBidInput = {
 export async function createAuctionWithPlayer(adminUserId: string, input: CreateAuctionWithPlayerInput) {
   let resolvedAdminUserId = adminUserId;
 
-  if (!resolvedAdminUserId) {
+  let validAdmin = resolvedAdminUserId
+    ? await prisma.user.findUnique({
+        where: { id: resolvedAdminUserId },
+        select: { id: true, role: true },
+      })
+    : null;
+
+  if (!validAdmin || validAdmin.role !== "ADMINISTRATOR") {
     const adminUser = await prisma.user.findFirst({
       where: { role: "ADMINISTRATOR" },
       select: { id: true },
@@ -78,9 +85,17 @@ export async function createAuctionWithPlayer(adminUserId: string, input: Create
       }
       resolvedPlayerId = existing.id;
     } else {
+      // Safely determine next playerId to avoid Postgres autoincrement sequence collisions
+      const maxPlayer = await prisma.player.findFirst({
+        orderBy: { playerId: "desc" },
+        select: { playerId: true },
+      });
+      const nextPlayerId = (maxPlayer?.playerId ?? 0) + 1;
+
       // Create new player in database
       const created = await prisma.player.create({
         data: {
+          playerId: nextPlayerId,
           fullName: rawName,
           position: (input.newPlayer.position || "CF").trim().toUpperCase(),
           overallRating: Number(input.newPlayer.overallRating) || 75,
@@ -383,8 +398,8 @@ export async function getLiveAuctions() {
     }),
     prisma.auction.findMany({
       where: { status: { in: ["COMPLETED", "EXPIRED"] } },
-      orderBy: { completedAt: "desc" },
-      take: 8,
+      orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
+      take: 12,
       include: {
         player: true,
         currentWinnerClub: { select: { id: true, name: true, logo: true } },
