@@ -142,6 +142,7 @@ export function AdminAuctionManager() {
 
   // Selected Player for Auction
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerMatch | null>(null);
+  const [newlyCreatedAuctionId, setNewlyCreatedAuctionId] = useState<string | null>(null);
 
   // New Player Form Fields
   const [newPlayerName, setNewPlayerName] = useState("");
@@ -329,12 +330,18 @@ export function AdminAuctionManager() {
         selectedPlayer?.fullName || newPlayerName.trim() || "Player";
       setSuccess(`🎉 Live Auction for "${launchedPlayerName}" launched successfully!`);
 
+      if (data.auction) {
+        setNewlyCreatedAuctionId(data.auction.id);
+        setActiveAuctions((prev) => [data.auction, ...prev.filter((a) => a.id !== data.auction.id)]);
+      }
+
       // Reset form
       setSelectedPlayer(null);
       setNewPlayerName("");
       setSearchQuery("");
       setSearchResults([]);
       setHasSearched(false);
+      setActiveTab("CATALOG");
 
       // Refresh listings
       await Promise.all([fetchAuctions(), fetchAvailablePlayers()]);
@@ -345,7 +352,7 @@ export function AdminAuctionManager() {
         if (el) {
           el.scrollIntoView({ behavior: "smooth" });
         }
-      }, 300);
+      }, 250);
     } catch (err: any) {
       setError(err.message || "Error launching auction. Please try again.");
     } finally {
@@ -967,8 +974,44 @@ export function AdminAuctionManager() {
             </div>
           </div>
 
+          {/* INLINE ERROR & SUCCESS FEEDBACK */}
+          {error && (
+            <div className="rounded-2xl border border-red-500/50 bg-red-950/60 p-4 text-xs font-bold text-red-200 flex items-center justify-between shadow-lg animate-shake">
+              <div className="flex items-center gap-2">
+                <span className="text-base">⚠️</span>
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="rounded px-2 py-0.5 text-[11px] bg-white/10 hover:bg-white/20 text-white"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {success && (
+            <div className="rounded-2xl border border-emerald-500/50 bg-emerald-950/60 p-4 text-xs font-bold text-emerald-200 flex items-center justify-between shadow-lg animate-fade-in">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🎉</span>
+                <span>{success}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById("active-auctions-section");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="rounded-lg bg-emerald-500 px-3 py-1 text-[11px] font-black text-black hover:bg-white transition"
+              >
+                👀 View in Live War Room ⬇
+              </button>
+            </div>
+          )}
+
           {/* LAUNCH BUTTON */}
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               type="submit"
               disabled={isCreating || (activeTab !== "CREATE" && !selectedPlayer)}
@@ -1017,31 +1060,42 @@ export function AdminAuctionManager() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeAuctions.map((auc) => (
-              <div
-                key={auc.id}
-                className="rounded-2xl border border-pmb-gold/30 bg-[#121217] p-5 space-y-4 shadow-lg flex flex-col justify-between relative overflow-hidden"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded bg-pmb-gold/20 border border-pmb-gold/40 px-2 py-0.5 text-[10px] font-black text-pmb-gold uppercase">
-                        {auc.player.position}
-                      </span>
-                      <AuctionCountdown expiresAt={auc.expiresAt} />
+            {activeAuctions.map((auc) => {
+              const isNewlyCreated = auc.id === newlyCreatedAuctionId;
+              return (
+                <div
+                  key={auc.id}
+                  className={`rounded-2xl border p-5 space-y-4 shadow-lg flex flex-col justify-between relative overflow-hidden transition-all duration-500 ${
+                    isNewlyCreated
+                      ? "border-pmb-gold bg-[#181822] shadow-[0_0_25px_rgba(212,175,55,0.4)] ring-2 ring-pmb-gold/50"
+                      : "border-pmb-gold/30 bg-[#121217]"
+                  }`}
+                >
+                  {isNewlyCreated && (
+                    <div className="absolute top-0 right-0 bg-pmb-gold text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-bl-lg tracking-widest shadow">
+                      ✨ Just Launched
                     </div>
-                    <h3 className="text-base font-extrabold text-white mt-1.5">
-                      {auc.player.fullName}
-                    </h3>
-                    <p className="text-xs text-gray-400">
-                      {auc.player.nationality} • {auc.player.realClub}
-                    </p>
-                  </div>
+                  )}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-pmb-gold/20 border border-pmb-gold/40 px-2 py-0.5 text-[10px] font-black text-pmb-gold uppercase">
+                          {auc.player.position}
+                        </span>
+                        <AuctionCountdown expiresAt={auc.expiresAt} />
+                      </div>
+                      <h3 className="text-base font-extrabold text-white mt-1.5">
+                        {auc.player.fullName}
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        {auc.player.nationality} • {auc.player.realClub}
+                      </p>
+                    </div>
 
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pmb-gold font-black text-black text-sm shadow">
-                    {auc.player.overallRating ?? 75}
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pmb-gold font-black text-black text-sm shadow">
+                      {auc.player.overallRating ?? 75}
+                    </div>
                   </div>
-                </div>
 
                 <div className="space-y-2 rounded-xl bg-black/60 p-3.5 text-xs border border-white/10">
                   <div className="flex justify-between items-center text-gray-300">
@@ -1086,7 +1140,8 @@ export function AdminAuctionManager() {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </section>
