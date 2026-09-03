@@ -34,10 +34,14 @@ export function TransferActionButtons({
     (perspective === "seller" || perspective === "admin") &&
     transfer.status === "PENDING_SELLER_APPROVAL";
   const canComplete = perspective === "admin" && transfer.status === "APPROVED";
+  const canNegotiateTerms = perspective === "buyer" && transfer.status === "PENDING_PERSONAL_TERMS";
   const canCancel =
-    perspective === "buyer" && (transfer.status === "PENDING_SELLER_APPROVAL" || transfer.status === "APPROVED");
+    perspective === "buyer" &&
+    (transfer.status === "PENDING_SELLER_APPROVAL" ||
+      transfer.status === "PENDING_PERSONAL_TERMS" ||
+      transfer.status === "APPROVED");
 
-  if (!canApproveOrReject && !canCancel && !canComplete) {
+  if (!canApproveOrReject && !canCancel && !canComplete && !canNegotiateTerms) {
     return null;
   }
 
@@ -68,7 +72,7 @@ export function TransferActionButtons({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {canApproveOrReject && (
           <>
             <button
@@ -76,7 +80,7 @@ export function TransferActionButtons({
               onClick={() => setPendingAction("approve")}
               className={`rounded-lg border border-green-500/30 bg-green-500/10 font-semibold text-green-400 transition hover:bg-green-500/20 ${btnSize || "px-4 py-2"}`}
             >
-              Accept
+              Accept Fee
             </button>
             <button
               type="button"
@@ -87,13 +91,24 @@ export function TransferActionButtons({
             </button>
           </>
         )}
+        {canNegotiateTerms && (
+          <a
+            href="/manager/contracts"
+            className={`rounded-lg border border-pmb-gold/50 bg-pmb-gold/20 font-bold text-pmb-gold transition hover:bg-pmb-gold/30 flex items-center gap-1 ${btnSize || "px-4 py-2"}`}
+          >
+            <span>✍️</span>
+            <span>جلسة العقد 3D</span>
+          </a>
+        )}
         {canComplete && (
           <button
             type="button"
             onClick={() => setPendingAction("complete")}
-            className={`rounded-lg border border-blue-500/30 bg-blue-500/10 font-semibold text-blue-300 transition hover:bg-blue-500/20 ${btnSize || "px-4 py-2"}`}
+            className={`rounded-lg border border-blue-500/40 bg-blue-500/20 font-bold text-blue-300 transition hover:bg-blue-500/30 shadow flex items-center gap-1 ${btnSize || "px-4 py-2"}`}
+            title="مصادقة واعتماد الصفقة رسمياً بعد اتفاق كافة الأطراف"
           >
-            Complete
+            <span>⚖️</span>
+            <span>اعتماد وتصديق الصفقة</span>
           </button>
         )}
         {canCancel && (
@@ -102,7 +117,7 @@ export function TransferActionButtons({
             onClick={() => setPendingAction("cancel")}
             className={`rounded-lg border border-pmb-border bg-pmb-charcoal font-semibold text-gray-300 transition hover:border-red-500/40 hover:text-red-400 ${btnSize || "px-4 py-2"}`}
           >
-            Cancel Request
+            Cancel Deal
           </button>
         )}
       </div>

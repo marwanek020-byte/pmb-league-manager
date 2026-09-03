@@ -117,6 +117,21 @@ model Player {
   position           String
   realClub           String
   status             PlayerStatus            @default(AVAILABLE)
+  // ── Botola Pro Contract Fields ──────────────────────────────────────────
+  seasonSalary         Decimal                 @default(0) @db.Decimal(14, 2)
+  primeSignature       Decimal                 @default(0) @db.Decimal(14, 2)
+  contractSeasonsLeft  Int                     @default(1)
+  squadRole            String                  @default("IMPORTANT")
+  releaseClause        Decimal?                @db.Decimal(14, 2)
+  contractSatisfaction Int                     @default(85)
+  lastNegotiatedAt     DateTime?
+  // ── Expired Contract & Admin Custody Fields ─────────────────────────
+  isFreeAgentMarket    Boolean                 @default(false)
+  expiredFromClubId    String?
+  expiredFromClubName  String?
+  contractExpiredAt    DateTime?
+  adminCustodyStatus   String?                 // "PENDING_ADMIN_DECISION" | "AUCTIONED" | "FREE_AGENT_MARKET"
+  failedFreeAgentClubIds String?               // Comma-separated list of club IDs that exhausted their 1 chance
   budgetTransactions ClubBudgetTransaction[]
   pmbClub            Club?                  @relation(fields: [pmbClubId], references: [id])
   PlayerLoan         PlayerLoan[]
@@ -160,7 +175,12 @@ model Transfer {
   type                 TransferType            @default(PERMANENT)
   durationDays         Int?
   swapPlayerName       String?
-  swapPlayerId   String?
+  swapPlayerId         String?
+  agreedSalary         Decimal?                @db.Decimal(14, 2)
+  agreedPrime          Decimal?                @db.Decimal(14, 2)
+  agreedSeasons        Int?
+  agreedRole           String?
+  agreedReleaseClause  Decimal?                @db.Decimal(14, 2)
   budgetTransactions   ClubBudgetTransaction[]
   notifications        Notification[]
   PlayerLoan           PlayerLoan?
@@ -385,6 +405,7 @@ enum PlayerStatus {
 
 enum TransferStatus {
   PENDING_SELLER_APPROVAL
+  PENDING_PERSONAL_TERMS
   APPROVED
   COMPLETED
   REJECTED
@@ -421,6 +442,12 @@ enum BudgetTransactionType {
   ADMIN_ADJUSTMENT
   COMPETITION_REWARD
   AUCTION_WIN
+  AUCTION_BID_REFUND
+  TRANSFER_REFUND
+  PRIME_DE_SIGNATURE
+  SEASON_SALARY_PAYOUT
+  RELEASE_CLAUSE_PAYOUT
+  CONTRACT_TERMINATION_PAYOUT
 }
 
 enum AuctionStatus {
@@ -439,6 +466,13 @@ model Auction {
   currentBid          Decimal       @db.Decimal(14, 2)
   currentWinnerClubId String?
   status              AuctionStatus @default(ACTIVE)
+  personalTermsAgreed Boolean       @default(false)
+  adminApproved       Boolean       @default(false)
+  agreedSalary        Decimal?      @db.Decimal(14, 2)
+  agreedPrime         Decimal?      @db.Decimal(14, 2)
+  agreedSeasons       Int?
+  agreedRole          String?
+  agreedReleaseClause Decimal?      @db.Decimal(14, 2)
   startsAt            DateTime      @default(now())
   expiresAt           DateTime
   completedAt         DateTime?

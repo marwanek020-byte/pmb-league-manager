@@ -118,8 +118,13 @@ function AuctionCountdown({ expiresAt }: { expiresAt: string }) {
 }
 
 export function AdminAuctionManager() {
-  // Navigation Tabs: "CATALOG" | "SEARCH" | "CREATE"
-  const [activeTab, setActiveTab] = useState<"CATALOG" | "SEARCH" | "CREATE">("CATALOG");
+  // Navigation Tabs: "CATALOG" | "EXPIRED_CUSTODY" | "SEARCH" | "CREATE"
+  const [activeTab, setActiveTab] = useState<"CATALOG" | "EXPIRED_CUSTODY" | "SEARCH" | "CREATE">("CATALOG");
+
+  // Expired Custody Pool
+  const [expiredCustodyPlayers, setExpiredCustodyPlayers] = useState<any[]>([]);
+  const [loadingExpiredCustody, setLoadingExpiredCustody] = useState(false);
+  const [scanningExpired, setScanningExpired] = useState(false);
 
   // Data states
   const [activeAuctions, setActiveAuctions] = useState<Auction[]>([]);
@@ -208,12 +213,95 @@ export function AdminAuctionManager() {
     }
   }, []);
 
+  // Fetch Expired Contracts in Admin Custody
+  const fetchExpiredCustodyPlayers = useCallback(async () => {
+    setLoadingExpiredCustody(true);
+    try {
+      const res = await fetch("/api/admin/expired-contracts", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setExpiredCustodyPlayers(data.players || []);
+      }
+    } catch (err) {
+      console.error("Error fetching expired custody players:", err);
+    } finally {
+      setLoadingExpiredCustody(false);
+    }
+  }, []);
+
+  const handleScanExpiredContracts = async () => {
+    setScanningExpired(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/admin/expired-contracts", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(`تم فحص العقود بنجاح: تم تحويل ${data.transferredCount} لاعب(اً) إلى عهدة الإدارة.`);
+        await Promise.all([fetchExpiredCustodyPlayers(), fetchAvailablePlayers()]);
+      } else {
+        setError(data.error || "فشل فحص العقود المنتهية.");
+      }
+    } catch (err: any) {
+      setError(err.message || "حدث خطأ أثناء فحص العقود.");
+    } finally {
+      setScanningExpired(false);
+    }
+  };
+
+  const handleReleaseToFreeAgentMarket = async (player: any) => {
+    if (!confirm(`هل أنت متأكد من طرح اللاعب ${player.fullName} في سوق اللاعبين الأحرار بقيمة 0 €؟ سيتمكن أي نادٍ من التفاوض المباشر معه.`)) {
+      return;
+    }
+    setActionLoading(player.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(`/api/admin/expired-contracts/${player.id}/release-free-agent`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccess(data.message);
+        await Promise.all([fetchExpiredCustodyPlayers(), fetchAvailablePlayers()]);
+      } else {
+        setError(data.error || "فشل طرح اللاعب في سوق الأحرار.");
+      }
+    } catch (err: any) {
+      setError(err.message || "حدث خطأ أثناء طرح اللاعب.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSelectExpiredForAuction = (player: any) => {
+    setSelectedPlayer({
+      id: player.id,
+      fullName: player.fullName,
+      position: player.position,
+      overallRating: player.overallRating ?? 75,
+      nationality: player.nationality,
+      realClub: player.realClub,
+      marketValue: Number(player.marketValue) || 10_000_000,
+      photo: player.photo,
+      status: "AVAILABLE",
+      hasClub: false,
+      pmbClub: null,
+      canAuction: true,
+      statusReason: "Expired Contract in Custody",
+    });
+    setStartingPrice("5000000");
+    setActiveTab("CATALOG");
+    window.scrollTo({ top: 400, behavior: "smooth" });
+  };
+
   useEffect(() => {
     fetchAuctions();
     fetchAvailablePlayers();
+    fetchExpiredCustodyPlayers();
     const interval = setInterval(fetchAuctions, 4000);
     return () => clearInterval(interval);
-  }, [fetchAuctions, fetchAvailablePlayers]);
+  }, [fetchAuctions, fetchAvailablePlayers, fetchExpiredCustodyPlayers]);
 
   // Live Database Search & Verification
   const performSearch = async (query: string) => {
@@ -483,7 +571,7 @@ export function AdminAuctionManager() {
           </div>
 
           {/* Navigation Pill Buttons */}
-          <div className="flex items-center rounded-2xl bg-black/60 p-1.5 border border-white/10 gap-1 self-start sm:self-auto">
+          <div className="flex items-center rounded-2xl bg-black/60 p-1.5 border border-white/10 gap-1 self-start sm:self-auto flex-wrap">
             <button
               type="button"
               onClick={() => {
@@ -497,6 +585,26 @@ export function AdminAuctionManager() {
               }`}
             >
               ⭐ Free Agent Catalog
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("EXPIRED_CUSTODY");
+                setError(null);
+                fetchExpiredCustodyPlayers();
+              }}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition uppercase tracking-wider flex items-center gap-1.5 ${
+                activeTab === "EXPIRED_CUSTODY"
+                  ? "bg-amber-400 text-black shadow-md font-black"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <span>📋 عهدة المنتهية والمستغنى عنهم</span>
+              {expiredCustodyPlayers.length > 0 && (
+                <span className="rounded-full bg-red-500 text-white text-[10px] font-black px-1.5 py-0.2">
+                  {expiredCustodyPlayers.length}
+                </span>
+              )}
             </button>
             <button
               type="button"
@@ -529,6 +637,105 @@ export function AdminAuctionManager() {
             </button>
           </div>
         </div>
+
+        {/* ─── TAB: EXPIRED CONTRACTS CUSTODY ─── */}
+        {activeTab === "EXPIRED_CUSTODY" && (
+          <div className="space-y-6" dir="rtl">
+            {/* Header & Scan button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+              <div>
+                <h3 className="text-sm font-black text-amber-400 flex items-center gap-2">
+                  <span>📋 لاعبو العقود المنتهية والمستغنى عنهم في عهدة الإدارة</span>
+                  <span className="text-xs font-bold text-gray-300">({expiredCustodyPlayers.length} لاعبين)</span>
+                </h3>
+                <p className="text-xs text-gray-300 mt-1">
+                  هؤلاء اللاعبون انتهت عقودهم مع أنديتهم السابقة أو استغنى عنهم مدربوهم (فسخ عقد بالتراضي / حذف من التشكيلة).
+                  بصفتك مسؤول الإدارة (Admin)، يمكنك الاختيار بين: <b>طرح اللاعب في المزاد العلني</b> أو <b>طرحه في سوق الأحرار بقيمة 0 €</b>.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                disabled={scanningExpired}
+                onClick={handleScanExpiredContracts}
+                className="px-4 py-2 rounded-xl bg-pmb-gold text-black text-xs font-black hover:brightness-110 transition flex items-center justify-center gap-2 shrink-0 shadow"
+              >
+                <span>{scanningExpired ? "⏳ جاري الفحص..." : "🔄 فحص وجلب العقود المنتهية للأندية"}</span>
+              </button>
+            </div>
+
+            {loadingExpiredCustody ? (
+              <div className="py-12 text-center text-gray-400 text-sm animate-pulse flex items-center justify-center gap-2">
+                <span>⚽</span>
+                <span>جاري تحميل قائمة اللاعبين في عهدة الإدارة...</span>
+              </div>
+            ) : expiredCustodyPlayers.length === 0 ? (
+              <div className="py-12 text-center rounded-2xl border border-white/10 bg-white/5 p-6 space-y-2">
+                <span className="text-3xl block">✅</span>
+                <p className="text-sm font-bold text-white">لا توجد عقود منتهية أو لاعبين مستغنى عنهم معلقين حالياً في عهدة الإدارة</p>
+                <p className="text-xs text-gray-400">
+                  سيظهر هنا تلقائياً أي لاعب يستغني عنه مدربه (فسخ عقد بالتراضي)، كما يمكنك الضغط على زر &quot;فحص وجلب العقود المنتهية للأندية&quot; لمراجعة أندية البطولة وسحب أي لاعب وصل عقده إلى 0 مواسم دون تجديد.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {expiredCustodyPlayers.map((player) => (
+                  <div
+                    key={player.id}
+                    className="p-4 rounded-2xl border border-white/10 bg-black/60 hover:border-amber-400/50 transition flex flex-col justify-between space-y-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-white/5 border border-white/10 flex-shrink-0">
+                        {player.photo ? (
+                          <img src={player.photo} alt={player.fullName} className="w-full h-full object-cover" />
+                        ) : (
+                          <ClubBadge name={player.fullName} size="md" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-black text-white truncate">{player.fullName}</h4>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-white/10 text-pmb-gold">
+                            {player.overallRating ?? 75} OVR
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 truncate">
+                          {player.position} · {player.nationality}
+                        </p>
+                        <p className="text-[10px] text-amber-300 truncate mt-0.5">
+                          ناديه السابق: {player.expiredFromClubName || "غير محدد"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectExpiredForAuction(player)}
+                        className="py-2 px-2 rounded-xl bg-pmb-gold/20 hover:bg-pmb-gold/30 text-pmb-gold border border-pmb-gold/40 text-[11px] font-black transition flex items-center justify-center gap-1"
+                      >
+                        <span>🔨 طرح في المزاد</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={actionLoading === player.id}
+                        onClick={() => handleReleaseToFreeAgentMarket(player)}
+                        className="py-2 px-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[11px] font-black transition flex items-center justify-center gap-1"
+                      >
+                        {actionLoading === player.id ? (
+                          <span>⏳ جاري الطرح...</span>
+                        ) : (
+                          <span>🆓 طرح كلاعب حر (0 €)</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ─── TAB 1: FREE AGENT CATALOG ─── */}
         {activeTab === "CATALOG" && (

@@ -112,7 +112,13 @@ export function TransferDashboardClient({
             Manage incoming player requests, negotiate club contracts, and initiate bids.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+          <Link
+            href="/manager/free-agents"
+            className="pmb-btn-secondary whitespace-nowrap text-xs font-bold text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10"
+          >
+            🆓 سوق اللاعبين الأحرار (0 €)
+          </Link>
           <Link
             href="/manager/auctions"
             className="pmb-btn-secondary whitespace-nowrap text-xs font-bold text-pmb-gold border-pmb-gold/30"

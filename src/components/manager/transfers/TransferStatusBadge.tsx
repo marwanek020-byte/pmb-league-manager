@@ -4,6 +4,7 @@ import { TransferDTO } from "@/lib/serialize-transfer";
 
 const STYLES: Record<TransferDTO["status"], string> = {
   PENDING_SELLER_APPROVAL: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+  PENDING_PERSONAL_TERMS: "bg-amber-500/10 text-amber-400 border-amber-500/30",
   APPROVED: "bg-blue-500/10 text-blue-400 border-blue-500/30",
   COMPLETED: "bg-green-500/10 text-green-400 border-green-500/30",
   REJECTED: "bg-red-500/10 text-red-400 border-red-500/30",
@@ -11,9 +12,10 @@ const STYLES: Record<TransferDTO["status"], string> = {
 };
 
 const LABELS: Record<TransferDTO["status"], string> = {
-  PENDING_SELLER_APPROVAL: "Pending Approval",
-  APPROVED: "Approved",
-  COMPLETED: "Completed",
+  PENDING_SELLER_APPROVAL: "Pending Club Approval",
+  PENDING_PERSONAL_TERMS: "Negotiating Personal Terms (3D)",
+  APPROVED: "Awaiting Admin Ratification",
+  COMPLETED: "Completed & Registered",
   REJECTED: "Rejected",
   CANCELLED: "Cancelled",
 };

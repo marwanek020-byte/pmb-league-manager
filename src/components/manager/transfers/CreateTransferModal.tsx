@@ -12,6 +12,12 @@ function defaultSeason() {
   return `${year}/${year + 1}`;
 }
 
+function isForeignPlayer(nat?: string | null): boolean {
+  if (!nat) return false;
+  const n = nat.toLowerCase().trim();
+  return !["moroc", "maroc", "ma", "مغرب"].some((m) => n.includes(m));
+}
+
 export function CreateTransferModal({
   clubId,
   clubName,
@@ -342,30 +348,40 @@ export function CreateTransferModal({
               )}
 
               {!loading &&
-                results.map((player) => (
-                  <button
-                    key={player.id}
-                    type="button"
-                    onClick={() => pickPlayer(player)}
-                    className="flex w-full items-center justify-between gap-4 rounded-lg border border-pmb-border bg-pmb-charcoal/60 p-3 text-left transition hover:border-pmb-gold/50"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <ClubBadge name={player.fullName} size="sm" />
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-white">{player.fullName}</p>
-                        <p className="truncate text-xs text-gray-500">
-                          {player.position} &middot; {player.realClub} &middot; {player.nationality}
-                          {player.overallRating != null && ` · ${player.overallRating} OVR`} &middot; #
-                          {player.playerId}
-                        </p>
-                        <p className="mt-0.5 truncate text-xs text-pmb-gold">
-                          Currently at {player.pmbClubName ?? "another club"}
-                        </p>
+                results.map((player) => {
+                  const isForeign = isForeignPlayer(player.nationality);
+                  return (
+                    <button
+                      key={player.id}
+                      type="button"
+                      onClick={() => pickPlayer(player)}
+                      className="flex w-full items-center justify-between gap-4 rounded-lg border border-pmb-border bg-pmb-charcoal/60 p-3 text-left transition hover:border-pmb-gold/50"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ClubBadge name={player.fullName} size="sm" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate font-medium text-white">{player.fullName}</p>
+                            {isForeign && (
+                              <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                                🌍 أجنبي (Botola Quota)
+                              </span>
+                            )}
+                          </div>
+                          <p className="truncate text-xs text-gray-500">
+                            {player.position} &middot; {player.realClub} &middot; {player.nationality}
+                            {player.overallRating != null && ` · ${player.overallRating} OVR`} &middot; #
+                            {player.playerId}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs text-pmb-gold">
+                            Currently at {player.pmbClubName ?? "another club"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <span className="pmb-btn-secondary shrink-0 px-3 py-1.5 text-xs">Select</span>
-                  </button>
-                ))}
+                      <span className="pmb-btn-secondary shrink-0 px-3 py-1.5 text-xs">Select</span>
+                    </button>
+                  );
+                })}
             </div>
           </>
         )}
@@ -375,7 +391,14 @@ export function CreateTransferModal({
             <div className="flex items-center gap-3 rounded-lg border border-pmb-border bg-pmb-charcoal/60 p-3">
               <ClubBadge name={selectedPlayer.fullName} size="sm" />
               <div className="min-w-0">
-                <p className="truncate font-medium text-white">{selectedPlayer.fullName}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate font-medium text-white">{selectedPlayer.fullName}</p>
+                  {isForeignPlayer(selectedPlayer.nationality) && (
+                    <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                      🌍 لاعب أجنبي (كوتة 5 لاعبين)
+                    </span>
+                  )}
+                </div>
                 <p className="truncate text-xs text-gray-500">
                   From {selectedPlayer.pmbClubName} to {clubName}
                 </p>

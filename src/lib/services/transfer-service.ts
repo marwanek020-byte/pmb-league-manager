@@ -12,6 +12,7 @@ import {
   BudgetServiceError,
   lockClubBudget,
 } from "@/lib/services/budget-service";
+import { validateForeignQuota } from "@/lib/services/botola-contract-service";
 
 export type TransferServiceErrorCode =
   | "WINDOW_CLOSED"
@@ -26,6 +27,7 @@ export type TransferServiceErrorCode =
   | "FORBIDDEN"
   | "OWNERSHIP_CONFLICT"
   | "INSUFFICIENT_BUDGET"
+  | "FOREIGN_QUOTA_EXCEEDED"
   | "USER_NOT_FOUND";
 
 export class TransferServiceError extends Error {
@@ -306,9 +308,86 @@ export async function approveTransfer(userId: string, transferId: string) {
     return tx.transfer.update({
       where: { id: transfer.id },
       data: {
-        status: TransferStatus.APPROVED,
+        status: TransferStatus.PENDING_PERSONAL_TERMS,
         respondedByUserId: user.id,
         respondedAt: new Date(),
+      },
+    });
+  });
+}
+
+export async function agreeTransferPersonalTerms(
+  userId: string,
+  transferId: string,
+  agreedTerms: {
+    primeSignature: number;
+    seasonSalary: number;
+    contractSeasonsLeft: number;
+    squadRole: string;
+    releaseClause: number | null;
+  }
+) {
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        clubId: true,
+      },
+    });
+
+    if (!user) {
+      throw new TransferServiceError("User not found.", "USER_NOT_FOUND");
+    }
+
+    if (user.role !== "CLUB_MANAGER" || !user.clubId) {
+      throw new TransferServiceError("Only club managers can agree to personal terms.", "FORBIDDEN");
+    }
+
+    const transfer = await tx.transfer.findUnique({
+      where: { id: transferId },
+    });
+
+    if (!transfer) {
+      throw new TransferServiceError("Transfer request not found.", "TRANSFER_NOT_FOUND");
+    }
+
+    if (transfer.toClubId !== user.clubId) {
+      throw new TransferServiceError("Only the buying club can negotiate personal terms.", "FORBIDDEN");
+    }
+
+    if (transfer.status !== TransferStatus.PENDING_PERSONAL_TERMS) {
+      throw new TransferServiceError(
+        "This transfer is not awaiting personal terms negotiation.",
+        "INVALID_STATE"
+      );
+    }
+
+    // Botola Pro 5 foreign player quota validation
+    const player = await tx.player.findUnique({
+      where: { id: transfer.playerId },
+      select: { nationality: true },
+    });
+    if (player) {
+      const quotaCheck = await validateForeignQuota(user.clubId, player.nationality);
+      if (!quotaCheck.allowed) {
+        throw new TransferServiceError(quotaCheck.message!, "FOREIGN_QUOTA_EXCEEDED");
+      }
+    }
+
+    // Advance to APPROVED (clubs + player/agent agreed -> now awaiting Admin Ratification)
+    return tx.transfer.update({
+      where: { id: transfer.id },
+      data: {
+        status: TransferStatus.APPROVED,
+        agreedSalary: new Prisma.Decimal(agreedTerms.seasonSalary),
+        agreedPrime: new Prisma.Decimal(agreedTerms.primeSignature),
+        agreedSeasons: agreedTerms.contractSeasonsLeft,
+        agreedRole: agreedTerms.squadRole,
+        agreedReleaseClause: agreedTerms.releaseClause
+          ? new Prisma.Decimal(agreedTerms.releaseClause)
+          : null,
       },
     });
   });
@@ -401,6 +480,7 @@ export async function cancelTransfer(userId: string, transferId: string) {
 
     const cancellable =
       transfer.status === TransferStatus.PENDING_SELLER_APPROVAL ||
+      transfer.status === TransferStatus.PENDING_PERSONAL_TERMS ||
       transfer.status === TransferStatus.APPROVED;
 
     if (!cancellable) {
@@ -534,6 +614,12 @@ export async function completeTransfer(userId: string, transferId: string) {
         );
       }
 
+      // Check Botola Pro 5 Foreign Players Quota
+      const quotaCheck = await validateForeignQuota(transfer.toClubId, player.nationality);
+      if (!quotaCheck.allowed) {
+        throw new TransferServiceError(quotaCheck.message!, "FOREIGN_QUOTA_EXCEEDED");
+      }
+
       const destinationClub = await tx.club.findUnique({
         where: { id: transfer.toClubId },
         select: { id: true },
@@ -587,8 +673,32 @@ export async function completeTransfer(userId: string, transferId: string) {
 
       await tx.player.update({
         where: { id: player.id },
-        data: { pmbClubId: transfer.toClubId },
+        data: {
+          pmbClubId: transfer.toClubId,
+          status: "REGISTERED",
+          ...(transfer.agreedSalary ? { seasonSalary: transfer.agreedSalary } : {}),
+          ...(transfer.agreedPrime ? { primeSignature: transfer.agreedPrime } : {}),
+          ...(transfer.agreedSeasons ? { contractSeasonsLeft: transfer.agreedSeasons } : {}),
+          ...(transfer.agreedRole ? { squadRole: transfer.agreedRole } : {}),
+          ...(transfer.agreedReleaseClause ? { releaseClause: transfer.agreedReleaseClause } : {}),
+          contractSatisfaction: 100,
+          lastNegotiatedAt: new Date(),
+        },
       });
+
+      // Also debit prime de signature if agreed
+      if (transfer.agreedPrime && transfer.agreedPrime.greaterThan(0)) {
+        const buyerCurrentBudget = await lockClubBudget(tx, transfer.toClubId);
+        await applyBudgetTransaction(tx, {
+          clubId: transfer.toClubId,
+          amount: transfer.agreedPrime.negated(),
+          currentBudget: buyerCurrentBudget,
+          type: BudgetTransactionType.PRIME_DE_SIGNATURE,
+          description: `منحة توقيع: ${transfer.playerName}`,
+          transferId: transfer.id,
+          playerId: player.id,
+        });
+      }
     }
 
     return tx.transfer.update({

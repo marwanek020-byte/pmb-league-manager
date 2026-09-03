@@ -21,6 +21,11 @@ export type TransferDTO = {
   fromClubName: string;
   toClubName: string;
   fee: number | null;
+  agreedSalary?: number | null;
+  agreedPrime?: number | null;
+  agreedSeasons?: number | null;
+  agreedRole?: string | null;
+  agreedReleaseClause?: number | null;
   initiatedByUserId: string;
   respondedByUserId: string | null;
   respondedAt: string | null;
@@ -59,6 +64,11 @@ export function serializeTransfer(
     fromClubName: transfer.fromClubName,
     toClubName: transfer.toClubName,
     fee: transfer.fee ? Number(transfer.fee) : null,
+    agreedSalary: transfer.agreedSalary ? Number(transfer.agreedSalary) : null,
+    agreedPrime: transfer.agreedPrime ? Number(transfer.agreedPrime) : null,
+    agreedSeasons: transfer.agreedSeasons ?? null,
+    agreedRole: transfer.agreedRole ?? null,
+    agreedReleaseClause: transfer.agreedReleaseClause ? Number(transfer.agreedReleaseClause) : null,
     initiatedByUserId: transfer.initiatedByUserId,
     respondedByUserId: transfer.respondedByUserId,
     respondedAt: transfer.respondedAt

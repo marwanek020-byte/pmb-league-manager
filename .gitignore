@@ -4,3 +4,11 @@ node_modules
 .env.local
 dist
 *.log
+scratch/
+*.tsbuildinfo
+*.fbx
+*.zip
+*.obj
+public/models/gestures/
+
+

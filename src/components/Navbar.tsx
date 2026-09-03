@@ -54,6 +54,10 @@ export function Navbar({
                     <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                     Live Auctions
                   </Link>
+                  <Link href="/admin/free-agents" className="flex items-center gap-1 text-emerald-400 hover:text-white transition">
+                    <span>🏪</span>
+                    <span>Free Agent Store</span>
+                  </Link>
                   <Link href="/admin/social" className="text-gray-400 hover:text-pmb-gold transition">
                     💬 Dugout
                   </Link>
@@ -70,6 +74,10 @@ export function Navbar({
                   <Link href="/manager/players" className="text-gray-400 hover:text-pmb-gold transition">
                     Players
                   </Link>
+                  <Link href="/manager/contracts" className="flex items-center gap-1 text-pmb-gold hover:text-white transition">
+                    <span>📝</span>
+                    <span>Contracts</span>
+                  </Link>
                   <Link href="/manager/transfers" className="text-gray-400 hover:text-pmb-gold transition">
                     Transfers
                   </Link>
@@ -79,6 +87,10 @@ export function Navbar({
                   <Link href="/manager/auctions" className="flex items-center gap-1.5 text-pmb-gold hover:text-white transition">
                     <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                     Live Auctions
+                  </Link>
+                  <Link href="/manager/free-agents" className="flex items-center gap-1 text-emerald-400 hover:text-white transition">
+                    <span>🏪</span>
+                    <span>Free Agent Store</span>
                   </Link>
                   <Link href="/manager/social" className="text-gray-400 hover:text-pmb-gold transition">
                     💬 Dugout
@@ -181,6 +193,19 @@ export function Navbar({
             <span className="text-base">🔄</span>
             <span>Transfers</span>
           </Link>
+
+          {/* Contracts */}
+          {!isAdmin && (
+            <Link
+              href="/manager/contracts"
+              className={`flex flex-col items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition ${
+                pathname.includes("/contracts") ? "text-pmb-gold scale-105" : "text-gray-400"
+              }`}
+            >
+              <span className="text-base">📝</span>
+              <span>Contracts</span>
+            </Link>
+          )}
         </div>
       </nav>
     </>

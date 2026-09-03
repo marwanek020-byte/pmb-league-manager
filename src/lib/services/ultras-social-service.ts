@@ -248,7 +248,7 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
     feeEur: number;
     fromClubName: string;
     toClubName: string;
-    buyerClubId: string;
+    buyerClubId?: string;
     transferType?: string;
   }) {
     try {
@@ -275,7 +275,7 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
           content: postContent,
           tag: "TRANSFER",
           userId: mediaBotId,
-          clubId: params.buyerClubId,
+          clubId: params.buyerClubId || null,
         },
       });
 

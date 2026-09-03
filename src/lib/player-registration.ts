@@ -222,9 +222,22 @@ export async function removePlayerFromClub(
       );
     }
 
+    const club = await tx.club.findUnique({
+      where: { id: clubId },
+      select: { name: true },
+    });
+
     const updated = await tx.player.update({
       where: { id: playerId },
-      data: { status: "AVAILABLE", pmbClubId: null },
+      data: {
+        status: "AVAILABLE",
+        pmbClubId: null,
+        adminCustodyStatus: "PENDING_ADMIN_DECISION",
+        expiredFromClubId: clubId,
+        expiredFromClubName: club?.name ?? null,
+        contractExpiredAt: new Date(),
+        contractSeasonsLeft: 0,
+      },
       select: { id: true, fullName: true },
     });
 
