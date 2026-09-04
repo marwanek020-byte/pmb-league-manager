@@ -1,4 +1,4 @@
-import { Player, PlayerStatus } from "@prisma/client";
+import { PlayerStatus } from "@prisma/client";
 
 export type PlayerDTO = {
   id: string;
@@ -18,6 +18,26 @@ export type PlayerDTO = {
   updatedAt: string;
 };
 
+// Only the fields we actually use — avoids selecting columns that may not
+// exist in the production DB (e.g. seasonSalary, primeSignature).
+export type PlayerRow = {
+  id: string;
+  playerId: number | null;
+  fullName: string | null;
+  position: string | null;
+  realClub: string | null;
+  nationality: string | null;
+  dateOfBirth: Date | null;
+  overallRating: number | null;
+  marketValue: { toNumber: () => number } | number | null; // Decimal or number
+  photo: string | null;
+  pmbClubId: string | null;
+  pmbClub?: { name: string } | null;
+  status: PlayerStatus;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function safeIsoDate(d: unknown): string | null {
   if (!d) return null;
   try {
@@ -28,10 +48,15 @@ function safeIsoDate(d: unknown): string | null {
   }
 }
 
-export function serializePlayer(
-  player: Player & { pmbClub?: { name: string } | null }
-): PlayerDTO {
+export function serializePlayer(player: PlayerRow): PlayerDTO {
   const nowIso = new Date().toISOString();
+
+  const mv = player.marketValue;
+  const marketValue = mv == null
+    ? null
+    : typeof mv === "object" && "toNumber" in mv
+      ? mv.toNumber()
+      : Number(mv);
 
   return {
     id: player.id,
@@ -42,7 +67,7 @@ export function serializePlayer(
     nationality: player.nationality ?? "PMB",
     dateOfBirth: safeIsoDate(player.dateOfBirth),
     overallRating: player.overallRating ?? null,
-    marketValue: player.marketValue ? Number(player.marketValue) : null,
+    marketValue: marketValue ?? null,
     photo: player.photo ?? null,
     pmbClubId: player.pmbClubId ?? null,
     pmbClubName: player.pmbClub?.name ?? null,

@@ -3,13 +3,29 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { serializePlayer, PlayerDTO } from "@/lib/serialize-player";
 import { PlayerListClient } from "@/components/manager/PlayerListClient";
-import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-type PlayerWithClub = Prisma.PlayerGetPayload<{
-  include: { pmbClub: { select: { name: true } } };
-}>;
+// Explicit select — only fields that exist in ALL environments.
+// Avoids selecting seasonSalary / primeSignature which may be missing
+// from the Vercel production database.
+const PLAYER_SELECT = {
+  id: true,
+  playerId: true,
+  fullName: true,
+  position: true,
+  realClub: true,
+  nationality: true,
+  dateOfBirth: true,
+  overallRating: true,
+  marketValue: true,
+  photo: true,
+  pmbClubId: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  pmbClub: { select: { name: true } },
+} as const;
 
 export default async function PlayerListPage() {
   const session = await auth();
@@ -17,18 +33,16 @@ export default async function PlayerListPage() {
     redirect("/unauthorized");
   }
 
-  let rawSquad: PlayerWithClub[] = [];
-  let dbError: string | null = null;
+  let rawSquad: Awaited<ReturnType<typeof prisma.player.findMany<{ select: typeof PLAYER_SELECT }>>> = [];
 
   try {
     rawSquad = await prisma.player.findMany({
       where: { pmbClubId: session.user.clubId, status: "REGISTERED" },
-      include: { pmbClub: { select: { name: true } } },
+      select: PLAYER_SELECT,
       orderBy: { fullName: "asc" },
     });
   } catch (err: any) {
     console.error("PlayerListPage DB error:", err);
-    dbError = err?.message ?? "DB error";
   }
 
   const initialSquad: PlayerDTO[] = rawSquad.map(serializePlayer);
@@ -42,16 +56,6 @@ export default async function PlayerListPage() {
             Players currently registered to {session.user.clubName ?? "your club"}.
           </p>
         </div>
-      </div>
-
-      {/* Server-side debug — remove after fix confirmed */}
-      <div className="rounded-xl border border-yellow-500/40 bg-yellow-950/20 p-4 text-xs font-mono text-yellow-300 space-y-1">
-        <p>📦 Server clubId: <strong>{session.user.clubId}</strong></p>
-        <p>📊 Server found: <strong>{rawSquad.length}</strong> raw rows, serialized to <strong>{initialSquad.length}</strong> players</p>
-        {dbError && <p className="text-red-400">❌ DB Error: {dbError}</p>}
-        {initialSquad.slice(0, 3).map((p) => (
-          <p key={p.id} className="text-green-400">✓ {p.fullName} ({p.status})</p>
-        ))}
       </div>
 
       <PlayerListClient
