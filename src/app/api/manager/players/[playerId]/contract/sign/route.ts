@@ -40,19 +40,13 @@ export async function POST(
       return NextResponse.json({ success: true, contract: signed.player, awaitsAdmin: false });
     }
 
-    // Finalize player registration, salary, prime, satisfaction, and budget deduction directly in DB
-    const signed = await finalizeContractSigning(
-      params.playerId,
-      clubId,
-      agreedTerms
-    );
-
-    // If there is an associated completed auction for this player and club, mark it approved & finalized
+    // 1. If this is an Auction signing, save agreed terms and wait for Admin ratification
     const pendingAuction = await prisma.auction.findFirst({
       where: {
         playerId: params.playerId,
         currentWinnerClubId: clubId,
         status: "COMPLETED",
+        adminApproved: false,
       },
     });
 
@@ -61,7 +55,7 @@ export async function POST(
         where: { id: pendingAuction.id },
         data: {
           personalTermsAgreed: true,
-          adminApproved: true,
+          adminApproved: false,
           agreedSalary: new Prisma.Decimal(agreedTerms.seasonSalary),
           agreedPrime: new Prisma.Decimal(agreedTerms.primeSignature),
           agreedSeasons: agreedTerms.contractSeasonsLeft,
@@ -71,9 +65,25 @@ export async function POST(
             : null,
         },
       });
+
+      const club = await prisma.club.findUnique({
+        where: { id: clubId },
+        select: { budget: true },
+      });
+
+      return NextResponse.json({
+        success: true,
+        contract: {
+          seasonSalary: agreedTerms.seasonSalary,
+          primeSignature: agreedTerms.primeSignature,
+          clubBudgetAfter: club?.budget ? Number(club.budget) : 0,
+        },
+        awaitsAdmin: true,
+        message: "تم الاتفاق على شروط العقد بنجاح! بانتظار مصادقة واعتماد الإدارة (Admin Ratification) لإتمام الصفقة رسمياً. ⚖️",
+      });
     }
 
-    // If there is an associated pending transfer for this player and club, mark it completed
+    // 2. If this is a Club-to-Club transfer, save agreed terms, set status to APPROVED, and wait for Admin ratification
     const pendingTransfer = await prisma.transfer.findFirst({
       where: {
         playerId: params.playerId,
@@ -86,7 +96,7 @@ export async function POST(
       await prisma.transfer.update({
         where: { id: pendingTransfer.id },
         data: {
-          status: TransferStatus.COMPLETED,
+          status: TransferStatus.APPROVED,
           agreedSalary: new Prisma.Decimal(agreedTerms.seasonSalary),
           agreedPrime: new Prisma.Decimal(agreedTerms.primeSignature),
           agreedSeasons: agreedTerms.contractSeasonsLeft,
@@ -96,13 +106,36 @@ export async function POST(
             : null,
         },
       });
+
+      const club = await prisma.club.findUnique({
+        where: { id: clubId },
+        select: { budget: true },
+      });
+
+      return NextResponse.json({
+        success: true,
+        contract: {
+          seasonSalary: agreedTerms.seasonSalary,
+          primeSignature: agreedTerms.primeSignature,
+          clubBudgetAfter: club?.budget ? Number(club.budget) : 0,
+        },
+        awaitsAdmin: true,
+        message: "تم الاتفاق على شروط العقد بنجاح! تم رفع الصفقة رسمياً إلى إدارة الدوري (Admin) للمصادقة والاعتماد النهائي. ⚖️",
+      });
     }
+
+    // 3. Otherwise, this is an existing squad player renewing their contract with their current club
+    const signed = await finalizeContractSigning(
+      params.playerId,
+      clubId,
+      agreedTerms
+    );
 
     return NextResponse.json({
       success: true,
       contract: signed,
       awaitsAdmin: false,
-      message: "تم توقيع العقد بنجاح وانضم اللاعب رسمياً إلى الفريق! ✍️",
+      message: "تم تجديد عقد اللاعب بنجاح! ✍️",
     });
   } catch (err: unknown) {
     console.error("Contract sign error:", err);

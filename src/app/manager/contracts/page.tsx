@@ -20,9 +20,8 @@ export default async function ContractsPage() {
 
   const clubId = session.user.clubId;
 
-  // 0. Auto-finalize any deals where personal terms were already agreed (e.g. negotiated via app/mobile)
+  // 0. Clean up any completed auctions/transfers where player is already in club squad
   try {
-    // Also clean up any completed auctions/transfers where player is already in club squad
     await prisma.auction.updateMany({
       where: {
         currentWinnerClubId: clubId,
@@ -41,67 +40,8 @@ export default async function ContractsPage() {
       },
       data: { status: TransferStatus.COMPLETED },
     });
-
-    const agreedAuctions = await prisma.auction.findMany({
-      where: {
-        currentWinnerClubId: clubId,
-        status: "COMPLETED",
-        personalTermsAgreed: true,
-        adminApproved: false,
-      },
-      include: { player: true },
-    });
-
-    for (const a of agreedAuctions) {
-      try {
-        if (a.player) {
-          await finalizeContractSigning(a.playerId, clubId, {
-            seasonSalary: Number(a.agreedSalary || 0),
-            primeSignature: Number(a.agreedPrime || 0),
-            contractSeasonsLeft: a.agreedSeasons || 1,
-            squadRole: (a.agreedRole || "IMPORTANT") as any,
-            releaseClause: a.agreedReleaseClause ? Number(a.agreedReleaseClause) : null,
-          });
-        }
-        await prisma.auction.update({
-          where: { id: a.id },
-          data: { adminApproved: true },
-        });
-      } catch (err) {
-        console.warn("ContractsPage auto-finalizing auction failed:", err);
-      }
-    }
-
-    const agreedTransfers = await prisma.transfer.findMany({
-      where: {
-        toClubId: clubId,
-        status: { in: ["APPROVED", "PENDING_PERSONAL_TERMS"] },
-        agreedSalary: { not: null },
-      },
-      include: { player: true },
-    });
-
-    for (const t of agreedTransfers) {
-      try {
-        if (t.player) {
-          await finalizeContractSigning(t.playerId, clubId, {
-            seasonSalary: Number(t.agreedSalary || 0),
-            primeSignature: Number(t.agreedPrime || 0),
-            contractSeasonsLeft: t.agreedSeasons || 1,
-            squadRole: (t.agreedRole || "IMPORTANT") as any,
-            releaseClause: t.agreedReleaseClause ? Number(t.agreedReleaseClause) : null,
-          });
-        }
-        await prisma.transfer.update({
-          where: { id: t.id },
-          data: { status: TransferStatus.COMPLETED },
-        });
-      } catch (err) {
-        console.warn("ContractsPage auto-finalizing transfer failed:", err);
-      }
-    }
   } catch (err) {
-    console.warn("ContractsPage: Auto-finalization step warning:", err);
+    console.warn("ContractsPage: Cleanup step warning:", err);
   }
 
   // 1. Fetch official registered squad players (with resilient fallback if contract columns are missing)
@@ -227,7 +167,7 @@ export default async function ContractsPage() {
     const pendingTransfers = await prisma.transfer.findMany({
       where: {
         toClubId: clubId,
-        status: "PENDING_PERSONAL_TERMS",
+        status: { in: ["PENDING_PERSONAL_TERMS", "APPROVED"] },
       },
       include: {
         player: true,
