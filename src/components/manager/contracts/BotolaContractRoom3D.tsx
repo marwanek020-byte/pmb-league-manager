@@ -59,6 +59,7 @@ export function BotolaContractRoom3D({ player, demands, clubBudget, onClose, onS
   const [agentTalking, setAgentTalking] = useState(false);
   const [playerReaction, setPlayerReaction] = useState<"idle" | "thinking" | "pleased" | "worried">("idle");
   const [showHUD, setShowHUD] = useState(false);
+  const [isHudMinimized, setIsHudMinimized] = useState(false);
   const [showSpeechBubble, setShowSpeechBubble] = useState(true);
 
   // System automatically selects one of the 3 player models based on player ID & rating
@@ -293,11 +294,11 @@ export function BotolaContractRoom3D({ player, demands, clubBudget, onClose, onS
           }}
           style={{ position: "absolute", inset: 0, zIndex: 1 }}
         >
-          {/* Cinematic perspective camera framed on characters with space for right HUD */}
+          {/* Cinematic perspective camera framed on BOTH characters (Player & Agent) leaving room for HUD */}
           <PerspectiveCamera
             makeDefault
-            position={[-0.65, 0.28, 2.65]}
-            fov={50}
+            position={[0.26, 0.28, 2.75]}
+            fov={48}
             near={0.1}
             far={35}
           />
@@ -306,9 +307,9 @@ export function BotolaContractRoom3D({ player, demands, clubBudget, onClose, onS
           <OrbitControls
             enablePan={false}
             enableZoom={false}
-            target={[-0.65, -0.22, 0]}
-            minAzimuthAngle={-0.2}
-            maxAzimuthAngle={0.2}
+            target={[0.26, -0.22, 0]}
+            minAzimuthAngle={-0.25}
+            maxAzimuthAngle={0.25}
             minPolarAngle={Math.PI / 2.5}
             maxPolarAngle={Math.PI / 1.95}
             autoRotate={false}
@@ -433,7 +434,7 @@ export function BotolaContractRoom3D({ player, demands, clubBudget, onClose, onS
           >
             {/* Agent Live Actor */}
             <div
-              className="absolute top-[26%] left-[58%] md:left-[62%] -translate-x-1/2 flex flex-col items-center"
+              className="absolute top-[26%] left-[38%] md:left-[41%] -translate-x-1/2 flex flex-col items-center"
               style={{
                 animation:
                   agentGesture === "nodding"
@@ -480,7 +481,7 @@ export function BotolaContractRoom3D({ player, demands, clubBudget, onClose, onS
 
             {/* Player Live Actor */}
             <div
-              className="absolute top-[30%] left-[28%] md:left-[31%] -translate-x-1/2 flex flex-col items-center"
+              className="absolute top-[30%] left-[18%] md:left-[20%] -translate-x-1/2 flex flex-col items-center"
               style={{
                 animation:
                   playerGesture === "nodding"
@@ -685,18 +686,31 @@ export function BotolaContractRoom3D({ player, demands, clubBudget, onClose, onS
       {/* ══════════════════════════════════════════════════════════════
           FC 25 FLOATING RIGHT HUD PANEL (INTERACTIVE SLIDERS)
       ══════════════════════════════════════════════════════════════ */}
+      {/* Re-open floating button when HUD is minimized */}
+      {showHUD && isHudMinimized && (
+        <button
+          onClick={() => setIsHudMinimized(false)}
+          className="absolute top-4 right-4 z-40 px-3.5 py-2 rounded-full border border-pmb-gold/50 bg-[#0a0804]/90 text-pmb-gold hover:text-white hover:border-pmb-gold text-xs font-black shadow-[0_0_25px_rgba(212,175,55,0.45)] backdrop-blur-xl transition-all duration-300 flex items-center gap-2 animate-fadeIn cursor-pointer"
+        >
+          <span>📋</span>
+          <span>عرض لوحة التفاوض</span>
+          <span className="text-xs">◀</span>
+        </button>
+      )}
+
       <div
-        className="absolute top-4 bottom-4 right-4 md:right-8 w-full max-w-[390px] lg:max-w-[420px] z-30 flex flex-col overflow-hidden rounded-2xl border shadow-2xl transition-all duration-500"
+        className="absolute top-4 bottom-4 right-3 sm:right-4 md:right-6 w-full max-w-[340px] sm:max-w-[365px] md:max-w-[385px] lg:max-w-[410px] z-30 flex flex-col overflow-hidden rounded-2xl border shadow-2xl transition-all duration-500"
         style={{
           background: "rgba(10, 8, 4, 0.88)",
           borderColor: "rgba(212, 175, 55, 0.3)",
           backdropFilter: "blur(22px)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.88), inset 0 1px 0 rgba(212,175,55,0.15)",
-          transform: showHUD ? "translateX(0)" : "translateX(110%)",
-          opacity: showHUD ? 1 : 0,
+          transform: !showHUD || isHudMinimized ? "translateX(110%)" : "translateX(0)",
+          opacity: showHUD && !isHudMinimized ? 1 : 0,
+          pointerEvents: isHudMinimized ? "none" : "auto",
         }}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-pmb-gold/15 bg-white/3 flex-shrink-0">
+        <div className="flex items-center justify-between px-3.5 py-3 border-b border-pmb-gold/15 bg-white/3 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" />
             <span className="text-[11px] font-black text-pmb-gold tracking-widest uppercase">
@@ -705,9 +719,16 @@ export function BotolaContractRoom3D({ player, demands, clubBudget, onClose, onS
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-400">
+            <span className="text-[10px] text-gray-400 hidden sm:inline">
               الميزانية: <span className="text-pmb-gold font-bold">{fmt(clubBudget)}</span>
             </span>
+            <button
+              onClick={() => setIsHudMinimized(true)}
+              className="px-2 py-0.5 rounded border border-pmb-gold/30 bg-pmb-gold/10 hover:bg-pmb-gold/25 text-pmb-gold text-[10px] font-bold transition flex items-center gap-1"
+              title="إخفاء لوحة التفاوض لرؤية الغرفة والوكيل بالكامل"
+            >
+              👁️ إخفاء
+            </button>
             <button
               onClick={onClose}
               className="w-6 h-6 rounded-full border border-white/15 text-white/40 hover:text-white hover:border-white/40 transition flex items-center justify-center text-sm"
