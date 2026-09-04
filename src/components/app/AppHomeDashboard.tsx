@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppPlayerList } from "./AppPlayerList";
@@ -32,6 +32,15 @@ interface AppDashboardProps {
       toClub?: { id?: string; name?: string; logo?: string | null };
       fee?: number;
     };
+    latestTransfers?: Array<{
+      id?: string;
+      playerName?: string;
+      playerPhoto?: string | null;
+      position?: string;
+      fromClub?: { id?: string; name?: string; logo?: string | null };
+      toClub?: { id?: string; name?: string; logo?: string | null };
+      fee?: number;
+    }>;
     user?: any;
   } | null;
 }
@@ -42,6 +51,52 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const [currentView, setCurrentView] = useState<"dashboard" | "players">("dashboard");
   const [squad, setSquad] = useState<PlayerDTO[]>([]);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
+
+  // Animated rotating transfers
+  const transferList =
+    initialData?.latestTransfers && initialData.latestTransfers.length > 0
+      ? initialData.latestTransfers
+      : initialData?.latestTransfer
+      ? [initialData.latestTransfer]
+      : [];
+
+  const [transferIndex, setTransferIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Auto-cycle through transfers one after one every 3.5s
+  useEffect(() => {
+    if (transferList.length <= 1 || isPaused) return;
+
+    const timer = setInterval(() => {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setTransferIndex((prev) => (prev + 1) % transferList.length);
+        setIsTransitioning(false);
+      }, 300);
+    }, 3600);
+
+    return () => clearInterval(timer);
+  }, [transferList.length, isPaused]);
+
+  function changeTransfer(newIndex: number) {
+    if (newIndex === transferIndex || isTransitioning) return;
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setTransferIndex(newIndex);
+      setIsTransitioning(false);
+    }, 200);
+  }
+
+  function nextTransfer() {
+    if (transferList.length <= 1 || isTransitioning) return;
+    changeTransfer((transferIndex + 1) % transferList.length);
+  }
+
+  function prevTransfer() {
+    if (transferList.length <= 1 || isTransitioning) return;
+    changeTransfer((transferIndex - 1 + transferList.length) % transferList.length);
+  }
 
   function openPlayers() {
     setIsLoadingSquad(true);
@@ -74,7 +129,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
     stadium: "GRAND STADIUM",
   };
 
-  const latestTransfer = initialData?.latestTransfer || {
+  const currentTransfer = transferList[transferIndex] || initialData?.latestTransfer || {
     playerName: "CRYSENCIO SUMMERVILLE",
     fromClub: { name: "TEAM A" },
     toClub: { name: "TEAM B" },
@@ -87,7 +142,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
 
   const formattedFee = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
-  }).format(latestTransfer.fee || 45000000);
+  }).format(currentTransfer.fee || 0);
 
   if (currentView === "players") {
     return (
@@ -337,56 +392,97 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
             </div>
           </div>
 
-          {/* ════ CARD 2: LATEST TRANSFER (Mercato Live News) ════ */}
+          {/* ════ CARD 2: ANIMATED LATEST TRANSFERS TICKER (One after one) ════ */}
           <div
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
             className="group relative rounded-3xl border border-[#e9c349]/40 bg-gradient-to-b from-[#141419]/90 to-[#0a0a0d]/95 p-6 sm:p-7 shadow-[0_15px_45px_rgba(0,0,0,0.8),0_0_30px_rgba(233,195,73,0.12)] backdrop-blur-xl flex flex-col justify-between overflow-hidden min-h-[310px]"
             style={{
               backgroundImage: `radial-gradient(circle at 50% 20%, rgba(233,195,73,0.18) 0%, transparent 60%)`,
             }}
           >
-            {/* Header */}
-            <div>
-              <h2 className="font-montserrat text-2xl sm:text-3xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_15px_rgba(233,195,73,0.6)]">
-                LATEST TRANSFER
-              </h2>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-0.5">
-                New Deal Completed · Live Mercato
-              </p>
+            {/* Header with Live Mercato Ticker indicator */}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="font-montserrat text-2xl sm:text-3xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_15px_rgba(233,195,73,0.6)]">
+                    LATEST TRANSFERS
+                  </h2>
+                  <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    LIVE
+                  </span>
+                </div>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-0.5 flex items-center gap-2">
+                  <span>Mercato Ticker</span>
+                  <span className="text-gray-600">•</span>
+                  <span className="text-[#e9c349] font-mono">
+                    Deal {transferIndex + 1} of {transferList.length || 1}
+                  </span>
+                </p>
+              </div>
+
+              {/* Manual Nav Arrows (Left / Right) */}
+              {transferList.length > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={prevTransfer}
+                    className="w-7 h-7 rounded-full border border-white/20 bg-black/60 flex items-center justify-center text-sm font-bold text-gray-300 hover:text-[#e9c349] hover:border-[#e9c349] transition-all active:scale-90 cursor-pointer"
+                    title="Previous Transfer"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextTransfer}
+                    className="w-7 h-7 rounded-full border border-white/20 bg-black/60 flex items-center justify-center text-sm font-bold text-gray-300 hover:text-[#e9c349] hover:border-[#e9c349] transition-all active:scale-90 cursor-pointer"
+                    title="Next Transfer"
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Center Player Deal Visual & Teams */}
-            <div className="my-auto flex items-center justify-between gap-4 py-4">
-              
+            {/* Animated Player Deal Visual & Teams */}
+            <div
+              className={`my-auto flex items-center justify-between gap-4 py-3 transition-all duration-300 transform ${
+                isTransitioning
+                  ? "opacity-0 scale-95 translate-y-1"
+                  : "opacity-100 scale-100 translate-y-0"
+              }`}
+            >
               {/* Selling Club */}
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center flex-1 max-w-[100px]">
                 <span
-                  className="text-[10px] font-bold text-gray-400 mb-1.5 max-w-[85px] truncate text-center"
-                  title={latestTransfer.fromClub?.name}
+                  className="text-[10px] font-bold text-gray-400 mb-1.5 max-w-[90px] truncate text-center"
+                  title={currentTransfer.fromClub?.name}
                 >
-                  {latestTransfer.fromClub?.name || "SELLER"}
+                  {currentTransfer.fromClub?.name || "SELLER"}
                 </span>
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border border-[#e9c349]/50 bg-black/80 p-2 flex items-center justify-center shadow-md overflow-hidden">
-                  {latestTransfer.fromClub?.logo ? (
+                  {currentTransfer.fromClub?.logo ? (
                     <img
-                      src={latestTransfer.fromClub.logo}
-                      alt={latestTransfer.fromClub?.name || "Seller"}
+                      src={currentTransfer.fromClub.logo}
+                      alt={currentTransfer.fromClub?.name || "Seller"}
                       className="w-full h-full object-contain"
                     />
                   ) : (
                     <span className="font-black text-lg text-[#e9c349]">
-                      {latestTransfer.fromClub?.name?.slice(0, 2).toUpperCase() || "A"}
+                      {currentTransfer.fromClub?.name?.slice(0, 2).toUpperCase() || "A"}
                     </span>
                   )}
                 </div>
               </div>
 
               {/* Player Silhouette & Transfer Fee Highlight */}
-              <div className="flex-1 flex flex-col items-center text-center">
+              <div className="flex-1 flex flex-col items-center text-center px-2">
                 <div className="relative w-16 h-16 rounded-full border-2 border-[#e9c349]/70 bg-black/90 p-1 flex items-center justify-center shadow-[0_0_30px_rgba(233,195,73,0.4)] overflow-hidden">
-                  {latestTransfer.playerPhoto ? (
+                  {currentTransfer.playerPhoto ? (
                     <img
-                      src={latestTransfer.playerPhoto}
-                      alt={latestTransfer.playerName}
+                      src={currentTransfer.playerPhoto}
+                      alt={currentTransfer.playerName}
                       className="w-full h-full object-cover rounded-full"
                     />
                   ) : (
@@ -399,50 +495,72 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
                   <div className="absolute inset-0 rounded-full border border-white/20 pointer-events-none" />
                 </div>
 
-                <span className="font-montserrat text-xs sm:text-sm font-black uppercase tracking-wider text-white mt-1.5 truncate max-w-[180px]">
-                  {latestTransfer.playerName}
+                <span
+                  className="font-montserrat text-xs sm:text-sm font-black uppercase tracking-wider text-white mt-1.5 truncate max-w-[170px]"
+                  title={currentTransfer.playerName}
+                >
+                  {currentTransfer.playerName}
                 </span>
 
-                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">
                   TRANSFER FEE
                 </span>
-                <span className="font-montserrat text-base sm:text-lg font-black text-[#e9c349] drop-shadow-[0_0_10px_rgba(233,195,73,0.6)]">
-                  €{formattedFee}
+                <span className="font-montserrat text-sm sm:text-base font-black text-[#e9c349] drop-shadow-[0_0_10px_rgba(233,195,73,0.6)]">
+                  {Number(currentTransfer.fee) > 0 ? `€${formattedFee}` : "FREE TRANSFER"}
                 </span>
               </div>
 
-              {/* Arrow Indicator */}
-              <span className="text-xl font-black text-[#e9c349] animate-pulse">
-                »
-              </span>
+              {/* Animated Direction Indicator */}
+              <div className="flex flex-col items-center">
+                <span className="text-xl font-black text-[#e9c349] animate-pulse">
+                  »
+                </span>
+              </div>
 
               {/* Buying Club */}
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center flex-1 max-w-[100px]">
                 <span
-                  className="text-[10px] font-bold text-gray-400 mb-1.5 max-w-[85px] truncate text-center"
-                  title={latestTransfer.toClub?.name}
+                  className="text-[10px] font-bold text-gray-400 mb-1.5 max-w-[90px] truncate text-center"
+                  title={currentTransfer.toClub?.name}
                 >
-                  {latestTransfer.toClub?.name || "BUYER"}
+                  {currentTransfer.toClub?.name || "BUYER"}
                 </span>
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border border-[#e9c349] bg-black/80 p-2 flex items-center justify-center shadow-[0_0_15px_rgba(233,195,73,0.3)] overflow-hidden">
-                  {latestTransfer.toClub?.logo ? (
+                  {currentTransfer.toClub?.logo ? (
                     <img
-                      src={latestTransfer.toClub.logo}
-                      alt={latestTransfer.toClub?.name || "Buyer"}
+                      src={currentTransfer.toClub.logo}
+                      alt={currentTransfer.toClub?.name || "Buyer"}
                       className="w-full h-full object-contain"
                     />
                   ) : (
                     <span className="font-black text-lg text-[#e9c349]">
-                      {latestTransfer.toClub?.name?.slice(0, 2).toUpperCase() || "B"}
+                      {currentTransfer.toClub?.name?.slice(0, 2).toUpperCase() || "B"}
                     </span>
                   )}
                 </div>
               </div>
-
             </div>
 
-            {/* VIEW TRANSFER BUTTON */}
-            <div className="flex justify-center mt-4">
+            {/* Bottom: Carousel Dots & View All Button */}
+            <div className="flex flex-col items-center gap-2.5 mt-2">
+              {transferList.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  {transferList.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => changeTransfer(idx)}
+                      className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                        idx === transferIndex
+                          ? "w-6 bg-[#e9c349] shadow-[0_0_8px_#e9c349]"
+                          : "w-1.5 bg-white/30 hover:bg-white/60"
+                      }`}
+                      title={`Go to deal ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => router.push("/manager/transfers")}
@@ -451,7 +569,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
                   background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
                 }}
               >
-                <span>VIEW TRANSFER</span>
+                <span>VIEW ALL TRANSFERS</span>
                 <span className="transition-transform group-hover/btn:translate-x-1">›</span>
               </button>
             </div>
