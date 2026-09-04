@@ -292,43 +292,42 @@ body {
 }
 
 /* ═══ eFootball Mobile Intro Styles ═══ */
-@keyframes cinematicZoomIn {
+/* ═══ 60FPS GPU-Accelerated Cinematic Intro Animations (Lag-Free) ═══ */
+@keyframes pmbLogoCinematic {
   0% {
-    transform: scale(0.92);
+    transform: scale(0.95) translateZ(0);
     opacity: 0;
-    filter: blur(8px);
   }
-  20% {
+  16% {
+    transform: scale(1.0) translateZ(0);
     opacity: 1;
-    filter: blur(0px);
   }
   85% {
+    transform: scale(1.025) translateZ(0);
     opacity: 1;
   }
   100% {
-    transform: scale(1.04);
+    transform: scale(1.04) translateZ(0);
     opacity: 0;
-    filter: blur(4px);
   }
 }
 
-@keyframes studioFadeIn {
+@keyframes samaStudioCinematic {
   0% {
-    transform: scale(0.92);
+    transform: scale(0.96) translateZ(0);
     opacity: 0;
-    filter: blur(8px);
   }
-  25% {
+  20% {
+    transform: scale(1.0) translateZ(0);
     opacity: 1;
-    filter: blur(0px);
   }
-  80% {
+  82% {
+    transform: scale(1.02) translateZ(0);
     opacity: 1;
   }
   100% {
-    transform: scale(1.03);
+    transform: scale(1.03) translateZ(0);
     opacity: 0;
-    filter: blur(4px);
   }
 }
 
@@ -337,12 +336,16 @@ body {
   100% { background-position: 200% center; }
 }
 
-.animate-cinematic-zoom {
-  animation: cinematicZoomIn 2.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-pmb-cinematic {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  animation: pmbLogoCinematic 5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
-.animate-studio-fade {
-  animation: studioFadeIn 2.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-sama-cinematic {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  animation: samaStudioCinematic 4.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .gold-metallic-text {
