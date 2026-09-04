@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { ContractDemands } from "@/lib/services/botola-contract-service";
@@ -77,9 +77,28 @@ export function ContractsPayrollClient({
     setBudget(clubBudget);
   }, [clubBudget]);
 
-  const displayedPendingList = pendingList.filter(
-    (p) => !players.some((sq) => sq.id === p.id)
-  );
+  // Deduplicate squad players by name, preferring the one with active salary/contract
+  const displayedPlayers = useMemo(() => {
+    const map = new Map<string, Player>();
+    for (const p of players) {
+      const name = (p.fullName || "").trim().toLowerCase();
+      const existing = map.get(name);
+      if (!existing || Number(p.seasonSalary || 0) > Number(existing.seasonSalary || 0)) {
+        map.set(name, p);
+      }
+    }
+    return Array.from(map.values());
+  }, [players]);
+
+  // Strictly filter out any pending signing whose ID OR name is already in the squad
+  const displayedPendingList = useMemo(() => {
+    return pendingList.filter((p) => {
+      const pName = (p.fullName || "").trim().toLowerCase();
+      return !displayedPlayers.some(
+        (sq) => sq.id === p.id || (sq.fullName || "").trim().toLowerCase() === pName
+      );
+    });
+  }, [pendingList, displayedPlayers]);
 
   // Foreign Player Quota: max 5 non-Moroccan players
   function isMoroccan(nat: string | null | undefined): boolean {
@@ -88,7 +107,7 @@ export function ContractsPayrollClient({
     return n.includes("moroc") || n.includes("maroc") || n === "ma" || n.includes("مغرب");
   }
 
-  const foreignPlayersCount = players.filter((p) => !isMoroccan(p.nationality)).length;
+  const foreignPlayersCount = displayedPlayers.filter((p) => !isMoroccan(p.nationality)).length;
 
   // Termination modal state
   const [terminatingPlayer, setTerminatingPlayer] = useState<Player | null>(null);
@@ -182,9 +201,9 @@ export function ContractsPayrollClient({
   }
 
   // Total payroll this season
-  const totalSalary = players.reduce((sum, p) => sum + p.seasonSalary, 0);
-  const totalPrime  = players.reduce((sum, p) => sum + p.primeSignature, 0);
-  const urgent      = players.filter(p => p.contractSatisfaction < 60 || p.contractSeasonsLeft <= 0).length;
+  const totalSalary = displayedPlayers.reduce((sum, p) => sum + p.seasonSalary, 0);
+  const totalPrime  = displayedPlayers.reduce((sum, p) => sum + p.primeSignature, 0);
+  const urgent      = displayedPlayers.filter(p => p.contractSatisfaction < 60 || p.contractSeasonsLeft <= 0).length;
 
   // Open the 3D negotiation room
   async function openNegotiations(player: Player) {
@@ -301,7 +320,7 @@ export function ContractsPayrollClient({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
             <KPICard label="إجمالي الرواتب السنوية" value={fmt(totalSalary)} icon="📅" />
             <KPICard label="إجمالي منح التوقيع" value={fmt(totalPrime)} icon="💰" />
-            <KPICard label="لاعبو التشكيلة الرسمية" value={`${players.length} لاعب`} icon="👥" />
+            <KPICard label="لاعبو التشكيلة الرسمية" value={`${displayedPlayers.length} لاعب`} icon="👥" />
             <KPICard label="عقود تحتاج تجديد" value={`${urgent} حالة`} icon="⚠️" warn={urgent > 0} />
           </div>
 
@@ -462,7 +481,7 @@ export function ContractsPayrollClient({
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-2">
             <span className="text-base">📋</span>
-            <h3 className="text-sm font-black text-white">قائمة لاعبي الفريق الرسمية ({players.length} لاعب مسجل)</h3>
+            <h3 className="text-sm font-black text-white">قائمة لاعبي الفريق الرسمية ({displayedPlayers.length} لاعب مسجل)</h3>
           </div>
           <span className="text-xs text-gray-400">تجديد العقود والمكافآت السنوية</span>
         </div>
@@ -481,7 +500,7 @@ export function ContractsPayrollClient({
 
         {/* Players rows */}
         <div className="divide-y divide-white/5">
-          {players.map((player) => {
+          {displayedPlayers.map((player) => {
             const isExpiring = player.contractSeasonsLeft <= 1;
             const satColor   = SATISFACTION_COLOR(player.contractSatisfaction);
             const isLoading  = loadingId === player.id;

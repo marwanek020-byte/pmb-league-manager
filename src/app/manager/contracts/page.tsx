@@ -174,8 +174,20 @@ export default async function ContractsPage() {
     }
   }
 
-  // Set of all registered player IDs in the squad
+  // Deduplicate squad if duplicate player records exist, preferring the one with active contract/salary
+  const squadMap = new Map<string, any>();
+  for (const p of serializedSquad) {
+    const name = (p.fullName || "").trim().toLowerCase();
+    const existing = squadMap.get(name);
+    if (!existing || Number(p.seasonSalary || 0) > Number(existing.seasonSalary || 0)) {
+      squadMap.set(name, p);
+    }
+  }
+  serializedSquad = Array.from(squadMap.values());
+
+  // Set of all registered player IDs and names in the squad
   const squadIds = new Set(serializedSquad.map(p => p.id));
+  const squadNames = new Set(serializedSquad.map(p => (p.fullName || "").trim().toLowerCase()));
 
   // 2. Fetch pending signings (Won auctions awaiting 3D contract negotiation)
   let serializedPendingAuctions: any[] = [];
@@ -192,7 +204,7 @@ export default async function ContractsPage() {
     });
 
     serializedPendingAuctions = pendingAuctions
-      .filter(a => a.player && !squadIds.has(a.playerId) && !squadIds.has(a.player.id))
+      .filter(a => a.player && !squadIds.has(a.playerId) && !squadIds.has(a.player.id) && !squadNames.has((a.player.fullName || "").trim().toLowerCase()))
       .map(a => {
         const p: any = a.player;
         return {
@@ -223,7 +235,7 @@ export default async function ContractsPage() {
     });
 
     serializedPendingTransfers = pendingTransfers
-      .filter(t => t.player && !squadIds.has(t.playerId) && !squadIds.has(t.player.id))
+      .filter(t => t.player && !squadIds.has(t.playerId) && !squadIds.has(t.player.id) && !squadNames.has((t.player.fullName || "").trim().toLowerCase()))
       .map(t => {
         const p: any = t.player;
         return {
@@ -252,8 +264,8 @@ export default async function ContractsPage() {
 
   // Combine pending signings, strictly exclude anyone already in squad, and deduplicate
   const allPendingSignings = [...serializedPendingAuctions, ...serializedPendingTransfers]
-    .filter(p => !squadIds.has(p.id))
-    .filter((p, index, self) => index === self.findIndex(x => x.id === p.id));
+    .filter(p => !squadIds.has(p.id) && !squadNames.has((p.fullName || "").trim().toLowerCase()))
+    .filter((p, index, self) => index === self.findIndex(x => x.id === p.id || (x.fullName || "").trim().toLowerCase() === (p.fullName || "").trim().toLowerCase()));
 
   return (
     <ContractsPayrollClient
