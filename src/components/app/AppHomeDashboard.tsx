@@ -12,6 +12,9 @@ import { AppAuctionsHub } from "./AppAuctionsHub";
 import { AppFreeAgentHub } from "./AppFreeAgentHub";
 import { AppGlobalDugoutHub } from "./AppGlobalDugoutHub";
 import { AppUltrasHub } from "./AppUltrasHub";
+import { AppAboutUsHub } from "./AppAboutUsHub";
+import { AppMusicSettingsHub } from "./AppMusicSettingsHub";
+import { signOut } from "next-auth/react";
 import { PlayerDTO } from "@/lib/serialize-player";
 
 interface AppDashboardProps {
@@ -56,7 +59,22 @@ interface AppDashboardProps {
 export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
-  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition" | "contracts" | "transferWindow" | "budgetHistory" | "auctions" | "freeAgents" | "globalDugout" | "ultrasHub">("dashboard");
+  const [currentView, setCurrentView] = useState<
+    | "dashboard"
+    | "players"
+    | "competition"
+    | "contracts"
+    | "transferWindow"
+    | "budgetHistory"
+    | "auctions"
+    | "freeAgents"
+    | "globalDugout"
+    | "ultrasHub"
+    | "aboutUs"
+    | "musicSettings"
+  >("dashboard");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [squad, setSquad] = useState<PlayerDTO[]>([]);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
 
@@ -213,6 +231,37 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
     );
   }
 
+  if (currentView === "aboutUs") {
+    return (
+      <AppAboutUsHub
+        clubName={club.name}
+        clubLogo={club.logo}
+        budget={club.budget}
+        onBack={() => setCurrentView("dashboard")}
+      />
+    );
+  }
+
+  if (currentView === "musicSettings") {
+    return (
+      <AppMusicSettingsHub
+        clubName={club.name}
+        clubLogo={club.logo}
+        budget={club.budget}
+        onBack={() => setCurrentView("dashboard")}
+      />
+    );
+  }
+
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("pmb-music-started");
+      window.dispatchEvent(new CustomEvent("pmb-stop-music"));
+    }
+    await signOut({ callbackUrl: "/app" });
+  };
+
   return (
     <div
       className="fixed inset-0 w-full h-[100dvh] bg-[#070709] text-white flex flex-col justify-between overflow-y-auto overflow-x-hidden font-montserrat select-none"
@@ -335,17 +384,24 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
           {/* TAB 4: EXTRAS */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab("EXTRAS");
-              router.push("/manager/dashboard");
-            }}
-            className={`rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+            onClick={() => setActiveTab("EXTRAS")}
+            className={`relative rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === "EXTRAS"
-                ? "text-black bg-gradient-to-r from-[#f5d475] to-[#d4af37]"
+                ? "text-black shadow-[0_2px_15px_rgba(233,195,73,0.5)]"
                 : "text-gray-400 hover:text-white"
             }`}
+            style={
+              activeTab === "EXTRAS"
+                ? {
+                    background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
+                  }
+                : {}
+            }
           >
-            EXTRAS
+            <span>EXTRAS</span>
+            {activeTab === "EXTRAS" && (
+              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[#f5d475] shadow-[0_0_8px_#f5d475]" />
+            )}
           </button>
         </nav>
       </header>
@@ -531,6 +587,97 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
                 </h3>
                 <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
                   Curva Virage · AI Capo Companion, Morale & Chants Studio
+                </p>
+              </div>
+
+            </div>
+          </div>
+        ) : activeTab === "EXTRAS" ? (
+          /* ════ 3 EXTRAS ACTION CARDS (ABOUT US, MUSIC SETTINGS, LOG OUT) ════ */
+          <div className="rounded-3xl border border-[#e9c349]/35 bg-gradient-to-b from-[#141419]/90 to-[#0a0a0d]/95 p-6 sm:p-8 shadow-[0_15px_45px_rgba(0,0,0,0.8),0_0_30px_rgba(233,195,73,0.12)] backdrop-blur-xl">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* CARD 1: ABOUT US */}
+              <div
+                onClick={() => setCurrentView("aboutUs")}
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold Information Shield with Moroccan Star */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 100 100" className="w-24 h-24 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradAbout" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    <polygon points="50,6 90,24 90,66 50,94 10,66 10,24" fill="none" stroke="url(#goldGradAbout)" strokeWidth="4" />
+                    <polygon points="50,14 82,29 82,62 50,86 18,62 18,29" fill="url(#goldGradAbout)" opacity="0.25" />
+                    <polygon points="50,26 54,38 67,38 56,46 60,58 50,50 40,58 44,46 33,38 46,38" fill="url(#goldGradAbout)" />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  ABOUT US
+                </h3>
+                <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
+                  PMB League Manager · Regulations, Edition & Creators
+                </p>
+              </div>
+
+              {/* CARD 2: MUSIC SETTINGS */}
+              <div
+                onClick={() => setCurrentView("musicSettings")}
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold Headphones & Soundwaves */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 100 100" className="w-24 h-24 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradAudio" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M22 55c0-18 12-32 28-32s28 14 28 32" stroke="url(#goldGradAudio)" strokeWidth="6" strokeLinecap="round" fill="none" />
+                    <rect x="14" y="50" width="16" height="26" rx="8" fill="url(#goldGradAudio)" />
+                    <rect x="70" y="50" width="16" height="26" rx="8" fill="url(#goldGradAudio)" />
+                    <path d="M42 58v10M50 52v22M58 58v10" stroke="url(#goldGradAudio)" strokeWidth="3.5" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  MUSIC SETTINGS
+                </h3>
+                <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
+                  Soundtrack Volume · Track Player & Mute Control
+                </p>
+              </div>
+
+              {/* CARD 3: LOG OUT */}
+              <div
+                onClick={() => setShowLogoutConfirm(true)}
+                className="group relative rounded-2xl border border-rose-500/40 bg-gradient-to-b from-[#181014] to-[#0a0709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-rose-500 hover:shadow-[0_0_35px_rgba(244,63,94,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Rose Power Exit Beacon */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 100 100" className="w-24 h-24 drop-shadow-[0_0_12px_rgba(244,63,94,0.4)]">
+                    <defs>
+                      <linearGradient id="roseGradExit" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fb7185" />
+                        <stop offset="50%" stopColor="#f43f5e" />
+                        <stop offset="100%" stopColor="#e11d48" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M32 30a32 32 0 1 0 36 0" fill="none" stroke="url(#roseGradExit)" strokeWidth="6" strokeLinecap="round" />
+                    <line x1="50" y1="14" x2="50" y2="46" stroke="url(#roseGradExit)" strokeWidth="6" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-rose-400 drop-shadow-[0_0_12px_rgba(244,63,94,0.6)]">
+                  LOG OUT
+                </h3>
+                <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
+                  Exit Session · Return to Welcome Screen
                 </p>
               </div>
 
@@ -895,6 +1042,48 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
 
         </div>
       </footer>
+
+      {/* ─── LOGOUT CONFIRMATION MODAL ─── */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-md rounded-3xl border border-rose-500/40 bg-gradient-to-b from-[#181014] to-[#090709] p-6 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_40px_rgba(244,63,94,0.2)] text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/20 border border-rose-500/40 text-3xl">
+                ⚠️
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white">
+                END MANAGERIAL SESSION?
+              </h3>
+              <p className="mt-2 text-xs sm:text-sm text-gray-400 leading-relaxed">
+                Are you sure you want to log out from <strong className="text-white">{club.name}</strong>? Your squad, transfers, and tactical progress remain safely saved.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                disabled={isLoggingOut}
+                className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-xs font-black uppercase tracking-wider text-gray-300 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+              >
+                CANCEL
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmLogout}
+                disabled={isLoggingOut}
+                className="flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 py-3 text-xs font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(244,63,94,0.4)] hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isLoggingOut ? "LOGGING OUT..." : "CONFIRM LOGOUT"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
