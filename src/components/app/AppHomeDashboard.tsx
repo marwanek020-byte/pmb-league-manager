@@ -121,18 +121,32 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
       {/* ─── TOP BAR (BUDGET + NAVIGATION TABS) ─── */}
       <header className="relative z-20 w-full flex flex-wrap items-center justify-between gap-4 px-6 sm:px-10 pt-6 pb-3">
         
-        {/* BUDGET PILL BUTTON (Top Left) */}
-        <div
-          onClick={() => router.push("/manager/contracts")}
-          className="group flex items-center gap-3 rounded-full border border-[#e9c349]/80 bg-black/80 px-4 py-2 shadow-[0_0_20px_rgba(233,195,73,0.3)] backdrop-blur-md cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] active:scale-95"
-          title="Club Available Budget - Click for Finances"
-        >
-          <div className="flex h-6 w-6 items-center justify-center rounded-full border border-[#e9c349] bg-gradient-to-b from-[#f5d475] to-[#b8860b] text-black font-black text-xs shadow-sm">
-            €
+        {/* CLUB BADGE + BUDGET PILL BUTTON (Top Left) */}
+        <div className="flex items-center gap-2.5">
+          {club.logo && (
+            <div
+              className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-[#e9c349]/80 bg-black/80 p-1 shadow-[0_0_15px_rgba(233,195,73,0.3)] flex items-center justify-center overflow-hidden"
+              title={club.name}
+            >
+              <img
+                src={club.logo}
+                alt={club.name}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+          <div
+            onClick={() => router.push("/manager/contracts")}
+            className="group flex items-center gap-3 rounded-full border border-[#e9c349]/80 bg-black/80 px-4 py-2 shadow-[0_0_20px_rgba(233,195,73,0.3)] backdrop-blur-md cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] active:scale-95"
+            title={`${club.name} Available Budget - Click for Finances`}
+          >
+            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-[#e9c349] bg-gradient-to-b from-[#f5d475] to-[#b8860b] text-black font-black text-xs shadow-sm">
+              €
+            </div>
+            <span className="font-montserrat text-sm sm:text-base font-black tracking-wider text-white">
+              {formattedBudget}
+            </span>
           </div>
-          <span className="font-montserrat text-sm sm:text-base font-black tracking-wider text-white">
-            {formattedBudget}
-          </span>
         </div>
 
         {/* TOP SEGMENTED NAVIGATION TABS */}
@@ -239,14 +253,25 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
               
               {/* Team 1 (Home) */}
               <div className="flex-1 flex flex-col items-center text-center">
-                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-[#e9c349] bg-black p-1 shadow-[0_0_25px_rgba(233,195,73,0.4)] flex items-center justify-center">
-                  <img
-                    src="/branding/pmb-official-logo.png"
-                    alt={nextMatch.homeClub?.name || "PMB FC"}
-                    className="w-full h-full object-contain rounded-full"
-                  />
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-[#e9c349] bg-black/90 p-2 shadow-[0_0_25px_rgba(233,195,73,0.4)] flex items-center justify-center overflow-hidden">
+                  {nextMatch.homeClub?.logo ? (
+                    <img
+                      src={nextMatch.homeClub.logo}
+                      alt={nextMatch.homeClub?.name || "Home Team"}
+                      className="w-full h-full object-contain drop-shadow-md"
+                    />
+                  ) : (
+                    <img
+                      src="/branding/pmb-official-logo.png"
+                      alt={nextMatch.homeClub?.name || "PMB FC"}
+                      className="w-full h-full object-contain rounded-full"
+                    />
+                  )}
                 </div>
-                <span className="font-montserrat text-xs sm:text-sm font-black uppercase tracking-wider text-white mt-2.5 max-w-[120px] truncate">
+                <span
+                  className="font-montserrat text-xs sm:text-sm font-black uppercase tracking-wider text-white mt-2.5 max-w-[130px] truncate"
+                  title={nextMatch.homeClub?.name}
+                >
                   {nextMatch.homeClub?.name || "PMB FC"}
                 </span>
               </div>
@@ -261,13 +286,26 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
 
               {/* Team 2 (Away) */}
               <div className="flex-1 flex flex-col items-center text-center">
-                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-white/40 bg-black/90 p-1.5 shadow-2xl flex items-center justify-center">
-                  <div className="flex flex-col items-center justify-center">
-                    <span className="text-2xl">🛡️</span>
-                    <span className="text-[9px] font-black text-white tracking-widest mt-0.5">RABAT</span>
-                  </div>
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-white/40 bg-black/90 p-2 shadow-2xl flex items-center justify-center overflow-hidden">
+                  {nextMatch.awayClub?.logo ? (
+                    <img
+                      src={nextMatch.awayClub.logo}
+                      alt={nextMatch.awayClub?.name || "Away Team"}
+                      className="w-full h-full object-contain drop-shadow-md"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      <span className="text-2xl">🛡️</span>
+                      <span className="text-[9px] font-black text-white tracking-widest mt-0.5">
+                        {nextMatch.awayClub?.name?.slice(0, 5) || "AWAY"}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <span className="font-montserrat text-xs sm:text-sm font-black uppercase tracking-wider text-white mt-2.5 max-w-[120px] truncate">
+                <span
+                  className="font-montserrat text-xs sm:text-sm font-black uppercase tracking-wider text-white mt-2.5 max-w-[130px] truncate"
+                  title={nextMatch.awayClub?.name}
+                >
                   {nextMatch.awayClub?.name || "RABAT UNITED"}
                 </span>
               </div>
@@ -319,20 +357,45 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
             {/* Center Player Deal Visual & Teams */}
             <div className="my-auto flex items-center justify-between gap-4 py-4">
               
-              {/* Selling Club (Shield A) */}
+              {/* Selling Club */}
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-gray-400 mb-1">
+                <span
+                  className="text-[10px] font-bold text-gray-400 mb-1.5 max-w-[85px] truncate text-center"
+                  title={latestTransfer.fromClub?.name}
+                >
                   {latestTransfer.fromClub?.name || "SELLER"}
                 </span>
-                <div className="w-14 h-14 rounded-2xl border border-[#e9c349]/50 bg-black/80 flex items-center justify-center font-black text-lg text-[#e9c349] shadow-md">
-                  A
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border border-[#e9c349]/50 bg-black/80 p-2 flex items-center justify-center shadow-md overflow-hidden">
+                  {latestTransfer.fromClub?.logo ? (
+                    <img
+                      src={latestTransfer.fromClub.logo}
+                      alt={latestTransfer.fromClub?.name || "Seller"}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="font-black text-lg text-[#e9c349]">
+                      {latestTransfer.fromClub?.name?.slice(0, 2).toUpperCase() || "A"}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Player Silhouette & Transfer Fee Highlight */}
               <div className="flex-1 flex flex-col items-center text-center">
-                <div className="relative w-16 h-16 rounded-full border-2 border-[#e9c349]/70 bg-black/90 p-1 flex items-center justify-center shadow-[0_0_30px_rgba(233,195,73,0.4)]">
-                  <span className="text-3xl">👤</span>
+                <div className="relative w-16 h-16 rounded-full border-2 border-[#e9c349]/70 bg-black/90 p-1 flex items-center justify-center shadow-[0_0_30px_rgba(233,195,73,0.4)] overflow-hidden">
+                  {latestTransfer.playerPhoto ? (
+                    <img
+                      src={latestTransfer.playerPhoto}
+                      alt={latestTransfer.playerName}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-gradient-to-b from-[#1a1c23] to-[#0a0a0d] flex items-center justify-center">
+                      <svg className="w-8 h-8 text-[#e9c349]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                      </svg>
+                    </div>
+                  )}
                   <div className="absolute inset-0 rounded-full border border-white/20 pointer-events-none" />
                 </div>
 
@@ -353,13 +416,26 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
                 »
               </span>
 
-              {/* Buying Club (Shield B) */}
+              {/* Buying Club */}
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-gray-400 mb-1">
+                <span
+                  className="text-[10px] font-bold text-gray-400 mb-1.5 max-w-[85px] truncate text-center"
+                  title={latestTransfer.toClub?.name}
+                >
                   {latestTransfer.toClub?.name || "BUYER"}
                 </span>
-                <div className="w-14 h-14 rounded-2xl border border-[#e9c349] bg-black/80 flex items-center justify-center font-black text-lg text-[#e9c349] shadow-[0_0_15px_rgba(233,195,73,0.3)]">
-                  B
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border border-[#e9c349] bg-black/80 p-2 flex items-center justify-center shadow-[0_0_15px_rgba(233,195,73,0.3)] overflow-hidden">
+                  {latestTransfer.toClub?.logo ? (
+                    <img
+                      src={latestTransfer.toClub.logo}
+                      alt={latestTransfer.toClub?.name || "Buyer"}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="font-black text-lg text-[#e9c349]">
+                      {latestTransfer.toClub?.name?.slice(0, 2).toUpperCase() || "B"}
+                    </span>
+                  )}
                 </div>
               </div>
 
