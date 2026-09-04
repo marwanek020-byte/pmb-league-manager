@@ -663,38 +663,24 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
               </div>
             </div>
 
-            {/* Bottom: Carousel Dots & View All Button */}
-            <div className="flex flex-col items-center gap-2.5 mt-2">
-              {transferList.length > 1 && (
-                <div className="flex items-center gap-1.5">
-                  {transferList.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => changeTransfer(idx)}
-                      className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                        idx === transferIndex
-                          ? "w-6 bg-[#e9c349] shadow-[0_0_8px_#e9c349]"
-                          : "w-1.5 bg-white/30 hover:bg-white/60"
-                      }`}
-                      title={`Go to deal ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => router.push("/manager/transfers")}
-                className="group/btn flex items-center justify-center gap-2 rounded-full px-8 py-2.5 text-xs font-black uppercase tracking-widest text-black shadow-[0_4px_20px_rgba(233,195,73,0.4)] transition-all hover:scale-105 hover:brightness-110 active:scale-95 cursor-pointer"
-                style={{
-                  background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
-                }}
-              >
-                <span>VIEW ALL TRANSFERS</span>
-                <span className="transition-transform group-hover/btn:translate-x-1">›</span>
-              </button>
-            </div>
+            {/* Bottom: Carousel Dots */}
+            {transferList.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5 mt-2 pb-1">
+                {transferList.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => changeTransfer(idx)}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      idx === transferIndex
+                        ? "w-6 bg-[#e9c349] shadow-[0_0_8px_#e9c349]"
+                        : "w-1.5 bg-white/30 hover:bg-white/60"
+                    }`}
+                    title={`Go to deal ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
