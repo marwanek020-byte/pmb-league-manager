@@ -12,9 +12,26 @@ export const metadata = {
   },
 };
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ app?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  if (params.app === "true") {
+    redirect("/app");
+  }
+
   const session = await auth();
 
-  return <LandingPage initialUser={session?.user || null} />;
-}
+  if (session?.user) {
+    if (session.user.role === "ADMINISTRATOR") {
+      redirect("/admin/dashboard");
+    }
+    if (session.user.role === "CLUB_MANAGER") {
+      redirect("/manager/dashboard");
+    }
+  }
 
+  return <LandingPage />;
+}
