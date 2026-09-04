@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { LandingPage } from "@/components/LandingPage";
 
@@ -19,6 +20,20 @@ export default async function HomePage({
 }) {
   const params = searchParams ? await searchParams : {};
   if (params.app === "true") {
+    redirect("/app");
+  }
+
+  // Automatically detect the Capacitor Android APK (com.pmb.manager)
+  // so users DO NOT need to re-download or re-upload a new APK to MediaFire!
+  const reqHeaders = await headers();
+  const requestedWith = reqHeaders.get("x-requested-with");
+  const userAgent = reqHeaders.get("user-agent") || "";
+
+  const isAndroidApp =
+    requestedWith === "com.pmb.manager" ||
+    (userAgent.includes("Android") && userAgent.includes("; wv"));
+
+  if (isAndroidApp) {
     redirect("/app");
   }
 

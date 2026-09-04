@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 /* ─── IMAGE URLS ─── */
 const HERO_BG_DESKTOP =
@@ -70,6 +70,19 @@ const STATS = [
 
 export function LandingPage() {
   const [mobileMenu, setMobileMenu] = useState(false);
+
+  useEffect(() => {
+    // If running inside the installed Android APK, redirect immediately to the App
+    if (
+      typeof window !== "undefined" &&
+      ((window as any).Capacitor?.isNativePlatform?.() ||
+        (window as any).Capacitor ||
+        navigator.userAgent.includes("; wv") ||
+        navigator.userAgent.includes("com.pmb.manager"))
+    ) {
+      window.location.replace("/app");
+    }
+  }, []);
 
   return (
     <div className="landing-page" style={{ background: "#121414", color: "#e2e2e2", fontFamily: "'Inter', sans-serif" }}>
