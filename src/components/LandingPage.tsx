@@ -68,29 +68,40 @@ const STATS = [
   { value: "26/27", label: "Season-Based" },
 ];
 
-export function LandingPage() {
+interface LandingPageProps {
+  initialFromApp?: boolean;
+}
+
+export function LandingPage({ initialFromApp = false }: LandingPageProps) {
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [isFromApp, setIsFromApp] = useState(false);
+  const [isFromApp, setIsFromApp] = useState(initialFromApp);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const fromAppParam = window.location.search.includes("fromApp=true") || window.location.search.includes("preview=true");
+    const fromAppParam =
+      initialFromApp ||
+      window.location.search.includes("fromApp=true") ||
+      window.location.search.includes("preview=true") ||
+      sessionStorage.getItem("pmb-from-app") === "true";
+
     if (fromAppParam) {
+      sessionStorage.setItem("pmb-from-app", "true");
       setIsFromApp(true);
       return; // Do NOT redirect to /app if intentionally viewing website welcome page from the app
     }
 
     // If running inside the installed Android APK, redirect immediately to the App
-    if (
-      (window as any).Capacitor?.isNativePlatform?.() ||
-      (window as any).Capacitor ||
+    const isApk =
+      Boolean((window as any).Capacitor?.isNativePlatform?.()) ||
+      Boolean((window as any).Capacitor) ||
       navigator.userAgent.includes("; wv") ||
-      navigator.userAgent.includes("com.pmb.manager")
-    ) {
-      window.location.replace("/app");
+      navigator.userAgent.includes("com.pmb.manager");
+
+    if (isApk) {
+      setIsFromApp(true);
     }
-  }, []);
+  }, [initialFromApp]);
 
   return (
     <div className="landing-page" style={{ background: "#121414", color: "#e2e2e2", fontFamily: "'Inter', sans-serif" }}>
@@ -117,7 +128,29 @@ export function LandingPage() {
               <a key={item} href={`#${item.toLowerCase()}`} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 500, color: item === "PACKS" ? "#e9c349" : "#c4c7c7", textDecoration: "none", padding: "6px 12px" }}>{item}</a>
             ))}
           </div>
-          <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.4)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
+          {isFromApp ? (
+            <Link
+              href="/app"
+              className="font-jetbrains flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.15em",
+                fontWeight: 800,
+                color: "#e9c349",
+                padding: "8px 20px",
+                border: "2px solid #e9c349",
+                borderRadius: 999,
+                textDecoration: "none",
+                background: "rgba(233,195,73,0.15)",
+                boxShadow: "0 0 20px rgba(233,195,73,0.4)",
+              }}
+            >
+              <span className="text-sm leading-none">‹</span>
+              <span>RETURN TO APP</span>
+            </Link>
+          ) : (
+            <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.4)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
+          )}
         </div>
       </nav>
 
@@ -126,7 +159,29 @@ export function LandingPage() {
         <div className="flex justify-between items-center" style={{ padding: "12px 16px" }}>
           <span className="font-montserrat" style={{ fontSize: 20, fontWeight: 800 }}>PMB</span>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", textDecoration: "none" }}>LOGIN</Link>
+            {isFromApp ? (
+              <Link
+                href="/app"
+                className="font-jetbrains flex items-center gap-1.5"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.12em",
+                  fontWeight: 800,
+                  color: "#e9c349",
+                  padding: "6px 14px",
+                  border: "1.5px solid #e9c349",
+                  borderRadius: 999,
+                  textDecoration: "none",
+                  background: "rgba(233,195,73,0.15)",
+                  boxShadow: "0 0 15px rgba(233,195,73,0.35)",
+                }}
+              >
+                <span className="text-xs">‹</span>
+                <span>RETURN TO APP</span>
+              </Link>
+            ) : (
+              <Link href="/login" className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", textDecoration: "none" }}>LOGIN</Link>
+            )}
             <button onClick={() => setMobileMenu(!mobileMenu)} style={{ color: "#c4c7c7", background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>{mobileMenu ? "✕" : "☰"}</button>
           </div>
         </div>
@@ -135,7 +190,28 @@ export function LandingPage() {
             {["ABOUT", "LEAGUES", "PACKS", "ADMINISTRATION"].map((item) => (
               <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileMenu(false)} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", color: item === "PACKS" ? "#e9c349" : "#c4c7c7", textDecoration: "none", padding: "6px 0" }}>{item}</a>
             ))}
-            <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.3)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
+            {isFromApp ? (
+              <Link
+                href="/app"
+                className="font-jetbrains flex items-center gap-2 mt-2"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.15em",
+                  fontWeight: 800,
+                  color: "#e9c349",
+                  padding: "8px 24px",
+                  border: "2px solid #e9c349",
+                  borderRadius: 999,
+                  textDecoration: "none",
+                  background: "rgba(233,195,73,0.15)",
+                }}
+              >
+                <span>‹</span>
+                <span>RETURN TO APP</span>
+              </Link>
+            ) : (
+              <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.3)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
+            )}
           </div>
         )}
       </header>
@@ -163,9 +239,29 @@ export function LandingPage() {
             THE HOME OF MOROCCAN eFOOTBALL
           </p>
 
-          <Link href="/login" className="font-montserrat gold-glow group relative overflow-hidden inline-block" style={{ padding: "12px 32px", background: "#e9c349", color: "#0a0a0a", fontSize: 14, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", textDecoration: "none", borderRadius: 4 }}>
-            <span className="relative" style={{ zIndex: 10 }}>EXPLORE PMB →</span>
-          </Link>
+          {isFromApp ? (
+            <a
+              href="#about"
+              className="font-montserrat gold-glow group relative overflow-hidden inline-block"
+              style={{
+                padding: "12px 32px",
+                background: "#e9c349",
+                color: "#0a0a0a",
+                fontSize: 14,
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                textDecoration: "none",
+                borderRadius: 4,
+              }}
+            >
+              <span className="relative" style={{ zIndex: 10 }}>EXPLORE PMB ↓</span>
+            </a>
+          ) : (
+            <Link href="/login" className="font-montserrat gold-glow group relative overflow-hidden inline-block" style={{ padding: "12px 32px", background: "#e9c349", color: "#0a0a0a", fontSize: 14, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", textDecoration: "none", borderRadius: 4 }}>
+              <span className="relative" style={{ zIndex: 10 }}>EXPLORE PMB →</span>
+            </Link>
+          )}
         </div>
 
         <div className="absolute flex flex-col items-center animate-bounce" style={{ bottom: 20, zIndex: 10, opacity: 0.4 }}>
@@ -489,10 +585,29 @@ export function LandingPage() {
           <p className="font-inter" style={{ fontSize: 13, lineHeight: "22px", color: "#c9c6c5", opacity: 0.9, marginBottom: 28 }}>
             From fixtures and results to standings, points, clubs, players and transfers — the League Manager brings the entire PMB competition together.
           </p>
-          <Link href="/login" className="group inline-flex items-center gap-3 gold-glow" style={{ background: "#e9c349", color: "#0a0a0a", padding: "10px 24px", borderRadius: 4, textDecoration: "none", fontWeight: 800, fontSize: 12 }}>
-            <span className="font-jetbrains" style={{ letterSpacing: "0.12em" }}>ENTER PMB PORTAL</span>
-            <span>→</span>
-          </Link>
+          {isFromApp ? (
+            <Link
+              href="/app"
+              className="group inline-flex items-center gap-3 gold-glow"
+              style={{
+                background: "#e9c349",
+                color: "#0a0a0a",
+                padding: "12px 28px",
+                borderRadius: 999,
+                textDecoration: "none",
+                fontWeight: 800,
+                fontSize: 12,
+              }}
+            >
+              <span className="text-sm">‹</span>
+              <span className="font-jetbrains" style={{ letterSpacing: "0.12em" }}>RETURN TO PMB APP</span>
+            </Link>
+          ) : (
+            <Link href="/login" className="group inline-flex items-center gap-3 gold-glow" style={{ background: "#e9c349", color: "#0a0a0a", padding: "10px 24px", borderRadius: 4, textDecoration: "none", fontWeight: 800, fontSize: 12 }}>
+              <span className="font-jetbrains" style={{ letterSpacing: "0.12em" }}>ENTER PMB PORTAL</span>
+              <span>→</span>
+            </Link>
+          )}
         </div>
       </section>
 

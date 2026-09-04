@@ -29,6 +29,6 @@ export default async function WelcomePage({
     }
   }
 
-  return <LandingPage />;
+  return <LandingPage initialFromApp={params.fromApp === "true"} />;
 }
 
