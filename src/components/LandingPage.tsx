@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CinematicIntro } from "@/components/CinematicIntro";
 
 /* ─── IMAGE URLS ─── */
 const HERO_BG_DESKTOP =
@@ -70,12 +69,10 @@ const STATS = [
 ];
 
 export function LandingPage() {
-  const [showIntro, setShowIntro] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
 
   return (
     <div className="landing-page" style={{ background: "#121414", color: "#e2e2e2", fontFamily: "'Inter', sans-serif" }}>
-      {showIntro && <CinematicIntro onComplete={() => setShowIntro(false)} />}
 
       {/* ═══ DESKTOP NAV ═══ */}
       <nav className="fixed top-0 w-full z-50 hidden md:block" style={{ background: "rgba(18,20,20,0.9)", backdropFilter: "blur(16px)", borderTop: "2px solid #e9c349" }}>
@@ -473,13 +470,6 @@ export function LandingPage() {
             <span className="font-jetbrains" style={{ fontSize: 9, letterSpacing: "0.15em", color: "#71717a" }}>EST. 2020</span>
           </div>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowIntro(true)}
-              className="font-jetbrains text-[10px] tracking-wider text-zinc-500 hover:text-[#e9c349] transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <span>🎬</span>
-              <span>PLAY INTRO</span>
-            </button>
             <p className="font-jetbrains" style={{ fontSize: 9, letterSpacing: "0.12em", color: "#71717a" }}>© 2026 PMB — PES MOROCCAN BOURGEOIS. ALL RIGHTS RESERVED.</p>
           </div>
         </div>
