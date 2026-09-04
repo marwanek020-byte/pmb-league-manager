@@ -11,6 +11,7 @@ import { AddPlayerModal } from "./AddPlayerModal";
 import { RemovePlayerDialog } from "./RemovePlayerDialog";
 import { AddPlayerChoiceModal } from "./AddPlayerChoiceModal";
 import { CreatePlayerModal } from "./CreatePlayerModal";
+import { PlayerContractModal } from "./PlayerContractModal";
 
 type SortKey =
   | "fullName"
@@ -46,6 +47,8 @@ export function PlayerListClient({
   const [showAddModal, setShowAddModal] = useState(false);
 
   const [pendingRemoval, setPendingRemoval] =
+    useState<PlayerDTO | null>(null);
+  const [inspectingPlayer, setInspectingPlayer] =
     useState<PlayerDTO | null>(null);
 
   const [adminRemoving, setAdminRemoving] = useState(false);
@@ -316,12 +319,9 @@ export function PlayerListClient({
                     Player ID
                   </th>
 
-                  {/* Manager OR admin can see actions */}
-                  {(!readOnly || adminCanRemove) && (
-                    <th className="px-4 py-3 text-right">
-                      Action
-                    </th>
-                  )}
+                  <th className="px-4 py-3 text-right">
+                    Contract & Actions
+                  </th>
                 </tr>
               </thead>
 
@@ -329,18 +329,29 @@ export function PlayerListClient({
                 {pageRows.map((player) => (
                   <tr
                     key={player.id}
-                    className="hover:bg-pmb-charcoal/40"
+                    className="hover:bg-pmb-charcoal/40 transition-colors"
                   >
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                      <div
+                        className="flex items-center gap-3 cursor-pointer group"
+                        onClick={() => setInspectingPlayer(player)}
+                        title="Click to view contract details"
+                      >
                         <ClubBadge
                           name={player.fullName}
                           size="sm"
                         />
 
-                        <span className="font-medium text-white">
-                          {player.fullName}
-                        </span>
+                        <div>
+                          <span className="font-medium text-white group-hover:text-pmb-gold transition">
+                            {player.fullName}
+                          </span>
+                          {player.seasonSalary ? (
+                            <span className="block text-[11px] text-pmb-gold/90 font-mono">
+                              {new Intl.NumberFormat("fr-MA").format(player.seasonSalary)} €/yr
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </td>
 
@@ -370,20 +381,32 @@ export function PlayerListClient({
                       #{player.playerId}
                     </td>
 
-                    {/* ACTION */}
-                    {(!readOnly || adminCanRemove) && (
-                      <td className="px-4 py-3 text-right">
+                    {/* ACTION & CONTRACT */}
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() =>
-                            setPendingRemoval(player)
-                          }
-                          className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+                          onClick={() => setInspectingPlayer(player)}
+                          className="rounded-lg border border-pmb-gold/40 bg-pmb-gold/10 px-2.5 py-1 text-xs font-semibold text-pmb-gold transition hover:bg-pmb-gold/20 flex items-center gap-1 shadow-sm"
+                          title="View contract details & salary (Read-only)"
                         >
-                          Remove
+                          <span>📄</span>
+                          <span>Contract</span>
                         </button>
-                      </td>
-                    )}
+
+                        {(!readOnly || adminCanRemove) && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPendingRemoval(player)
+                            }
+                            className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -556,6 +579,13 @@ export function PlayerListClient({
             </div>
           </div>
         )}
+
+      {/* Read-Only Player Contract Inspector Modal (Option 3) */}
+      <PlayerContractModal
+        player={inspectingPlayer}
+        clubName={clubName}
+        onClose={() => setInspectingPlayer(null)}
+      />
 
       <Toast
         toast={toast}

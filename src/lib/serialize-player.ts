@@ -16,6 +16,14 @@ export type PlayerDTO = {
   status: PlayerStatus;
   createdAt: string;
   updatedAt: string;
+  // Contract details (read-only inspection)
+  seasonSalary?: number;
+  primeSignature?: number;
+  contractSeasonsLeft?: number;
+  squadRole?: string;
+  releaseClause?: number | null;
+  contractSatisfaction?: number;
+  lastNegotiatedAt?: string | null;
 };
 
 // Only the fields we actually use — avoids selecting columns that may not
@@ -36,6 +44,14 @@ export type PlayerRow = {
   status: PlayerStatus;
   createdAt: Date;
   updatedAt: Date;
+  // Contract scalar fields
+  seasonSalary?: { toNumber?: () => number } | number | null;
+  primeSignature?: { toNumber?: () => number } | number | null;
+  contractSeasonsLeft?: number | null;
+  squadRole?: string | null;
+  releaseClause?: { toNumber?: () => number } | number | null;
+  contractSatisfaction?: number | null;
+  lastNegotiatedAt?: Date | string | null;
 };
 
 function safeIsoDate(d: unknown): string | null {
@@ -58,6 +74,24 @@ export function serializePlayer(player: PlayerRow): PlayerDTO {
       ? mv.toNumber()
       : Number(mv);
 
+  const salary = player.seasonSalary == null
+    ? 0
+    : typeof player.seasonSalary === "object" && player.seasonSalary !== null && "toNumber" in player.seasonSalary
+      ? (player.seasonSalary as any).toNumber()
+      : Number(player.seasonSalary);
+
+  const prime = player.primeSignature == null
+    ? 0
+    : typeof player.primeSignature === "object" && player.primeSignature !== null && "toNumber" in player.primeSignature
+      ? (player.primeSignature as any).toNumber()
+      : Number(player.primeSignature);
+
+  const release = player.releaseClause == null
+    ? null
+    : typeof player.releaseClause === "object" && player.releaseClause !== null && "toNumber" in player.releaseClause
+      ? (player.releaseClause as any).toNumber()
+      : Number(player.releaseClause);
+
   return {
     id: player.id,
     playerId: player.playerId ?? 0,
@@ -74,5 +108,12 @@ export function serializePlayer(player: PlayerRow): PlayerDTO {
     status: player.status,
     createdAt: safeIsoDate(player.createdAt) ?? nowIso,
     updatedAt: safeIsoDate(player.updatedAt) ?? nowIso,
+    seasonSalary: salary,
+    primeSignature: prime,
+    contractSeasonsLeft: player.contractSeasonsLeft ?? 1,
+    squadRole: player.squadRole ?? "IMPORTANT",
+    releaseClause: release,
+    contractSatisfaction: player.contractSatisfaction ?? 85,
+    lastNegotiatedAt: safeIsoDate(player.lastNegotiatedAt),
   };
 }
