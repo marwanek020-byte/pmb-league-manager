@@ -106,7 +106,19 @@ export function AppLandingPage({
   }
 
   if (scene === "dashboard") {
-    return <AppHomeDashboard initialData={dashboardData} />;
+    return (
+      <AppHomeDashboard
+        initialData={dashboardData}
+        onLogout={() => {
+          setShowIntro(false);
+          setCurrentUser(null);
+          setDashboardData(null);
+          setUsername("");
+          setPassword("");
+          setScene("welcome");
+        }}
+      />
+    );
   }
 
   return (

@@ -145,28 +145,53 @@ export function AppMusicSettingsHub({
             </div>
           </div>
 
-          {/* Interactive Range Slider */}
+          {/* Interactive Range Slider with Big Tactile UP & DOWN Buttons */}
           <div className="py-8 space-y-4">
-            <div className="relative flex items-center">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={volume}
-                onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
-                className="w-full h-3 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-[#f5d475] focus:outline-none"
-                style={{
-                  background: `linear-gradient(to right, #f5d475 0%, #d4af37 ${volume}%, #27272a ${volume}%, #27272a 100%)`,
-                }}
-              />
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* DOWN Button */}
+              <button
+                type="button"
+                onClick={() => handleVolumeChange(volume - 10)}
+                className="flex items-center gap-1.5 rounded-2xl border border-white/20 bg-black/70 px-4 sm:px-5 py-3 font-montserrat text-xs font-black uppercase tracking-wider text-white shadow-md hover:border-[#e9c349] hover:text-[#e9c349] active:scale-95 transition-all shrink-0 cursor-pointer"
+                title="Decrease Music Volume (-10%)"
+              >
+                <span className="text-base font-black">−</span>
+                <span>VOL DOWN</span>
+              </button>
+
+              {/* Slider Track */}
+              <div className="relative flex-1 flex items-center">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={volume}
+                  onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
+                  className="w-full h-4 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-[#f5d475] focus:outline-none"
+                  style={{
+                    background: `linear-gradient(to right, #f5d475 0%, #d4af37 ${volume}%, #27272a ${volume}%, #27272a 100%)`,
+                  }}
+                />
+              </div>
+
+              {/* UP Button */}
+              <button
+                type="button"
+                onClick={() => handleVolumeChange(volume + 10)}
+                className="flex items-center gap-1.5 rounded-2xl border border-[#e9c349]/50 bg-gradient-to-r from-[#f5d475] to-[#d4af37] px-4 sm:px-5 py-3 font-montserrat text-xs font-black uppercase tracking-wider text-black shadow-[0_0_20px_rgba(233,195,73,0.3)] hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+                title="Increase Music Volume (+10%)"
+              >
+                <span className="text-base font-black">+</span>
+                <span>VOL UP</span>
+              </button>
             </div>
 
             {/* Range indicator labels */}
-            <div className="flex justify-between text-[10px] font-black tracking-widest text-gray-500 uppercase">
+            <div className="flex justify-between text-[10px] font-black tracking-widest text-gray-500 uppercase px-1">
               <span>0% Silent</span>
               <span>25% Calm</span>
               <span>50% Balanced</span>
-              <span>75% Energetic</span>
+              <span>75% Stadium</span>
               <span>100% Maximum</span>
             </div>
           </div>
@@ -175,10 +200,10 @@ export function AppMusicSettingsHub({
           <div className="grid grid-cols-5 gap-2 sm:gap-3 pt-2">
             {[
               { label: "MUTE", val: 0, icon: "🔇" },
-              { label: "25%", val: 25, icon: "🔈" },
-              { label: "50%", val: 50, icon: "🔉" },
-              { label: "80%", val: 80, icon: "🔥" },
-              { label: "100%", val: 100, icon: "⚡" },
+              { label: "25% LOW", val: 25, icon: "🔈" },
+              { label: "50% BALANCED", val: 50, icon: "🔉" },
+              { label: "75% STADIUM", val: 75, icon: "🔥" },
+              { label: "100% MAX", val: 100, icon: "⚡" },
             ].map((preset) => (
               <button
                 key={preset.val}

@@ -12,10 +12,15 @@ export const metadata = {
   },
 };
 
-export default async function WelcomePage() {
+export default async function WelcomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ preview?: string; fromApp?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
   const session = await auth();
 
-  if (session?.user) {
+  if (session?.user && params.fromApp !== "true" && params.preview !== "true") {
     if (session.user.role === "ADMINISTRATOR") {
       redirect("/admin/dashboard");
     }

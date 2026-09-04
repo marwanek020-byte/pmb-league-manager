@@ -70,15 +70,23 @@ const STATS = [
 
 export function LandingPage() {
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [isFromApp, setIsFromApp] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const fromAppParam = window.location.search.includes("fromApp=true") || window.location.search.includes("preview=true");
+    if (fromAppParam) {
+      setIsFromApp(true);
+      return; // Do NOT redirect to /app if intentionally viewing website welcome page from the app
+    }
+
     // If running inside the installed Android APK, redirect immediately to the App
     if (
-      typeof window !== "undefined" &&
-      ((window as any).Capacitor?.isNativePlatform?.() ||
-        (window as any).Capacitor ||
-        navigator.userAgent.includes("; wv") ||
-        navigator.userAgent.includes("com.pmb.manager"))
+      (window as any).Capacitor?.isNativePlatform?.() ||
+      (window as any).Capacitor ||
+      navigator.userAgent.includes("; wv") ||
+      navigator.userAgent.includes("com.pmb.manager")
     ) {
       window.location.replace("/app");
     }
@@ -86,6 +94,19 @@ export function LandingPage() {
 
   return (
     <div className="landing-page" style={{ background: "#121414", color: "#e2e2e2", fontFamily: "'Inter', sans-serif" }}>
+
+      {/* Floating Return to Mobile App Button */}
+      {isFromApp && (
+        <div className="fixed bottom-6 right-6 z-50 animate-bounce">
+          <Link
+            href="/app"
+            className="flex items-center gap-2 rounded-full border-2 border-[#e9c349] bg-black/90 px-6 py-3 font-montserrat text-xs font-black uppercase tracking-wider text-[#e9c349] shadow-[0_0_30px_rgba(233,195,73,0.6)] hover:bg-[#e9c349] hover:text-black transition-all"
+          >
+            <span>‹</span>
+            <span>RETURN TO APP</span>
+          </Link>
+        </div>
+      )}
 
       {/* ═══ DESKTOP NAV ═══ */}
       <nav className="fixed top-0 w-full z-50 hidden md:block" style={{ background: "rgba(18,20,20,0.9)", backdropFilter: "blur(16px)", borderTop: "2px solid #e9c349" }}>

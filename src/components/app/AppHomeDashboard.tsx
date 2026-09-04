@@ -54,9 +54,10 @@ interface AppDashboardProps {
     }>;
     user?: any;
   } | null;
+  onLogout?: () => void;
 }
 
-export function AppHomeDashboard({ initialData }: AppDashboardProps) {
+export function AppHomeDashboard({ initialData, onLogout }: AppDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
   const [currentView, setCurrentView] = useState<
@@ -259,7 +260,18 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
       sessionStorage.removeItem("pmb-music-started");
       window.dispatchEvent(new CustomEvent("pmb-stop-music"));
     }
-    await signOut({ callbackUrl: "/app" });
+    try {
+      await signOut({ redirect: false });
+    } catch {}
+
+    setIsLoggingOut(false);
+    setShowLogoutConfirm(false);
+
+    if (onLogout) {
+      onLogout();
+    } else {
+      window.location.href = "/app";
+    }
   };
 
   return (
@@ -599,7 +611,9 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
               
               {/* CARD 1: ABOUT US */}
               <div
-                onClick={() => setCurrentView("aboutUs")}
+                onClick={() => {
+                  window.location.href = "/welcome?fromApp=true";
+                }}
                 className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
               >
                 {/* Gold Information Shield with Moroccan Star */}
@@ -621,7 +635,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
                   ABOUT US
                 </h3>
                 <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
-                  PMB League Manager · Regulations, Edition & Creators
+                  Website Welcome Page · Staff, History & Creators
                 </p>
               </div>
 
