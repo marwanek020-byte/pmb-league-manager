@@ -7,6 +7,7 @@ import { AppPlayerList } from "./AppPlayerList";
 import { AppCompetitionHub } from "./AppCompetitionHub";
 import { AppContractsHub } from "./AppContractsHub";
 import { AppTransferWindowHub } from "./AppTransferWindowHub";
+import { AppBudgetHistoryHub } from "./AppBudgetHistoryHub";
 import { PlayerDTO } from "@/lib/serialize-player";
 
 interface AppDashboardProps {
@@ -51,7 +52,7 @@ interface AppDashboardProps {
 export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
-  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition" | "contracts" | "transferWindow">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition" | "contracts" | "transferWindow" | "budgetHistory">("dashboard");
   const [squad, setSquad] = useState<PlayerDTO[]>([]);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
 
@@ -171,6 +172,10 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
     return <AppTransferWindowHub onBack={() => setCurrentView("dashboard")} />;
   }
 
+  if (currentView === "budgetHistory") {
+    return <AppBudgetHistoryHub onBack={() => setCurrentView("dashboard")} />;
+  }
+
   return (
     <div
       className="fixed inset-0 w-full h-[100dvh] bg-[#070709] text-white flex flex-col justify-between overflow-y-auto overflow-x-hidden font-montserrat select-none"
@@ -206,9 +211,9 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
             </div>
           )}
           <div
-            onClick={() => setCurrentView("contracts")}
+            onClick={() => setCurrentView("budgetHistory")}
             className="group flex items-center gap-3 rounded-full border border-[#e9c349]/80 bg-black/80 px-4 py-2 shadow-[0_0_20px_rgba(233,195,73,0.3)] backdrop-blur-md cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] active:scale-95"
-            title={`${club.name} Available Budget - Click for Finances`}
+            title={`${club.name} Available Budget - Click for Budget History`}
           >
             <div className="flex h-6 w-6 items-center justify-center rounded-full border border-[#e9c349] bg-gradient-to-b from-[#f5d475] to-[#b8860b] text-black font-black text-xs shadow-sm">
               €
