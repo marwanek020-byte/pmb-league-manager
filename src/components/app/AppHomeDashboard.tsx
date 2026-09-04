@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AppPlayerList } from "./AppPlayerList";
+import { PlayerDTO } from "@/lib/serialize-player";
 
 interface AppDashboardProps {
   initialData?: {
@@ -37,6 +39,27 @@ interface AppDashboardProps {
 export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
+  const [currentView, setCurrentView] = useState<"dashboard" | "players">("dashboard");
+  const [squad, setSquad] = useState<PlayerDTO[]>([]);
+  const [isLoadingSquad, setIsLoadingSquad] = useState(false);
+
+  function openPlayers() {
+    setIsLoadingSquad(true);
+    fetch("/api/manager/players/list")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.players) {
+          setSquad(data.players);
+        }
+        setIsLoadingSquad(false);
+        setCurrentView("players");
+      })
+      .catch((err) => {
+        console.error(err);
+        setIsLoadingSquad(false);
+        setCurrentView("players");
+      });
+  }
 
   const club = initialData?.club || {
     name: "FAR RABAT",
@@ -65,6 +88,18 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const formattedFee = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
   }).format(latestTransfer.fee || 45000000);
+
+  if (currentView === "players") {
+    return (
+      <AppPlayerList
+        initialSquad={squad}
+        clubName={club.name || "FAR RABAT"}
+        clubId={club.id || "c1"}
+        clubBudget={club.budget || 9356790}
+        onBack={() => setCurrentView("dashboard")}
+      />
+    );
+  }
 
   return (
     <div
@@ -355,7 +390,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
           
           {/* ACTION 1: MY PLAYERS */}
           <div
-            onClick={() => router.push("/manager/players")}
+            onClick={openPlayers}
             className="group flex items-center justify-between rounded-2xl border border-white/15 bg-black/75 p-4 shadow-xl backdrop-blur-md cursor-pointer transition-all hover:scale-[1.02] hover:border-[#e9c349]/70 hover:shadow-[0_0_25px_rgba(233,195,73,0.2)] active:scale-98"
           >
             <div className="flex items-center gap-3.5">
