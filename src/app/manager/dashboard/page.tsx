@@ -21,46 +21,56 @@ export default async function ManagerDashboardPage() {
     redirect("/unauthorized");
   }
 
-  const club = session.user.clubId
-    ? await prisma.club.findUnique({
-        where: {
-          id: session.user.clubId,
-        },
-        include: {
-          league: true,
-          powerRating: true,
-          players: { where: { status: "REGISTERED" }, select: { id: true } },
-        },
-      })
-    : null;
+  let club = null;
+  try {
+    club = session.user.clubId
+      ? await prisma.club.findUnique({
+          where: {
+            id: session.user.clubId,
+          },
+          include: {
+            league: true,
+            powerRating: true,
+            players: { where: { status: "REGISTERED" }, select: { id: true } },
+          },
+        })
+      : null;
+  } catch (err) {
+    console.error("Database query failed for club:", err);
+  }
 
   if (!club) {
     redirect("/unauthorized");
   }
 
   // ── Budget display (EUR to match the competition rewards) ─────────────
+  const rawBudget = Number(club.budget ?? 0);
   const budgetDisplay = new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,
-  }).format(Number(club.budget ?? 0));
+  }).format(isNaN(rawBudget) ? 0 : rawBudget);
 
   const powerRating = club.powerRating?.rating ?? 1000;
   const titles = club.powerRating?.titles ?? 0;
-  const squadSize = club.players.length;
+  const squadSize = club.players?.length ?? 0;
 
   // ── Next match + season info ──────────────────────────────────────────
-  const activeSeason = await prisma.season.findFirst({
-    where: { leagueId: club.leagueId, status: "ACTIVE" },
-    include: { competitionSeason: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const activeSeason = club.leagueId
+    ? await prisma.season.findFirst({
+        where: { leagueId: club.leagueId, status: "ACTIVE" },
+        include: { competitionSeason: true },
+        orderBy: { createdAt: "desc" },
+      }).catch(() => null)
+    : null;
 
-  const season = activeSeason ?? await prisma.season.findFirst({
-    where: { leagueId: club.leagueId },
-    include: { competitionSeason: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const season = activeSeason ?? (club.leagueId
+    ? await prisma.season.findFirst({
+        where: { leagueId: club.leagueId },
+        include: { competitionSeason: true },
+        orderBy: { createdAt: "desc" },
+      }).catch(() => null)
+    : null);
 
   const seasonName = season?.competitionSeason?.name ?? season?.name ?? null;
 
@@ -82,7 +92,7 @@ export default async function ManagerDashboardPage() {
     status: string;
   } | null = null;
 
-  if (season) {
+  if (season?.id) {
     const upcomingMatch = await prisma.match.findFirst({
       where: {
         seasonId: season.id,
@@ -97,7 +107,7 @@ export default async function ManagerDashboardPage() {
         homeClub: { select: { id: true, name: true, logo: true } },
         awayClub: { select: { id: true, name: true, logo: true } },
       },
-    });
+    }).catch(() => null);
 
     if (upcomingMatch) {
       nextMatch = upcomingMatch;
@@ -117,7 +127,7 @@ export default async function ManagerDashboardPage() {
         homeClub: { select: { id: true, name: true, logo: true } },
         awayClub: { select: { id: true, name: true, logo: true } },
       },
-    });
+    }).catch(() => null);
 
     if (completedMatch) {
       lastMatch = completedMatch;
@@ -165,10 +175,11 @@ export default async function ManagerDashboardPage() {
     where: { status: "ACTIVE" },
     include: { player: true, currentWinnerClub: { select: { name: true } } },
     orderBy: { expiresAt: "asc" },
-  });
+  }).catch(() => null);
 
-  return (
-    <div className="space-y-8 pb-16 sm:pb-8">
+  try {
+    return (
+      <div className="space-y-8 pb-16 sm:pb-8">
       {/* ─── WELCOME HEADER ──────────────────────────────────────────── */}
       <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -292,7 +303,7 @@ export default async function ManagerDashboardPage() {
               <>
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-[.2em] text-pmb-gold">
-                    Matchday {headlineMatch.matchday.toString().padStart(2, "0")}
+                    Matchday {(headlineMatch.matchday ?? 1).toString().padStart(2, "0")}
                   </p>
                   <span
                     className={[
@@ -489,4 +500,33 @@ export default async function ManagerDashboardPage() {
       </section>
     </div>
   );
+  } catch (err: any) {
+    console.error("ManagerDashboardPage Render Failure:", err);
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 rounded-2xl border border-red-500/40 bg-red-950/30 p-8 text-center text-white backdrop-blur-xl">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/40 bg-red-950/50 text-3xl">
+          🔍
+        </div>
+        <h2 className="text-xl font-black uppercase tracking-tight text-white sm:text-2xl">
+          Dashboard Diagnostics
+        </h2>
+        <p className="text-xs text-red-300">
+          {err?.message || "An unexpected issue occurred while rendering the dashboard."}
+        </p>
+        {err?.stack && (
+          <pre className="mt-4 max-h-60 overflow-auto rounded-xl bg-black/80 p-4 text-left font-mono text-[11px] leading-relaxed text-gray-400 whitespace-pre-wrap">
+            {err.stack}
+          </pre>
+        )}
+        <div className="pt-4">
+          <Link
+            href="/manager/club"
+            className="rounded-xl bg-pmb-gold px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black transition hover:scale-105"
+          >
+            Go to Club Info →
+          </Link>
+        </div>
+      </div>
+    );
+  }
 }
