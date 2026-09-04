@@ -242,17 +242,24 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
           {/* TAB 2: TRANSFERS */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab("TRANSFERS");
-              router.push("/manager/transfers");
-            }}
-            className={`rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+            onClick={() => setActiveTab("TRANSFERS")}
+            className={`relative rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === "TRANSFERS"
-                ? "text-black bg-gradient-to-r from-[#f5d475] to-[#d4af37]"
+                ? "text-black shadow-[0_2px_15px_rgba(233,195,73,0.5)]"
                 : "text-gray-400 hover:text-white"
             }`}
+            style={
+              activeTab === "TRANSFERS"
+                ? {
+                    background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
+                  }
+                : {}
+            }
           >
-            TRANSFERS
+            <span>TRANSFERS</span>
+            {activeTab === "TRANSFERS" && (
+              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[#f5d475] shadow-[0_0_8px_#f5d475]" />
+            )}
           </button>
 
           {/* TAB 3: DUGOUT */}
@@ -291,7 +298,112 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
 
       {/* ─── MAIN TWO HERO CARDS (MATCHDAY & LATEST TRANSFER) ─── */}
       <main className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-10 py-4 my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+        {activeTab === "TRANSFERS" ? (
+          /* ════ 3 TRANSFER ACTION CARDS (Matches user's reference mockup) ════ */
+          <div className="rounded-3xl border border-[#e9c349]/35 bg-gradient-to-b from-[#141419]/90 to-[#0a0a0d]/95 p-6 sm:p-8 shadow-[0_15px_45px_rgba(0,0,0,0.8),0_0_30px_rgba(233,195,73,0.12)] backdrop-blur-xl">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* CARD 1: MAKE TRANSFER */}
+              <div
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold exchange arrows with star in middle */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 120 80" className="w-28 h-20 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradArrows" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    {/* Top Right Arrow */}
+                    <path d="M20 22h55v-9l25 15-25 15v-9H20z" fill="url(#goldGradArrows)" />
+                    {/* Bottom Left Arrow */}
+                    <path d="M100 52H45v9L20 46l25-15v9h55z" fill="url(#goldGradArrows)" />
+                    {/* Center Star */}
+                    <polygon
+                      points="60,25 63,33 72,33 65,39 67,47 60,42 53,47 55,39 48,33 57,33"
+                      fill="#fff"
+                      stroke="#f5d475"
+                      strokeWidth="1"
+                    />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  MAKE TRANSFER
+                </h3>
+              </div>
+
+              {/* CARD 2: LIVE AUCTIONS */}
+              <div
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold Gavel striking sound block */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 120 90" className="w-28 h-20 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradGavel" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    {/* Gavel Hammer Head and Handle angled */}
+                    <g transform="rotate(-32 60 40)">
+                      <rect x="48" y="10" width="24" height="38" rx="4" fill="url(#goldGradGavel)" stroke="#fff" strokeWidth="0.8" />
+                      <rect x="57" y="44" width="6" height="42" rx="3" fill="url(#goldGradGavel)" />
+                    </g>
+                    {/* Sound block base */}
+                    <rect x="34" y="70" width="52" height="7" rx="3" fill="url(#goldGradGavel)" />
+                    <rect x="26" y="77" width="68" height="7" rx="3" fill="url(#goldGradGavel)" />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  LIVE AUCTIONS
+                </h3>
+              </div>
+
+              {/* CARD 3: FREE AGENT TRANSFER */}
+              <div
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold Handshake with FREE badge */}
+                <div className="mb-8 flex flex-col items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 120 70" className="w-28 h-16 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradHands" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    {/* Left Sleeve */}
+                    <path d="M15 18l18 16-6 7-18-16z" fill="url(#goldGradHands)" />
+                    {/* Right Sleeve */}
+                    <path d="M105 18l-18 16 6 7 18-16z" fill="url(#goldGradHands)" />
+                    {/* Left Hand / Palm */}
+                    <path d="M30 32l16 16c4 4 10 4 14 0l6-6c4-4 4-10 0-14l-14-14c-4-4-10-4-14 0z" fill="url(#goldGradHands)" stroke="#fff" strokeWidth="0.5" />
+                    {/* Right Hand Clasping */}
+                    <path d="M60 52c-3 0-6-1-8-3l-10-10 5-5 10 10c2 2 4 2 6 0l22-22 5 5-22 22c-2 2-5 3-8 3z" fill="url(#goldGradHands)" />
+                    {/* Fingers Detail */}
+                    <rect x="50" y="44" width="8" height="5" rx="2" fill="#fff" opacity="0.6" />
+                    <rect x="58" y="48" width="8" height="5" rx="2" fill="#fff" opacity="0.6" />
+                    <rect x="66" y="52" width="8" height="5" rx="2" fill="#fff" opacity="0.6" />
+                  </svg>
+                  <span className="mt-2 px-3 py-0.5 rounded-md border border-[#e9c349] bg-black/90 font-montserrat text-xs font-black tracking-widest text-[#e9c349] shadow-[0_0_10px_rgba(233,195,73,0.4)]">
+                    FREE
+                  </span>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  FREE AGENT TRANSFER
+                </h3>
+              </div>
+
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           
           {/* ════ CARD 1: MATCHDAY (Next Fixture) ════ */}
           <div
@@ -584,9 +696,9 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
               </button>
             </div>
           </div>
-
         </div>
-      </main>
+      )}
+    </main>
 
       {/* ─── BOTTOM ROW: 3 ACTION CARDS (MY PLAYERS, COMPETITION, CONTRACTS) ─── */}
       <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-10 pb-6 pt-2">
