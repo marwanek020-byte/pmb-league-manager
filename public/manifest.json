@@ -1,0 +1,19 @@
+{
+  "name": "PMB Manager",
+  "short_name": "PMB Manager",
+  "description": "تطبيق إدارة الأندية في البطولة المغربية الافتراضية PMB League Manager",
+  "start_url": "/manager/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#d4af37",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/branding/pmb-lion.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

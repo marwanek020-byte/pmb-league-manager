@@ -4,11 +4,26 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "PMB League Manager",
-  description: "Professional football league management for the PMB organization.",
+  title: "PMB Manager",
+  description: "Professional football league management for PMB Club Managers.",
+  manifest: "/manifest.json",
+  themeColor: "#0a0a0f",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PMB Manager",
+  },
   other: {
     monetag: "88b435aea520a594f9d18d82cfc78c94",
   },
+};
+
+export const viewport = {
+  themeColor: "#0a0a0f",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

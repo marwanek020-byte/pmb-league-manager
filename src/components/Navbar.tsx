@@ -194,6 +194,19 @@ export function Navbar({
             <span>Transfers</span>
           </Link>
 
+          {/* Free Agent Store */}
+          {!isAdmin && (
+            <Link
+              href="/manager/free-agents"
+              className={`flex flex-col items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition ${
+                pathname.includes("/free-agents") ? "text-emerald-400 scale-105" : "text-gray-400"
+              }`}
+            >
+              <span className="text-base">🏪</span>
+              <span>Free Agents</span>
+            </Link>
+          )}
+
           {/* Contracts */}
           {!isAdmin && (
             <Link
