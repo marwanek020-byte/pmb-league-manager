@@ -103,6 +103,131 @@ function calculateStats(position: string, ovr: number) {
   }
 }
 
+// ── Web Audio API Sound Synthesizer (Zero External Dependencies) ─────────
+class AuctionSoundEngine {
+  private ctx: AudioContext | null = null;
+  public enabled: boolean = true;
+
+  private initCtx() {
+    if (!this.ctx && typeof window !== "undefined") {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+      }
+    }
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  // 1. Crisp Wooden Gavel Strike SFX
+  public playGavelStrike() {
+    if (!this.enabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+
+      // Primary wood knock body
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(340, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.09);
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(900, now);
+
+      gain.gain.setValueAtTime(0.85, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.15);
+
+      // Wood impact snap
+      const snap = this.ctx.createOscillator();
+      const snapGain = this.ctx.createGain();
+      snap.type = "triangle";
+      snap.frequency.setValueAtTime(1600, now);
+      snap.frequency.exponentialRampToValueAtTime(140, now + 0.04);
+
+      snapGain.gain.setValueAtTime(0.6, now);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+      snap.connect(snapGain);
+      snapGain.connect(this.ctx.destination);
+      snap.start(now);
+      snap.stop(now + 0.06);
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Tension Countdown Heartbeat / Ticking (Final 15s)
+  public playTensionTick() {
+    if (!this.enabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(1100, now);
+      osc.frequency.exponentialRampToValueAtTime(450, now + 0.035);
+
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Triumphant Stadium Fanfare SFX (Victory)
+  public playVictoryFanfare() {
+    if (!this.enabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const notes = [261.63, 329.63, 392.0, 523.25, 659.25, 783.99]; // C4, E4, G4, C5, E5, G5
+      const start = this.ctx.currentTime;
+
+      notes.forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(freq, start + i * 0.1);
+
+        gain.gain.setValueAtTime(0, start + i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.35, start + i * 0.1 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + i * 0.1 + 0.45);
+
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+
+        osc.start(start + i * 0.1);
+        osc.stop(start + i * 0.1 + 0.5);
+      });
+    } catch {
+      // ignore
+    }
+  }
+}
+
 // ── High-Performance Canvas Confetti Generator ─────────────────────────
 function ConfettiCanvas({ active }: { active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -195,7 +320,17 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
   const [bidPulse, setBidPulse] = useState(false);
   const [showVictoryModal, setShowVictoryModal] = useState(false);
   const [celebratedAuctionId, setCelebratedAuctionId] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [dramaticAlert, setDramaticAlert] = useState<string | null>(null);
+
   const prevBidRef = useRef<number>(0);
+  const prevWinnerIdRef = useRef<string | null>(null);
+  const soundEngineRef = useRef<AuctionSoundEngine>(new AuctionSoundEngine());
+
+  // Update sound engine enabled flag
+  useEffect(() => {
+    soundEngineRef.current.enabled = soundEnabled;
+  }, [soundEnabled]);
 
   const fetchAuctions = useCallback(async () => {
     try {
@@ -227,15 +362,29 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
   const currentAuction =
     activeAuctions.find((a) => a.id === selectedAuctionId) || activeAuctions[0] || null;
 
-  // Track price change shockwave
+  // Track price change shockwave, gavel strike SFX, and dramatic alerts
   useEffect(() => {
     if (currentAuction) {
       const curBid = Number(currentAuction.currentBid);
+      const winnerClub = currentAuction.currentWinnerClub?.name || "Rival Club";
+
       if (prevBidRef.current > 0 && curBid > prevBidRef.current) {
+        // Trigger gavel strike SFX
+        soundEngineRef.current.playGavelStrike();
         setBidPulse(true);
         setTimeout(() => setBidPulse(false), 900);
+
+        // Dramatic alerts
+        if (currentAuction.currentWinnerClubId === myClub.id) {
+          const delta = curBid - prevBidRef.current;
+          setDramaticAlert(`⚡ You outbid the competition by €${delta.toLocaleString()}!`);
+        } else {
+          setDramaticAlert(`🔥 ${winnerClub} just raised the bid to €${curBid.toLocaleString()}!`);
+        }
       }
+
       prevBidRef.current = curBid;
+      prevWinnerIdRef.current = currentAuction.currentWinnerClubId;
 
       // Victory celebration check
       if (
@@ -243,6 +392,7 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
         currentAuction.currentWinnerClubId === myClub.id &&
         celebratedAuctionId !== currentAuction.id
       ) {
+        soundEngineRef.current.playVictoryFanfare();
         setShowVictoryModal(true);
         setCelebratedAuctionId(currentAuction.id);
       }
@@ -274,6 +424,13 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
     return () => clearInterval(timerInterval);
   }, [activeAuctions, selectedAuctionId]);
 
+  // Tension heartbeat / ticking audio in the final 15 seconds
+  useEffect(() => {
+    if (secondsRemaining > 0 && secondsRemaining <= 15 && soundEnabled) {
+      soundEngineRef.current.playTensionTick();
+    }
+  }, [secondsRemaining, soundEnabled]);
+
   async function handlePlaceBid(amountToBid: number) {
     if (!currentAuction) return;
     setBidding(true);
@@ -292,7 +449,9 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
         throw new Error(json.error || "Failed to place bid");
       }
 
+      soundEngineRef.current.playGavelStrike();
       setSuccessMessage(`🎉 Bid of €${amountToBid.toLocaleString()} placed successfully!`);
+      setDramaticAlert(`⚡ You seized the highest bid at €${amountToBid.toLocaleString()}!`);
       setCustomBid("");
       setBidPulse(true);
       setTimeout(() => setBidPulse(false), 900);
@@ -328,6 +487,9 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
 
   const stats = currentAuction ? calculateStats(currentAuction.player.position, playerOvr) : null;
 
+  // Active Rival Clubs in War Room
+  const rivalClubs = ["WAC Casablanca", "Raja CA", "RS Berkane", "FUS Rabat"];
+
   return (
     <div className="fixed inset-0 z-50 w-full h-[100dvh] bg-[#070709] text-white flex flex-col justify-between overflow-y-auto overflow-x-hidden font-montserrat select-none">
       <ConfettiCanvas active={showVictoryModal} />
@@ -362,14 +524,35 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
           </div>
         </div>
 
-        {/* Live Budget Pill */}
-        <div className="flex items-center gap-2.5 rounded-full border border-[#e9c349]/80 bg-black/90 px-4 py-2 shadow-[0_0_20px_rgba(233,195,73,0.35)]">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-b from-[#f5d475] to-[#b8860b] text-black font-black text-xs">
-            €
+        {/* Right Controls: Sound FX Toggle + Live Budget Pill */}
+        <div className="flex items-center gap-3">
+          {/* Sound FX Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const nextState = !soundEnabled;
+              setSoundEnabled(nextState);
+              if (nextState) soundEngineRef.current.playGavelStrike();
+            }}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+              soundEnabled
+                ? "bg-[#e9c349]/15 border-[#e9c349] text-[#e9c349] shadow-[0_0_12px_rgba(233,195,73,0.3)]"
+                : "bg-black/60 border-white/20 text-gray-500 hover:text-white"
+            }`}
+            title={soundEnabled ? "Sound FX Enabled (Click to Mute)" : "Sound FX Muted (Click to Unmute)"}
+          >
+            <span>{soundEnabled ? "🔊 SFX ON" : "🔇 MUTED"}</span>
+          </button>
+
+          {/* Live Budget Pill */}
+          <div className="flex items-center gap-2.5 rounded-full border border-[#e9c349]/80 bg-black/90 px-4 py-2 shadow-[0_0_20px_rgba(233,195,73,0.35)]">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-b from-[#f5d475] to-[#b8860b] text-black font-black text-xs">
+              €
+            </div>
+            <span className="font-montserrat text-sm sm:text-base font-black tracking-wider text-[#e9c349]">
+              {new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(myClub.budget)}
+            </span>
           </div>
-          <span className="font-montserrat text-sm sm:text-base font-black tracking-wider text-[#e9c349]">
-            {new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(myClub.budget)}
-          </span>
         </div>
       </header>
 
@@ -479,249 +662,315 @@ export function AppAuctionsHub({ onBack }: AppAuctionsHubProps) {
               </div>
             ) : currentAuction ? (
               /* ─── LIVE BIDDING ARENA ─── */
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="space-y-6">
 
-                {/* LEFT COL: eFootball 3D Luxury Player Card (5 cols) */}
-                <div className="lg:col-span-5 flex flex-col items-center">
-                  <div className="relative w-full max-w-[340px] rounded-3xl p-1 bg-gradient-to-b from-[#e9c349]/80 via-white/20 to-black shadow-[0_0_40px_rgba(233,195,73,0.3)]">
-                    <div className="relative rounded-[22px] bg-[#0c0d12] p-5 overflow-hidden flex flex-col items-center">
-                      {/* Holographic background sheen */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#e9c349]/10 to-transparent pointer-events-none" />
+                {/* ════ SPECIAL APP FEATURE: "WAR ROOM" RIVAL THREAT RADAR ════ */}
+                <div className="rounded-3xl border border-[#e9c349]/35 bg-gradient-to-r from-black/90 via-[#101015]/90 to-black/90 p-4 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {/* Rotating Animated Radar Widget */}
+                    <div className="relative w-16 h-16 rounded-full border border-[#e9c349]/50 bg-black/80 overflow-hidden flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(233,195,73,0.3)]">
+                      {/* Concentric rings */}
+                      <div className="absolute inset-2 rounded-full border border-[#e9c349]/20" />
+                      <div className="absolute inset-5 rounded-full border border-[#e9c349]/20" />
+                      <div className="absolute w-full h-[1px] bg-[#e9c349]/20" />
+                      <div className="absolute h-full w-[1px] bg-[#e9c349]/20" />
 
-                      {/* Card Header: Tier Badge & OVR */}
-                      <div className="w-full flex items-center justify-between z-10">
-                        <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-gradient-to-r ${tierGradient} text-black font-mono shadow-md`}>
-                          {tierLabel}
+                      {/* Sweeping radar beam */}
+                      <div
+                        className="absolute inset-0 rounded-full animate-spin"
+                        style={{
+                          background: "conic-gradient(from 0deg, rgba(233,195,73,0.4) 0deg, transparent 90deg, transparent 360deg)",
+                          animationDuration: "2.8s",
+                        }}
+                      />
+
+                      {/* Center blip */}
+                      <div className="relative z-10 w-2 h-2 rounded-full bg-[#e9c349] shadow-[0_0_8px_#e9c349]" />
+
+                      {/* Orbiting rival dots */}
+                      <div className="absolute top-2.5 right-3 w-1.5 h-1.5 rounded-full bg-red-400 animate-ping" />
+                      <div className="absolute bottom-3 left-3 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-montserrat text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                          WAR ROOM · RIVAL THREAT RADAR
                         </span>
-                        <div className="flex items-baseline gap-1 text-[#e9c349]">
-                          <span className="text-3xl font-black">{playerOvr}</span>
-                          <span className="text-xs font-black uppercase text-white/80">{currentAuction.player.position}</span>
-                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 text-[9px] font-black uppercase tracking-widest">
+                          ● 4 RIVALS HOVERING
+                        </span>
                       </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        {rivalClubs.map((club) => (
+                          <span
+                            key={club}
+                            className="text-[9px] font-bold text-gray-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md"
+                          >
+                            {club}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
 
-                      {/* Player Image with Glowing Ring */}
-                      <div className="relative w-36 h-36 sm:w-40 sm:h-40 my-3 rounded-full p-1 bg-gradient-to-b from-[#e9c349] to-transparent shadow-[0_0_25px_rgba(233,195,73,0.4)]">
-                        {currentAuction.player.photo ? (
-                          <img
-                            src={currentAuction.player.photo}
-                            alt={currentAuction.player.fullName}
-                            className="w-full h-full object-cover rounded-full bg-black"
-                          />
-                        ) : (
-                          <div className="w-full h-full rounded-full bg-gradient-to-b from-gray-800 to-black flex items-center justify-center font-black text-4xl text-[#e9c349]">
-                            {playerOvr}
+                  {/* Real-time Dramatic Intelligence Alert */}
+                  {dramaticAlert ? (
+                    <div className="w-full md:w-auto px-4 py-2 rounded-2xl bg-gradient-to-r from-[#e9c349]/15 to-transparent border border-[#e9c349]/40 text-xs font-black text-[#e9c349] flex items-center gap-2 shadow-[0_0_15px_rgba(233,195,73,0.2)] animate-pulse">
+                      <span>{dramaticAlert}</span>
+                    </div>
+                  ) : (
+                    <div className="w-full md:w-auto px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-gray-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span>{isLeading ? "🛡️ You hold the lead · Defense active" : "⚡ Waiting for your move"}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                  {/* LEFT COL: eFootball 3D Luxury Player Card (5 cols) */}
+                  <div className="lg:col-span-5 flex flex-col items-center">
+                    <div className="relative w-full max-w-[340px] rounded-3xl p-1 bg-gradient-to-b from-[#e9c349]/80 via-white/20 to-black shadow-[0_0_40px_rgba(233,195,73,0.3)]">
+                      <div className="relative rounded-[22px] bg-[#0c0d12] p-5 overflow-hidden flex flex-col items-center">
+                        {/* Holographic background sheen */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#e9c349]/10 to-transparent pointer-events-none" />
+
+                        {/* Card Header: Tier Badge & OVR */}
+                        <div className="w-full flex items-center justify-between z-10">
+                          <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-gradient-to-r ${tierGradient} text-black font-mono shadow-md`}>
+                            {tierLabel}
+                          </span>
+                          <div className="flex items-baseline gap-1 text-[#e9c349]">
+                            <span className="text-3xl font-black">{playerOvr}</span>
+                            <span className="text-xs font-black uppercase text-white/80">{currentAuction.player.position}</span>
+                          </div>
+                        </div>
+
+                        {/* Player Image with Glowing Ring */}
+                        <div className="relative w-36 h-36 sm:w-40 sm:h-40 my-3 rounded-full p-1 bg-gradient-to-b from-[#e9c349] to-transparent shadow-[0_0_25px_rgba(233,195,73,0.4)]">
+                          {currentAuction.player.photo ? (
+                            <img
+                              src={currentAuction.player.photo}
+                              alt={currentAuction.player.fullName}
+                              className="w-full h-full object-cover rounded-full bg-black"
+                            />
+                          ) : (
+                            <div className="w-full h-full rounded-full bg-gradient-to-b from-gray-800 to-black flex items-center justify-center font-black text-4xl text-[#e9c349]">
+                              {playerOvr}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Player Name & Info */}
+                        <h3 className="font-montserrat text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center mt-1 truncate max-w-full">
+                          {currentAuction.player.fullName}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-400 font-bold">
+                          <span>{currentAuction.player.realClub}</span>
+                          <span>·</span>
+                          <span>{currentAuction.player.nationality}</span>
+                        </div>
+
+                        {/* 6 Realistic Radar Stat Tiles */}
+                        {stats && (
+                          <div className="w-full grid grid-cols-6 gap-1 mt-4 pt-3 border-t border-white/10 text-center">
+                            {[
+                              { label: "PAC", val: stats.pac },
+                              { label: "SHO", val: stats.sho },
+                              { label: "PAS", val: stats.pas },
+                              { label: "DRI", val: stats.dri },
+                              { label: "DEF", val: stats.def },
+                              { label: "PHY", val: stats.phy },
+                            ].map((s) => (
+                              <div key={s.label} className="bg-black/60 rounded-lg py-1 border border-white/5">
+                                <span className="text-[9px] uppercase font-bold text-gray-400 block">{s.label}</span>
+                                <span className="text-xs font-black text-[#e9c349]">{s.val}</span>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
-
-                      {/* Player Name & Info */}
-                      <h3 className="font-montserrat text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center mt-1 truncate max-w-full">
-                        {currentAuction.player.fullName}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-400 font-bold">
-                        <span>{currentAuction.player.realClub}</span>
-                        <span>·</span>
-                        <span>{currentAuction.player.nationality}</span>
-                      </div>
-
-                      {/* 6 Realistic Radar Stat Tiles */}
-                      {stats && (
-                        <div className="w-full grid grid-cols-6 gap-1 mt-4 pt-3 border-t border-white/10 text-center">
-                          {[
-                            { label: "PAC", val: stats.pac },
-                            { label: "SHO", val: stats.sho },
-                            { label: "PAS", val: stats.pas },
-                            { label: "DRI", val: stats.dri },
-                            { label: "DEF", val: stats.def },
-                            { label: "PHY", val: stats.phy },
-                          ].map((s) => (
-                            <div key={s.label} className="bg-black/60 rounded-lg py-1 border border-white/5">
-                              <span className="text-[9px] uppercase font-bold text-gray-400 block">{s.label}</span>
-                              <span className="text-xs font-black text-[#e9c349]">{s.val}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
-                </div>
 
-                {/* RIGHT COL: Live Bidding Arena HUD (7 cols) */}
-                <div className="lg:col-span-7 space-y-4">
+                  {/* RIGHT COL: Live Bidding Arena HUD (7 cols) */}
+                  <div className="lg:col-span-7 space-y-4">
 
-                  {/* HUD Card */}
-                  <div className={`rounded-3xl border bg-black/80 backdrop-blur-xl p-6 shadow-2xl transition-all ${
-                    bidPulse ? "border-[#e9c349] shadow-[0_0_35px_rgba(233,195,73,0.5)] scale-[1.01]" : "border-white/15"
-                  }`}>
-                    {/* Top Status & Timer Bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-widest bg-red-500/20 text-red-400 border border-red-500/50">
-                          <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
-                          <span>LIVE AUCTION</span>
-                        </span>
-                        <span className="text-[10px] font-mono text-gray-400 uppercase">
-                          ⏱ +60s Anti-Snipe
-                        </span>
-                      </div>
-
-                      {/* Glowing Countdown Timer */}
-                      <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full border font-mono font-black text-sm sm:text-base ${
-                        isUrgent
-                          ? "bg-red-500/25 border-red-500 text-red-400 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                          : "bg-[#e9c349]/15 border-[#e9c349]/50 text-[#e9c349]"
-                      }`}>
-                        <span className="text-xs">TIME LEFT:</span>
-                        <span>{timeLeft[currentAuction.id] || "00:00"}</span>
-                      </div>
-                    </div>
-
-                    {/* Current Highest Bid Highlight */}
-                    <div className="py-5 text-center sm:text-left flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div>
-                        <span className="text-[10px] uppercase font-black tracking-widest text-gray-400 block">
-                          CURRENT HIGHEST BID
-                        </span>
-                        <p className="font-montserrat text-3xl sm:text-4xl font-black text-[#e9c349] drop-shadow-[0_0_15px_rgba(233,195,73,0.5)] mt-1">
-                          {fmt(currentBidNum)}
-                        </p>
-                        <span className="text-xs text-gray-500 mt-1 block">
-                          Starting Price: {fmt(currentAuction.startingPrice)} · Min Increment: {fmt(currentAuction.minIncrement)}
-                        </span>
-                      </div>
-
-                      {/* Leading Club Banner */}
-                      <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
-                        isLeading
-                          ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.25)]"
-                          : currentAuction.currentWinnerClub
-                          ? "border-white/10 bg-white/5"
-                          : "border-gray-800 bg-black/40"
-                      }`}>
-                        <div className="w-10 h-10 rounded-xl border border-white/20 bg-black/80 flex items-center justify-center overflow-hidden">
-                          {currentAuction.currentWinnerClub?.logo ? (
-                            <img src={currentAuction.currentWinnerClub.logo} alt="Leader" className="w-full h-full object-contain" />
-                          ) : (
-                            <span className="text-xs font-black text-[#e9c349]">
-                              {currentAuction.currentWinnerClub?.name?.slice(0, 2).toUpperCase() || "—"}
-                            </span>
-                          )}
+                    {/* HUD Card */}
+                    <div className={`rounded-3xl border bg-black/80 backdrop-blur-xl p-6 shadow-2xl transition-all ${
+                      bidPulse ? "border-[#e9c349] shadow-[0_0_35px_rgba(233,195,73,0.5)] scale-[1.01]" : "border-white/15"
+                    }`}>
+                      {/* Top Status & Timer Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-widest bg-red-500/20 text-red-400 border border-red-500/50">
+                            <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+                            <span>LIVE AUCTION</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-gray-400 uppercase">
+                            ⏱ +60s Anti-Snipe
+                          </span>
                         </div>
+
+                        {/* Glowing Countdown Timer */}
+                        <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full border font-mono font-black text-sm sm:text-base ${
+                          isUrgent
+                            ? "bg-red-500/25 border-red-500 text-red-400 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                            : "bg-[#e9c349]/15 border-[#e9c349]/50 text-[#e9c349]"
+                        }`}>
+                          <span className="text-xs">TIME LEFT:</span>
+                          <span>{timeLeft[currentAuction.id] || "00:00"}</span>
+                        </div>
+                      </div>
+
+                      {/* Current Highest Bid Highlight */}
+                      <div className="py-5 text-center sm:text-left flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
-                          <span className="text-[9px] font-black uppercase tracking-widest block text-gray-400">
-                            {isLeading ? "👑 YOU ARE LEADING" : "CURRENT LEADER"}
+                          <span className="text-[10px] uppercase font-black tracking-widest text-gray-400 block">
+                            CURRENT HIGHEST BID
                           </span>
-                          <span className="text-xs sm:text-sm font-black text-white">
-                            {isLeading ? myClub.name : currentAuction.currentWinnerClub?.name || "No Bids Yet"}
+                          <p className="font-montserrat text-3xl sm:text-4xl font-black text-[#e9c349] drop-shadow-[0_0_15px_rgba(233,195,73,0.5)] mt-1">
+                            {fmt(currentBidNum)}
+                          </p>
+                          <span className="text-xs text-gray-500 mt-1 block">
+                            Starting Price: {fmt(currentAuction.startingPrice)} · Min Increment: {fmt(currentAuction.minIncrement)}
                           </span>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Messages */}
-                    {errorMessage && (
-                      <div className="mb-3 p-3 rounded-xl bg-red-500/20 border border-red-500/50 text-xs font-bold text-red-300">
-                        {errorMessage}
-                      </div>
-                    )}
-                    {successMessage && (
-                      <div className="mb-3 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-xs font-bold text-emerald-300">
-                        {successMessage}
-                      </div>
-                    )}
-
-                    {/* Quick Bid Buttons Row */}
-                    <div className="space-y-3 pt-2 border-t border-white/10">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">
-                        ONE-TAP QUICK BID
-                      </span>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[500000, 1000000, 2500000].map((inc) => {
-                          const target = minNextBid + inc;
-                          const canAfford = myClub.budget >= target;
-                          return (
-                            <button
-                              key={inc}
-                              type="button"
-                              disabled={bidding || isLeading || !canAfford}
-                              onClick={() => handlePlaceBid(target)}
-                              className="rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#1c1c24] to-[#0d0d12] p-2.5 sm:p-3 text-center transition-all hover:scale-105 hover:border-[#e9c349] active:scale-95 disabled:opacity-40 cursor-pointer shadow-md"
-                            >
-                              <span className="text-[10px] font-bold text-gray-400 block">+€{(inc / 1000000).toFixed(1)}M</span>
-                              <span className="text-xs sm:text-sm font-black text-[#e9c349]">{fmt(target)}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Custom Bid Row */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <div className="relative flex-1">
-                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">€</span>
-                          <input
-                            type="number"
-                            placeholder={`Min €${minNextBid.toLocaleString()}`}
-                            value={customBid}
-                            onChange={(e) => setCustomBid(e.target.value)}
-                            className="w-full rounded-full border border-white/20 bg-black/80 pl-7 pr-3 py-2.5 text-xs text-white font-mono focus:border-[#e9c349] focus:outline-none"
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={bidding || isLeading || !customBid || Number(customBid) < minNextBid}
-                          onClick={() => handlePlaceBid(Number(customBid))}
-                          className="rounded-full px-6 py-2.5 text-xs font-black uppercase tracking-widest text-black shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
-                          style={{
-                            background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
-                          }}
-                        >
-                          {bidding ? "BIDDING..." : isLeading ? "HOLDING LEAD" : "PLACE BID"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Real-time Live Bids Ledger */}
-                  <div className="rounded-3xl border border-white/15 bg-black/70 backdrop-blur-xl p-5 shadow-2xl">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-white mb-3 flex items-center justify-between">
-                      <span>LIVE BIDS STREAM</span>
-                      <span className="text-[10px] text-[#e9c349] font-mono">
-                        {currentAuction.bids?.length || 0} TOTAL BIDS
-                      </span>
-                    </h3>
-
-                    <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                      {(!currentAuction.bids || currentAuction.bids.length === 0) ? (
-                        <p className="text-xs text-gray-500 text-center py-6">No bids recorded yet. Be the first to bid!</p>
-                      ) : (
-                        currentAuction.bids.map((b, idx) => (
-                          <div
-                            key={b.id || idx}
-                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs ${
-                              b.club.id === myClub.id
-                                ? "border-[#e9c349]/50 bg-[#e9c349]/10 text-white"
-                                : "border-white/5 bg-white/5 text-gray-300"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full border border-white/20 bg-black flex items-center justify-center text-[9px] font-black text-[#e9c349]">
-                                {b.club.name.slice(0, 2).toUpperCase()}
+                        {/* Leading Club Banner */}
+                        <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
+                          isLeading
+                            ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.25)]"
+                            : currentAuction.currentWinnerClub
+                            ? "border-white/10 bg-white/5"
+                            : "border-gray-800 bg-black/40"
+                        }`}>
+                          <div className="w-10 h-10 rounded-xl border border-white/20 bg-black/80 flex items-center justify-center overflow-hidden">
+                            {currentAuction.currentWinnerClub?.logo ? (
+                              <img src={currentAuction.currentWinnerClub.logo} alt="Leader" className="w-full h-full object-contain" />
+                            ) : (
+                              <span className="text-xs font-black text-[#e9c349]">
+                                {currentAuction.currentWinnerClub?.name?.slice(0, 2).toUpperCase() || "—"}
                               </span>
-                              <span className="font-bold">{b.club.name}</span>
-                              {b.club.id === myClub.id && (
-                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-[#e9c349] text-black">YOU</span>
-                              )}
-                            </div>
-                            <span className="font-mono font-black text-[#e9c349]">{fmt(b.amount)}</span>
+                            )}
                           </div>
-                        ))
+                          <div>
+                            <span className="text-[9px] font-black uppercase tracking-widest block text-gray-400">
+                              {isLeading ? "👑 YOU ARE LEADING" : "CURRENT LEADER"}
+                            </span>
+                            <span className="text-xs sm:text-sm font-black text-white">
+                              {isLeading ? myClub.name : currentAuction.currentWinnerClub?.name || "No Bids Yet"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Messages */}
+                      {errorMessage && (
+                        <div className="mb-3 p-3 rounded-xl bg-red-500/20 border border-red-500/50 text-xs font-bold text-red-300">
+                          {errorMessage}
+                        </div>
                       )}
+                      {successMessage && (
+                        <div className="mb-3 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-xs font-bold text-emerald-300">
+                          {successMessage}
+                        </div>
+                      )}
+
+                      {/* Quick Bid Buttons Row */}
+                      <div className="space-y-3 pt-2 border-t border-white/10">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">
+                          ONE-TAP QUICK BID
+                        </span>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[500000, 1000000, 2500000].map((inc) => {
+                            const target = minNextBid + inc;
+                            const canAfford = myClub.budget >= target;
+                            return (
+                              <button
+                                key={inc}
+                                type="button"
+                                disabled={bidding || isLeading || !canAfford}
+                                onClick={() => handlePlaceBid(target)}
+                                className="rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#1c1c24] to-[#0d0d12] p-2.5 sm:p-3 text-center transition-all hover:scale-105 hover:border-[#e9c349] active:scale-95 disabled:opacity-40 cursor-pointer shadow-md"
+                              >
+                                <span className="text-[10px] font-bold text-gray-400 block">+€{(inc / 1000000).toFixed(1)}M</span>
+                                <span className="text-xs sm:text-sm font-black text-[#e9c349]">{fmt(target)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Custom Bid Row */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <div className="relative flex-1">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">€</span>
+                            <input
+                              type="number"
+                              placeholder={`Min €${minNextBid.toLocaleString()}`}
+                              value={customBid}
+                              onChange={(e) => setCustomBid(e.target.value)}
+                              className="w-full rounded-full border border-white/20 bg-black/80 pl-7 pr-3 py-2.5 text-xs text-white font-mono focus:border-[#e9c349] focus:outline-none"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={bidding || isLeading || !customBid || Number(customBid) < minNextBid}
+                            onClick={() => handlePlaceBid(Number(customBid))}
+                            className="rounded-full px-6 py-2.5 text-xs font-black uppercase tracking-widest text-black shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
+                            style={{
+                              background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
+                            }}
+                          >
+                            {bidding ? "BIDDING..." : isLeading ? "HOLDING LEAD" : "PLACE BID"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Real-time Live Bids Ledger */}
+                    <div className="rounded-3xl border border-white/15 bg-black/70 backdrop-blur-xl p-5 shadow-2xl">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-white mb-3 flex items-center justify-between">
+                        <span>LIVE BIDS STREAM</span>
+                        <span className="text-[10px] text-[#e9c349] font-mono">
+                          {currentAuction.bids?.length || 0} TOTAL BIDS
+                        </span>
+                      </h3>
+
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                        {(!currentAuction.bids || currentAuction.bids.length === 0) ? (
+                          <p className="text-xs text-gray-500 text-center py-6">No bids recorded yet. Be the first to bid!</p>
+                        ) : (
+                          currentAuction.bids.map((b, idx) => (
+                            <div
+                              key={b.id || idx}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border text-xs ${
+                                b.club.id === myClub.id
+                                  ? "border-[#e9c349]/50 bg-[#e9c349]/10 text-white"
+                                  : "border-white/5 bg-white/5 text-gray-300"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full border border-white/20 bg-black flex items-center justify-center text-[9px] font-black text-[#e9c349]">
+                                  {b.club.name.slice(0, 2).toUpperCase()}
+                                </span>
+                                <span className="font-bold">{b.club.name}</span>
+                                {b.club.id === myClub.id && (
+                                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-[#e9c349] text-black">YOU</span>
+                                )}
+                              </div>
+                              <span className="font-mono font-black text-[#e9c349]">{fmt(b.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
                   </div>
 
                 </div>
-
               </div>
             ) : null}
           </>
