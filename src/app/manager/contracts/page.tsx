@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { finalizeContractSigning } from "@/lib/services/botola-contract-service";
 import { ContractsPayrollClient } from "@/components/manager/contracts/ContractsPayrollClient";
+import { TransferStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,70 @@ export default async function ContractsPage() {
   }
 
   const clubId = session.user.clubId;
+
+  // 0. Auto-finalize any deals where personal terms were already agreed (e.g. negotiated via app/mobile)
+  try {
+    const agreedAuctions = await prisma.auction.findMany({
+      where: {
+        currentWinnerClubId: clubId,
+        status: "COMPLETED",
+        personalTermsAgreed: true,
+        adminApproved: false,
+      },
+      include: { player: true },
+    });
+
+    for (const a of agreedAuctions) {
+      try {
+        if (a.player) {
+          await finalizeContractSigning(a.playerId, clubId, {
+            seasonSalary: Number(a.agreedSalary || 0),
+            primeSignature: Number(a.agreedPrime || 0),
+            contractSeasonsLeft: a.agreedSeasons || 1,
+            squadRole: (a.agreedRole || "IMPORTANT") as any,
+            releaseClause: a.agreedReleaseClause ? Number(a.agreedReleaseClause) : null,
+          });
+        }
+        await prisma.auction.update({
+          where: { id: a.id },
+          data: { adminApproved: true },
+        });
+      } catch (err) {
+        console.warn("ContractsPage auto-finalizing auction failed:", err);
+      }
+    }
+
+    const agreedTransfers = await prisma.transfer.findMany({
+      where: {
+        toClubId: clubId,
+        status: { in: ["APPROVED", "PENDING_PERSONAL_TERMS"] },
+        agreedSalary: { not: null },
+      },
+      include: { player: true },
+    });
+
+    for (const t of agreedTransfers) {
+      try {
+        if (t.player) {
+          await finalizeContractSigning(t.playerId, clubId, {
+            seasonSalary: Number(t.agreedSalary || 0),
+            primeSignature: Number(t.agreedPrime || 0),
+            contractSeasonsLeft: t.agreedSeasons || 1,
+            squadRole: (t.agreedRole || "IMPORTANT") as any,
+            releaseClause: t.agreedReleaseClause ? Number(t.agreedReleaseClause) : null,
+          });
+        }
+        await prisma.transfer.update({
+          where: { id: t.id },
+          data: { status: TransferStatus.COMPLETED },
+        });
+      } catch (err) {
+        console.warn("ContractsPage auto-finalizing transfer failed:", err);
+      }
+    }
+  } catch (err) {
+    console.warn("ContractsPage: Auto-finalization step warning:", err);
+  }
 
   // 1. Fetch official registered squad players (with resilient fallback if contract columns are missing)
   let serializedSquad: any[] = [];
@@ -88,9 +154,12 @@ export default async function ContractsPage() {
     }
   }
 
-  // 2. Fetch pending signings (Won auctions awaiting 3D contract negotiation or Admin approval)
+  // 2. Fetch pending signings (Won auctions awaiting 3D contract negotiation)
+  // Excludes players that are already officially registered in the squad with active contracts
   let serializedPendingAuctions: any[] = [];
   try {
+    const registeredIds = new Set(serializedSquad.filter(p => p.seasonSalary > 0).map(p => p.id));
+
     const pendingAuctions = await prisma.auction.findMany({
       where: {
         currentWinnerClubId: clubId,
@@ -102,18 +171,20 @@ export default async function ContractsPage() {
       },
     });
 
-    serializedPendingAuctions = pendingAuctions.map(a => {
-      const p: any = a.player;
-      return {
-        ...p,
-        seasonSalary:    Number(a.agreedSalary || p.seasonSalary || 0),
-        primeSignature:  Number(a.agreedPrime || p.primeSignature || 0),
-        releaseClause:   a.agreedReleaseClause ? Number(a.agreedReleaseClause) : (p.releaseClause ? Number(p.releaseClause) : null),
-        marketValue:     p.marketValue ? Number(p.marketValue) : null,
-        lastNegotiatedAt: p.lastNegotiatedAt ? new Date(p.lastNegotiatedAt).toISOString() : null,
-        awaitsAdmin:     a.personalTermsAgreed,
-      };
-    });
+    serializedPendingAuctions = pendingAuctions
+      .filter(a => !registeredIds.has(a.playerId))
+      .map(a => {
+        const p: any = a.player;
+        return {
+          ...p,
+          seasonSalary:    Number(a.agreedSalary || p.seasonSalary || 0),
+          primeSignature:  Number(a.agreedPrime || p.primeSignature || 0),
+          releaseClause:   a.agreedReleaseClause ? Number(a.agreedReleaseClause) : (p.releaseClause ? Number(p.releaseClause) : null),
+          marketValue:     p.marketValue ? Number(p.marketValue) : null,
+          lastNegotiatedAt: p.lastNegotiatedAt ? new Date(p.lastNegotiatedAt).toISOString() : null,
+          awaitsAdmin:     a.personalTermsAgreed,
+        };
+      });
   } catch (err) {
     console.warn("ContractsPage: pendingAuctions query failed:", err);
   }
@@ -121,28 +192,32 @@ export default async function ContractsPage() {
   // 3. Fetch pending transfers to this club
   let serializedPendingTransfers: any[] = [];
   try {
+    const registeredIds = new Set(serializedSquad.filter(p => p.seasonSalary > 0).map(p => p.id));
+
     const pendingTransfers = await prisma.transfer.findMany({
       where: {
         toClubId: clubId,
-        status: { in: ["PENDING_PERSONAL_TERMS", "APPROVED"] },
+        status: "PENDING_PERSONAL_TERMS",
       },
       include: {
         player: true,
       },
     });
 
-    serializedPendingTransfers = pendingTransfers.map(t => {
-      const p: any = t.player;
-      return {
-        ...p,
-        seasonSalary:    Number(t.agreedSalary || p.seasonSalary || 0),
-        primeSignature:  Number(t.agreedPrime || p.primeSignature || 0),
-        releaseClause:   t.agreedReleaseClause ? Number(t.agreedReleaseClause) : (p.releaseClause ? Number(p.releaseClause) : null),
-        marketValue:     p.marketValue ? Number(p.marketValue) : null,
-        lastNegotiatedAt: p.lastNegotiatedAt ? new Date(p.lastNegotiatedAt).toISOString() : null,
-        awaitsAdmin:     t.status === "APPROVED",
-      };
-    });
+    serializedPendingTransfers = pendingTransfers
+      .filter(t => !registeredIds.has(t.playerId))
+      .map(t => {
+        const p: any = t.player;
+        return {
+          ...p,
+          seasonSalary:    Number(t.agreedSalary || p.seasonSalary || 0),
+          primeSignature:  Number(t.agreedPrime || p.primeSignature || 0),
+          releaseClause:   t.agreedReleaseClause ? Number(t.agreedReleaseClause) : (p.releaseClause ? Number(p.releaseClause) : null),
+          marketValue:     p.marketValue ? Number(p.marketValue) : null,
+          lastNegotiatedAt: p.lastNegotiatedAt ? new Date(p.lastNegotiatedAt).toISOString() : null,
+          awaitsAdmin:     t.status === "APPROVED",
+        };
+      });
   } catch (err) {
     console.warn("ContractsPage: pendingTransfers query failed:", err);
   }

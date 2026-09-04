@@ -65,6 +65,18 @@ export function ContractsPayrollClient({
     clubBudget: number;
   } | null>(null);
 
+  useEffect(() => {
+    setPlayers(squad);
+  }, [squad]);
+
+  useEffect(() => {
+    setPendingList(pendingSignings);
+  }, [pendingSignings]);
+
+  useEffect(() => {
+    setBudget(clubBudget);
+  }, [clubBudget]);
+
   // Foreign Player Quota: max 5 non-Moroccan players
   function isMoroccan(nat: string | null | undefined): boolean {
     if (!nat) return false;
