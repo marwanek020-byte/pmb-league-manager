@@ -10,6 +10,8 @@ import { AppTransferWindowHub } from "./AppTransferWindowHub";
 import { AppBudgetHistoryHub } from "./AppBudgetHistoryHub";
 import { AppAuctionsHub } from "./AppAuctionsHub";
 import { AppFreeAgentHub } from "./AppFreeAgentHub";
+import { AppGlobalDugoutHub } from "./AppGlobalDugoutHub";
+import { AppUltrasHub } from "./AppUltrasHub";
 import { PlayerDTO } from "@/lib/serialize-player";
 
 interface AppDashboardProps {
@@ -54,7 +56,7 @@ interface AppDashboardProps {
 export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
-  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition" | "contracts" | "transferWindow" | "budgetHistory" | "auctions" | "freeAgents">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition" | "contracts" | "transferWindow" | "budgetHistory" | "auctions" | "freeAgents" | "globalDugout" | "ultrasHub">("dashboard");
   const [squad, setSquad] = useState<PlayerDTO[]>([]);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
 
@@ -186,6 +188,31 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
     return <AppFreeAgentHub onBack={() => setCurrentView("dashboard")} />;
   }
 
+  if (currentView === "globalDugout") {
+    return (
+      <AppGlobalDugoutHub
+        userId={initialData?.user?.id}
+        username={initialData?.user?.username}
+        clubName={club.name}
+        clubLogo={club.logo}
+        budget={club.budget}
+        onBack={() => setCurrentView("dashboard")}
+      />
+    );
+  }
+
+  if (currentView === "ultrasHub") {
+    return (
+      <AppUltrasHub
+        clubName={club.name}
+        clubLogo={club.logo}
+        managerUsername={initialData?.user?.username}
+        budget={club.budget}
+        onBack={() => setCurrentView("dashboard")}
+      />
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 w-full h-[100dvh] bg-[#070709] text-white flex flex-col justify-between overflow-y-auto overflow-x-hidden font-montserrat select-none"
@@ -285,17 +312,24 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
           {/* TAB 3: DUGOUT */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab("DUGOUT");
-              setCurrentView("competition");
-            }}
-            className={`rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+            onClick={() => setActiveTab("DUGOUT")}
+            className={`relative rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === "DUGOUT"
-                ? "text-black bg-gradient-to-r from-[#f5d475] to-[#d4af37]"
+                ? "text-black shadow-[0_2px_15px_rgba(233,195,73,0.5)]"
                 : "text-gray-400 hover:text-white"
             }`}
+            style={
+              activeTab === "DUGOUT"
+                ? {
+                    background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
+                  }
+                : {}
+            }
           >
-            DUGOUT
+            <span>DUGOUT</span>
+            {activeTab === "DUGOUT" && (
+              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[#f5d475] shadow-[0_0_8px_#f5d475]" />
+            )}
           </button>
 
           {/* TAB 4: EXTRAS */}
@@ -421,6 +455,83 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
                 <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
                   FREE AGENT TRANSFER
                 </h3>
+              </div>
+
+            </div>
+          </div>
+        ) : activeTab === "DUGOUT" ? (
+          /* ════ 2 DUGOUT ACTION CARDS (GLOBAL DUGOUT & TALK WITH ULTRAS) ════ */
+          <div className="rounded-3xl border border-[#e9c349]/35 bg-gradient-to-b from-[#141419]/90 to-[#0a0a0d]/95 p-6 sm:p-8 shadow-[0_15px_45px_rgba(0,0,0,0.8),0_0_30px_rgba(233,195,73,0.12)] backdrop-blur-xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* CARD 1: GLOBAL DUGOUT */}
+              <div
+                onClick={() => setCurrentView("globalDugout")}
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold Megaphone & Soundwaves */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 120 90" className="w-28 h-20 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradMegaphone" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    {/* Megaphone Cone */}
+                    <path d="M28 42l42-18v42l-42-18z" fill="url(#goldGradMegaphone)" />
+                    {/* Megaphone Back piece */}
+                    <path d="M28 42h-7c-2 0-3.5 1.5-3.5 3.5v5c0 2 1.5 3.5 3.5 3.5h7z" fill="url(#goldGradMegaphone)" />
+                    {/* Handle */}
+                    <path d="M38 55l-4 16h7l4-16z" fill="url(#goldGradMegaphone)" />
+                    {/* Sound Waves */}
+                    <path d="M78 30c5 8 5 22 0 30" stroke="url(#goldGradMegaphone)" strokeWidth="4" strokeLinecap="round" fill="none" />
+                    <path d="M88 22c9 13 9 33 0 46" stroke="url(#goldGradMegaphone)" strokeWidth="4" strokeLinecap="round" fill="none" />
+                    <path d="M98 14c13 18 13 44 0 62" stroke="url(#goldGradMegaphone)" strokeWidth="4" strokeLinecap="round" fill="none" />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  GLOBAL DUGOUT
+                </h3>
+                <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
+                  League Lounge · Manager Statements, Banter & Direct Messages
+                </p>
+              </div>
+
+              {/* CARD 2: TALK WITH ULTRAS */}
+              <div
+                onClick={() => setCurrentView("ultrasHub")}
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold Stadium Flare & Sparks */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 120 90" className="w-28 h-20 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradFlare" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    {/* Torch Handle */}
+                    <rect x="54" y="46" width="12" height="36" rx="2" fill="url(#goldGradFlare)" />
+                    <rect x="51" y="42" width="18" height="5" rx="1.5" fill="#fff" opacity="0.8" />
+                    {/* Blazing Flame */}
+                    <path d="M60 10c-8 12-14 18-9 27 4 6 11 8 9 12-2-4-2-6 2-10 6-6 11-12 5-21-2 5-5 7-7 7s-4-6 0-15z" fill="url(#goldGradFlare)" />
+                    {/* Fiery Sparks */}
+                    <circle cx="44" cy="22" r="2.5" fill="#f5d475" />
+                    <circle cx="76" cy="26" r="2" fill="#f5d475" />
+                    <circle cx="49" cy="14" r="1.5" fill="#fff" />
+                    <circle cx="71" cy="12" r="2.5" fill="#fff" />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  TALK WITH ULTRAS
+                </h3>
+                <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
+                  Curva Virage · AI Capo Companion, Morale & Chants Studio
+                </p>
               </div>
 
             </div>
