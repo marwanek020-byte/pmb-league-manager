@@ -494,6 +494,24 @@ export function AppTransferWindowHub({ onBack }: AppTransferWindowHubProps) {
 
       </main>
 
+      {/* ─── CREATE TRANSFER MODAL ─── */}
+      {showCreateModal && (
+        <CreateTransferModal
+          clubId={data?.club?.id || ""}
+          clubName={data?.club?.name || ""}
+          windowOpen={data?.windowOpen ?? false}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={(newTransfer) => {
+            setShowCreateModal(false);
+            setMessage(`Transfer request for ${newTransfer.playerName} submitted successfully!`);
+            loadTransfers();
+          }}
+          onError={(err) => {
+            setMessage(err);
+          }}
+        />
+      )}
+
       {/* ─── FOOTER ─── */}
       <footer className="relative z-10 w-full text-center py-4 border-t border-white/10 text-[10px] font-mono tracking-widest text-gray-500">
         PMB LEAGUE MANAGER · TRANSFER OPERATIONS CONTROL
