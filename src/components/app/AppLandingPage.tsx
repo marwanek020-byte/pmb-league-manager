@@ -69,9 +69,6 @@ export function AppLandingPage({
         return;
       }
 
-      sessionStorage.setItem("pmb-music-started", "true");
-      window.dispatchEvent(new Event("pmb-start-music"));
-
       const sessionRes = await fetch("/api/app/dashboard-data").then((r) => r.json());
       if (sessionRes) {
         setDashboardData(sessionRes);
@@ -90,6 +87,10 @@ export function AppLandingPage({
 
   function handleEnterApp() {
     setScene("loading");
+
+    // Start soundtrack playback right here when entering Home
+    sessionStorage.setItem("pmb-music-started", "true");
+    window.dispatchEvent(new Event("pmb-start-music"));
 
     // Fetch freshest data
     fetch("/api/app/dashboard-data")
