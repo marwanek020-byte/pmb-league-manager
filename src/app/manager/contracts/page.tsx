@@ -22,6 +22,26 @@ export default async function ContractsPage() {
 
   // 0. Auto-finalize any deals where personal terms were already agreed (e.g. negotiated via app/mobile)
   try {
+    // Also clean up any completed auctions/transfers where player is already in club squad
+    await prisma.auction.updateMany({
+      where: {
+        currentWinnerClubId: clubId,
+        status: "COMPLETED",
+        adminApproved: false,
+        player: { pmbClubId: clubId, status: "REGISTERED" },
+      },
+      data: { adminApproved: true },
+    });
+
+    await prisma.transfer.updateMany({
+      where: {
+        toClubId: clubId,
+        status: { not: "COMPLETED" },
+        player: { pmbClubId: clubId, status: "REGISTERED" },
+      },
+      data: { status: TransferStatus.COMPLETED },
+    });
+
     const agreedAuctions = await prisma.auction.findMany({
       where: {
         currentWinnerClubId: clubId,
@@ -154,12 +174,12 @@ export default async function ContractsPage() {
     }
   }
 
+  // Set of all registered player IDs in the squad
+  const squadIds = new Set(serializedSquad.map(p => p.id));
+
   // 2. Fetch pending signings (Won auctions awaiting 3D contract negotiation)
-  // Excludes players that are already officially registered in the squad with active contracts
   let serializedPendingAuctions: any[] = [];
   try {
-    const registeredIds = new Set(serializedSquad.filter(p => p.seasonSalary > 0).map(p => p.id));
-
     const pendingAuctions = await prisma.auction.findMany({
       where: {
         currentWinnerClubId: clubId,
@@ -172,7 +192,7 @@ export default async function ContractsPage() {
     });
 
     serializedPendingAuctions = pendingAuctions
-      .filter(a => !registeredIds.has(a.playerId))
+      .filter(a => a.player && !squadIds.has(a.playerId) && !squadIds.has(a.player.id))
       .map(a => {
         const p: any = a.player;
         return {
@@ -192,8 +212,6 @@ export default async function ContractsPage() {
   // 3. Fetch pending transfers to this club
   let serializedPendingTransfers: any[] = [];
   try {
-    const registeredIds = new Set(serializedSquad.filter(p => p.seasonSalary > 0).map(p => p.id));
-
     const pendingTransfers = await prisma.transfer.findMany({
       where: {
         toClubId: clubId,
@@ -205,7 +223,7 @@ export default async function ContractsPage() {
     });
 
     serializedPendingTransfers = pendingTransfers
-      .filter(t => !registeredIds.has(t.playerId))
+      .filter(t => t.player && !squadIds.has(t.playerId) && !squadIds.has(t.player.id))
       .map(t => {
         const p: any = t.player;
         return {
@@ -232,13 +250,10 @@ export default async function ContractsPage() {
     console.warn("ContractsPage: club fetch failed:", err);
   }
 
-  // Combine pending signings and deduplicate by player ID
-  const allPendingSignings = [...serializedPendingAuctions];
-  for (const pt of serializedPendingTransfers) {
-    if (!allPendingSignings.some(p => p.id === pt.id)) {
-      allPendingSignings.push(pt);
-    }
-  }
+  // Combine pending signings, strictly exclude anyone already in squad, and deduplicate
+  const allPendingSignings = [...serializedPendingAuctions, ...serializedPendingTransfers]
+    .filter(p => !squadIds.has(p.id))
+    .filter((p, index, self) => index === self.findIndex(x => x.id === p.id));
 
   return (
     <ContractsPayrollClient

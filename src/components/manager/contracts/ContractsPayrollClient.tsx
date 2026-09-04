@@ -77,6 +77,10 @@ export function ContractsPayrollClient({
     setBudget(clubBudget);
   }, [clubBudget]);
 
+  const displayedPendingList = pendingList.filter(
+    (p) => !players.some((sq) => sq.id === p.id)
+  );
+
   // Foreign Player Quota: max 5 non-Moroccan players
   function isMoroccan(nat: string | null | undefined): boolean {
     if (!nat) return false;
@@ -364,7 +368,7 @@ export function ContractsPayrollClient({
       {/* ══════════════════════════════════════════════════════════════
           🚨 PENDING SIGNINGS SECTION (NEW SIGNINGS AWAITING CONTRACT)
       ══════════════════════════════════════════════════════════════ */}
-      {pendingList.length > 0 && (
+      {displayedPendingList.length > 0 && (
         <div className="mb-8 rounded-2xl bg-gradient-to-r from-amber-500/20 via-pmb-gold/15 to-amber-500/10 border border-pmb-gold/40 p-5 backdrop-blur-md shadow-[0_0_30px_rgba(212,175,55,0.2)] animate-pulse-slow">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             <div className="flex items-center gap-3.5">
@@ -374,7 +378,7 @@ export function ContractsPayrollClient({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-md bg-pmb-gold text-black text-[10px] font-black tracking-wider uppercase">
-                    صفقات معلقة ({pendingList.length})
+                    صفقات معلقة ({displayedPendingList.length})
                   </span>
                   <h3 className="text-base font-black text-white">صفقات بانتظار التفاوض وتوقيع العقد الشخصي</h3>
                 </div>
@@ -386,7 +390,7 @@ export function ContractsPayrollClient({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 pt-4 border-t border-pmb-gold/20">
-            {pendingList.map(player => (
+            {displayedPendingList.map(player => (
               <div key={player.id} className="flex items-center justify-between p-3 rounded-xl bg-black/50 border border-pmb-gold/30 hover:border-pmb-gold transition shadow-md">
                 <div className="flex items-center gap-3">
                   <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/5 border border-white/10 flex-shrink-0">
