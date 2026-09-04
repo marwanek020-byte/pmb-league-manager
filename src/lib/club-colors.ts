@@ -67,20 +67,21 @@ const KNOWN_CLUB_THEMES: Record<string, Omit<ClubTheme, "stadium">> = {
 /**
  * Generates a vibrant HSL color theme and stadium background for any team name.
  */
-export function getClubTheme(clubName: string): ClubTheme {
-  const stadium = CLUB_STADIUMS[clubName] ?? "/dashboard/stadiums/default.jpg";
+export function getClubTheme(clubName?: string | null): ClubTheme {
+  const safeName = clubName?.trim() || "PMB Club";
+  const stadium = CLUB_STADIUMS[safeName] ?? "/dashboard/stadiums/default.jpg";
 
-  if (KNOWN_CLUB_THEMES[clubName]) {
+  if (KNOWN_CLUB_THEMES[safeName]) {
     return {
-      ...KNOWN_CLUB_THEMES[clubName],
+      ...KNOWN_CLUB_THEMES[safeName],
       stadium,
     };
   }
 
   // Deterministic seed from club name
   let hash = 0;
-  for (let i = 0; i < clubName.length; i++) {
-    hash = clubName.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < safeName.length; i++) {
+    hash = safeName.charCodeAt(i) + ((hash << 5) - hash);
   }
 
   const hue = Math.abs(hash) % 360;

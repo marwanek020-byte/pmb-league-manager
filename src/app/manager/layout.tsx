@@ -8,6 +8,8 @@ import { ClubThemeShell } from "@/components/ClubThemeShell";
 
 import { UnreadMessageNotifier } from "@/components/UnreadMessageNotifier";
 
+export const dynamic = "force-dynamic";
+
 export default async function ManagerLayout({
   children,
 }: {
@@ -15,7 +17,12 @@ export default async function ManagerLayout({
 }) {
   const session = await auth();
 
-  if (!session) redirect("/login");
+  if (!session?.user) redirect("/login");
+
+  if (session.user.role === "ADMINISTRATOR") {
+    redirect("/admin/dashboard");
+  }
+
   if (session.user.role !== "CLUB_MANAGER") {
     redirect("/unauthorized");
   }
@@ -27,19 +34,19 @@ export default async function ManagerLayout({
       })
     : null;
 
-  const budgetDisplay = club
+  const budgetDisplay = club?.budget != null
     ? new Intl.NumberFormat("en-GB", {
         style: "currency",
         currency: "EUR",
         maximumFractionDigits: 0,
-      }).format(Number(club.budget.toFixed(2)))
+      }).format(Number(club.budget))
     : null;
 
   return (
     <ClubThemeShell
       clubName={club?.name ?? session.user.clubName ?? "PMB"}
       clubLogo={club?.logo}
-      leagueName={club?.league.name ?? session.user.leagueName ?? "VIP League"}
+      leagueName={club?.league?.name ?? session.user.leagueName ?? "VIP League"}
     >
     <div className="min-h-screen">
       <Navbar

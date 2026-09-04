@@ -9,23 +9,30 @@ export const dynamic = "force-dynamic";
 export default async function ManagerDashboardPage() {
   const session = await auth();
 
-  if (
-    !session ||
-    session.user.role !== "CLUB_MANAGER"
-  ) {
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  if (session.user.role === "ADMINISTRATOR") {
+    redirect("/admin/dashboard");
+  }
+
+  if (session.user.role !== "CLUB_MANAGER") {
     redirect("/unauthorized");
   }
 
-  const club = await prisma.club.findUnique({
-    where: {
-      id: session.user.clubId ?? "",
-    },
-    include: {
-      league: true,
-      powerRating: true,
-      players: { where: { status: "REGISTERED" }, select: { id: true } },
-    },
-  });
+  const club = session.user.clubId
+    ? await prisma.club.findUnique({
+        where: {
+          id: session.user.clubId,
+        },
+        include: {
+          league: true,
+          powerRating: true,
+          players: { where: { status: "REGISTERED" }, select: { id: true } },
+        },
+      })
+    : null;
 
   if (!club) {
     redirect("/unauthorized");
@@ -36,7 +43,7 @@ export default async function ManagerDashboardPage() {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,
-  }).format(Number(club.budget));
+  }).format(Number(club.budget ?? 0));
 
   const powerRating = club.powerRating?.rating ?? 1000;
   const titles = club.powerRating?.titles ?? 0;
@@ -304,12 +311,12 @@ export default async function ManagerDashboardPage() {
                   {/* Home */}
                   <div className="flex flex-col items-center gap-1.5 text-center">
                     <ClubBadge
-                      name={headlineMatch.homeClub.name}
-                      logo={headlineMatch.homeClub.logo}
+                      name={headlineMatch.homeClub?.name ?? "Home Club"}
+                      logo={headlineMatch.homeClub?.logo ?? null}
                       size="md"
                     />
                     <span className="max-w-[90px] truncate text-[10px] font-bold uppercase tracking-wider text-white">
-                      {headlineMatch.homeClub.name}
+                      {headlineMatch.homeClub?.name ?? "Home Club"}
                     </span>
                   </div>
 
@@ -317,7 +324,7 @@ export default async function ManagerDashboardPage() {
                   <div className="text-center">
                     {!isUpcoming && lastMatch ? (
                       <span className="text-2xl font-black text-white">
-                        {lastMatch.homeGoals} — {lastMatch.awayGoals}
+                        {lastMatch.homeGoals ?? 0} — {lastMatch.awayGoals ?? 0}
                       </span>
                     ) : (
                       <span className="text-xl font-black text-gray-400">VS</span>
@@ -327,19 +334,19 @@ export default async function ManagerDashboardPage() {
                   {/* Away */}
                   <div className="flex flex-col items-center gap-1.5 text-center">
                     <ClubBadge
-                      name={headlineMatch.awayClub.name}
-                      logo={headlineMatch.awayClub.logo}
+                      name={headlineMatch.awayClub?.name ?? "Away Club"}
+                      logo={headlineMatch.awayClub?.logo ?? null}
                       size="md"
                     />
                     <span className="max-w-[90px] truncate text-[10px] font-bold uppercase tracking-wider text-white">
-                      {headlineMatch.awayClub.name}
+                      {headlineMatch.awayClub?.name ?? "Away Club"}
                     </span>
                   </div>
                 </div>
 
                 {/* League name footer */}
                 <p className="mt-4 text-center text-[9px] font-bold uppercase tracking-[.2em] text-gray-600">
-                  {club.league.name}
+                  {club.league?.name ?? "PMB League"}
                 </p>
               </>
             ) : (
@@ -419,7 +426,7 @@ export default async function ManagerDashboardPage() {
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">League</p>
             <span className="text-pmb-gold">🏟️</span>
           </div>
-          <p className="mt-2 truncate text-lg font-black text-white">{club.league.name}</p>
+          <p className="mt-2 truncate text-lg font-black text-white">{club.league?.name ?? "PMB League"}</p>
         </div>
       </section>
 

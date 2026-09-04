@@ -9,12 +9,13 @@ export function ClubThemeShell({
   leagueName,
   children,
 }: {
-  clubName: string;
+  clubName?: string | null;
   clubLogo?: string | null;
-  leagueName: string;
+  leagueName?: string | null;
   children: ReactNode;
 }) {
-  const theme = getClubTheme(clubName);
+  const safeClubName = clubName || "PMB";
+  const theme = getClubTheme(safeClubName);
 
   const style = {
     "--club-primary": theme.primary,
@@ -55,7 +56,7 @@ export function ClubThemeShell({
           />
         ) : (
           <span className="text-[260px] font-black uppercase tracking-tighter text-white opacity-[0.05] select-none">
-            {clubName.slice(0, 3)}
+            {safeClubName.slice(0, 3)}
           </span>
         )}
       </div>
