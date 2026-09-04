@@ -106,19 +106,6 @@ export function LandingPage({ initialFromApp = false }: LandingPageProps) {
   return (
     <div className="landing-page" style={{ background: "#121414", color: "#e2e2e2", fontFamily: "'Inter', sans-serif" }}>
 
-      {/* Floating Return to Mobile App Button */}
-      {isFromApp && (
-        <div className="fixed bottom-6 right-6 z-50 animate-bounce">
-          <Link
-            href="/app"
-            className="flex items-center gap-2 rounded-full border-2 border-[#e9c349] bg-black/90 px-6 py-3 font-montserrat text-xs font-black uppercase tracking-wider text-[#e9c349] shadow-[0_0_30px_rgba(233,195,73,0.6)] hover:bg-[#e9c349] hover:text-black transition-all"
-          >
-            <span>‹</span>
-            <span>RETURN TO APP</span>
-          </Link>
-        </div>
-      )}
-
       {/* ═══ DESKTOP NAV ═══ */}
       <nav className="fixed top-0 w-full z-50 hidden md:block" style={{ background: "rgba(18,20,20,0.9)", backdropFilter: "blur(16px)", borderTop: "2px solid #e9c349" }}>
         <div className="flex justify-between items-center mx-auto" style={{ maxWidth: 1200, padding: "12px 32px" }}>
@@ -130,7 +117,7 @@ export function LandingPage({ initialFromApp = false }: LandingPageProps) {
           </div>
           {isFromApp ? (
             <Link
-              href="/app"
+              href="/app?tab=extras&return=true"
               className="font-jetbrains flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
               style={{
                 fontSize: 11,
@@ -161,7 +148,7 @@ export function LandingPage({ initialFromApp = false }: LandingPageProps) {
           <div className="flex items-center gap-3">
             {isFromApp ? (
               <Link
-                href="/app"
+                href="/app?tab=extras&return=true"
                 className="font-jetbrains flex items-center gap-1.5"
                 style={{
                   fontSize: 10,
@@ -192,7 +179,7 @@ export function LandingPage({ initialFromApp = false }: LandingPageProps) {
             ))}
             {isFromApp ? (
               <Link
-                href="/app"
+                href="/app?tab=extras&return=true"
                 className="font-jetbrains flex items-center gap-2 mt-2"
                 style={{
                   fontSize: 11,
@@ -587,7 +574,7 @@ export function LandingPage({ initialFromApp = false }: LandingPageProps) {
           </p>
           {isFromApp ? (
             <Link
-              href="/app"
+              href="/app?tab=extras&return=true"
               className="group inline-flex items-center gap-3 gold-glow"
               style={{
                 background: "#e9c349",

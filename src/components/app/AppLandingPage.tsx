@@ -25,9 +25,15 @@ export function AppLandingPage({
   const [showIntro, setShowIntro] = useState(false);
 
   // Scene state: "welcome" (Image 1) | "login" (Image 2) | "enter" (Image 3) | "loading" | "dashboard"
-  const [scene, setScene] = useState<"welcome" | "login" | "enter" | "loading" | "dashboard">(
-    initialUser ? "enter" : "welcome"
-  );
+  const [scene, setScene] = useState<"welcome" | "login" | "enter" | "loading" | "dashboard">(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      if (initialUser && (p.get("return") === "true" || p.get("tab") === "extras")) {
+        return "dashboard";
+      }
+    }
+    return initialUser ? "enter" : "welcome";
+  });
   const [currentUser, setCurrentUser] = useState<AppUser | null>(initialUser || null);
   const [dashboardData, setDashboardData] = useState<any>(null);
 
@@ -122,9 +128,14 @@ export function AppLandingPage({
   }
 
   if (scene === "dashboard") {
+    const isExtras =
+      typeof window !== "undefined" &&
+      (window.location.search.includes("tab=extras") || window.location.search.includes("return=true"));
+
     return (
       <AppHomeDashboard
         initialData={dashboardData}
+        initialTab={isExtras ? "EXTRAS" : "TEAM"}
         onLogout={() => {
           if (typeof window !== "undefined") {
             sessionStorage.setItem("pmb-app-intro-seen", "true");

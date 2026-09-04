@@ -55,11 +55,18 @@ interface AppDashboardProps {
     user?: any;
   } | null;
   onLogout?: () => void;
+  initialTab?: "TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS";
 }
 
-export function AppHomeDashboard({ initialData, onLogout }: AppDashboardProps) {
+export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }: AppDashboardProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
+  const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("tab") === "extras" || p.get("return") === "true") return "EXTRAS";
+    }
+    return initialTab || "TEAM";
+  });
   const [currentView, setCurrentView] = useState<
     | "dashboard"
     | "players"
