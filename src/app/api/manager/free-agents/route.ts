@@ -22,11 +22,22 @@ export async function GET(req: NextRequest) {
       clubId
         ? prisma.club.findUnique({
             where: { id: clubId },
-            select: { id: true, name: true, budget: true },
+            select: {
+              id: true,
+              name: true,
+              budget: true,
+              league: {
+                select: { name: true, country: true },
+              },
+            },
           })
         : null,
       clubId ? getClubForeignPlayerCount(clubId) : 0,
     ]);
+
+    const isBotola =
+      club?.league?.name?.toUpperCase().includes("BOTOLA") ||
+      club?.league?.country?.toLowerCase() === "morocco";
 
     return NextResponse.json({
       players,
@@ -36,7 +47,7 @@ export async function GET(req: NextRequest) {
             name: club.name,
             budget: Number(club.budget ?? 0),
             foreignPlayerCount,
-            maxForeignPlayers: BOTOLA_MAX_FOREIGN_PLAYERS,
+            maxForeignPlayers: isBotola ? BOTOLA_MAX_FOREIGN_PLAYERS : 999,
           }
         : null,
     });
