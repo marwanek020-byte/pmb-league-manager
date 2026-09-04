@@ -34,10 +34,15 @@ export default function ManagerError({
 
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
-            onClick={() => reset()}
+            onClick={() => {
+              reset();
+              if (typeof window !== "undefined") {
+                window.location.reload();
+              }
+            }}
             className="w-full sm:w-auto rounded-xl bg-pmb-gold px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black transition hover:scale-105"
           >
-            Try Again
+            Reload Page
           </button>
           <Link
             href="/"

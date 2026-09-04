@@ -53,7 +53,7 @@ export default async function ManagerCompetitionPage() {
               Competition
             </p>
             <h1 className="mt-1 text-2xl font-bold text-white">
-              {club.league.name}
+              {club.league?.name ?? "PMB League"}
             </h1>
           </div>
         </section>
@@ -65,7 +65,7 @@ export default async function ManagerCompetitionPage() {
           </h2>
           <p className="mt-2 text-sm text-gray-400">
             The competition season for{" "}
-            <span className="font-semibold text-white">{club.league.name}</span>{" "}
+            <span className="font-semibold text-white">{club.league?.name ?? "PMB League"}</span>{" "}
             hasn't started yet. The administrator will generate fixtures when the
             season begins.
           </p>
@@ -123,7 +123,7 @@ export default async function ManagerCompetitionPage() {
             My Competition
           </p>
           <h1 className="mt-1 text-2xl font-bold text-white">
-            {club.league.name}
+            {club.league?.name ?? "PMB League"}
           </h1>
           <p className="mt-1 text-sm text-gray-400">{seasonName}</p>
         </div>
@@ -135,7 +135,7 @@ export default async function ManagerCompetitionPage() {
         myClubId={club.id}
         myClubName={club.name}
         myClubLogo={club.logo}
-        leagueName={club.league.name}
+        leagueName={club.league?.name ?? "PMB League"}
         seasonName={seasonName}
         totalMatchdays={maxMatchday}
         standings={standings}

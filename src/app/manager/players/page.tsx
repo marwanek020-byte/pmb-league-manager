@@ -4,9 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { serializePlayer } from "@/lib/serialize-player";
 import { PlayerListClient } from "@/components/manager/PlayerListClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlayerListPage() {
   const session = await auth();
-  if (!session || session.user.role !== "CLUB_MANAGER" || !session.user.clubId) {
+  if (!session?.user || session.user.role !== "CLUB_MANAGER" || !session.user.clubId) {
     redirect("/unauthorized");
   }
 

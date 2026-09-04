@@ -269,7 +269,7 @@ export default async function ManagerDashboardPage() {
               </h2>
               <div className="flex flex-wrap gap-2 pt-2">
                 <span className="inline-flex items-center rounded-lg border border-white/15 bg-black/50 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white">
-                  {club.league.name}
+                  {club.league?.name ?? "PMB League"}
                 </span>
                 <span className="inline-flex items-center rounded-lg border border-white/15 bg-black/50 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white">
                   Squad Rating: {powerRating}

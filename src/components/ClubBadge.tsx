@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 
-function initials(name: string): string {
-  const words = name.split(" ").filter(Boolean);
+function initials(name?: string | null): string {
+  if (!name || typeof name !== "string") return "PM";
+  const words = name.trim().split(/\s+/).filter(Boolean);
 
+  if (words.length === 0) return "PM";
   if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase();
+    return words[0].slice(0, 2).toUpperCase() || "PM";
   }
 
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  const first = words[0][0] || "";
+  const last = words[words.length - 1][0] || "";
+  return (first + last).toUpperCase() || "PM";
 }
 
 export function ClubBadge({
@@ -17,10 +21,11 @@ export function ClubBadge({
   logo,
   size = "md",
 }: {
-  name: string;
+  name?: string | null;
   logo?: string | null;
   size?: "xs" | "sm" | "md" | "lg";
 }) {
+  const safeName = name?.trim() || "Club";
   const [imageError, setImageError] = useState(false);
 
   const dims = {
@@ -35,17 +40,17 @@ export function ClubBadge({
   return (
     <div
       className={`flex ${dims} shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-pmb-gold/60 bg-gradient-to-br from-pmb-charcoal to-black font-bold text-pmb-gold shadow-gold`}
-      aria-label={`${name} crest`}
+      aria-label={`${safeName} crest`}
     >
       {showLogo ? (
         <img
           src={logo!}
-          alt={`${name} logo`}
+          alt={`${safeName} logo`}
           className="h-full w-full object-contain p-1"
           onError={() => setImageError(true)}
         />
       ) : (
-        initials(name)
+        initials(safeName)
       )}
     </div>
   );

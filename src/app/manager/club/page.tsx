@@ -39,7 +39,7 @@ export default async function ClubInformationPage() {
 />
         <div>
           <h2 className="text-xl font-bold text-white">{club.name}</h2>
-          <p className="text-sm text-gray-400">{club.league.name}</p>
+          <p className="text-sm text-gray-400">{club.league?.name ?? "PMB League"}</p>
         </div>
       </div>
 
@@ -51,7 +51,7 @@ export default async function ClubInformationPage() {
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-gray-500">League</dt>
-            <dd className="mt-1 text-white">{club.league.name}</dd>
+            <dd className="mt-1 text-white">{club.league?.name ?? "PMB League"}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-gray-500">Manager Username</dt>

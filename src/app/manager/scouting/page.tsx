@@ -671,7 +671,7 @@ export default async function ManagerScoutingPage() {
           name: club.name,
           logo: club.logo,
           budget,
-          leagueName: club.league.name,
+          leagueName: club.league?.name ?? "PMB League",
           aiScoutTier: club.aiScoutTier,
         },
         audit: {

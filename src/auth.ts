@@ -42,7 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           clubId: user.clubId,
           clubName: user.club?.name ?? null,
-          leagueName: user.club?.league.name ?? null,
+          leagueName: user.club?.league?.name ?? null,
         };
       },
     }),
