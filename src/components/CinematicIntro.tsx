@@ -10,23 +10,11 @@ type IntroPhase = "pmb" | "black" | "studio" | "fadeout" | "done";
 
 export function CinematicIntro({ onComplete }: CinematicIntroProps) {
   const [phase, setPhase] = useState<IntroPhase>("pmb");
-  const [isSkipped, setIsSkipped] = useState(false);
   const timersRef = useRef<NodeJS.Timeout[]>([]);
 
   const clearAllTimers = () => {
     timersRef.current.forEach((t) => clearTimeout(t));
     timersRef.current = [];
-  };
-
-  const skipIntro = () => {
-    if (isSkipped || phase === "done") return;
-    setIsSkipped(true);
-    clearAllTimers();
-    setPhase("fadeout");
-    setTimeout(() => {
-      setPhase("done");
-      onComplete?.();
-    }, 400);
   };
 
   useEffect(() => {
@@ -72,18 +60,6 @@ export function CinematicIntro({ onComplete }: CinematicIntroProps) {
         backgroundColor: "#000000",
       }}
     >
-      {/* ─── SKIP BUTTON (Top Right) ─── */}
-      {phase !== "fadeout" && (
-        <button
-          type="button"
-          onClick={skipIntro}
-          className="absolute top-6 right-6 z-50 px-4 py-1.5 rounded-full bg-black/60 hover:bg-white/10 border border-white/20 text-[11px] font-mono tracking-widest text-gray-300 hover:text-white transition-all active:scale-95 flex items-center gap-1.5 shadow-2xl backdrop-blur-sm"
-          title="Skip Intro"
-        >
-          <span>SKIP</span>
-          <span className="text-[#e9c349] font-bold">»</span>
-        </button>
-      )}
 
       {/* ─── MAIN CENTER ANIMATION VIEWPORT ─── */}
       <div className="relative w-full max-w-4xl h-full flex flex-col justify-between items-center px-6 py-8 z-10">

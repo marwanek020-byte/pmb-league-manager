@@ -21,8 +21,14 @@ export function AppLandingPage({
   initialUser?: AppUser | null;
 }) {
   const router = useRouter();
-  // Never show intro if already seen, if user was already logged in, or on logout
-  const [showIntro, setShowIntro] = useState(false);
+  // Always show intro when opening the app, unless returning directly from the About Us website view
+  const [showIntro, setShowIntro] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("return") === "true") return false;
+    }
+    return true;
+  });
 
   // Scene state: "welcome" (Image 1) | "login" (Image 2) | "enter" (Image 3) | "loading" | "dashboard"
   const [scene, setScene] = useState<"welcome" | "login" | "enter" | "loading" | "dashboard">(() => {
@@ -43,19 +49,14 @@ export function AppLandingPage({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Check whether to show the cinematic intro on first visit only
+  // Clear any legacy skip flags from storage
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const searchParams = new URLSearchParams(window.location.search);
-    const skip =
-      searchParams.get("skipIntro") === "true" ||
-      sessionStorage.getItem("pmb-app-intro-seen") === "true" ||
-      localStorage.getItem("pmb-app-intro-seen") === "true";
-
-    if (!skip && !initialUser) {
-      setShowIntro(true);
-    }
-  }, [initialUser]);
+    try {
+      localStorage.removeItem("pmb-app-intro-seen");
+      sessionStorage.removeItem("pmb-app-intro-seen");
+    } catch {}
+  }, []);
 
   // Check if session already exists
   useEffect(() => {
@@ -138,10 +139,13 @@ export function AppLandingPage({
         initialTab={isExtras ? "EXTRAS" : "TEAM"}
         onLogout={() => {
           if (typeof window !== "undefined") {
-            sessionStorage.setItem("pmb-app-intro-seen", "true");
-            localStorage.setItem("pmb-app-intro-seen", "true");
+            try {
+              sessionStorage.removeItem("pmb-music-started");
+              localStorage.removeItem("pmb-app-intro-seen");
+              sessionStorage.removeItem("pmb-app-intro-seen");
+            } catch {}
           }
-          setShowIntro(false);
+          setShowIntro(true);
           setCurrentUser(null);
           setDashboardData(null);
           setUsername("");
@@ -158,10 +162,6 @@ export function AppLandingPage({
       {showIntro && (
         <CinematicIntro
           onComplete={() => {
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem("pmb-app-intro-seen", "true");
-              localStorage.setItem("pmb-app-intro-seen", "true");
-            }
             setShowIntro(false);
           }}
         />

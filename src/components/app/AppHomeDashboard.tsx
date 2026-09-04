@@ -264,9 +264,11 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
   const handleConfirmLogout = async () => {
     setIsLoggingOut(true);
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("pmb-app-intro-seen", "true");
-      localStorage.setItem("pmb-app-intro-seen", "true");
-      sessionStorage.removeItem("pmb-music-started");
+      try {
+        sessionStorage.removeItem("pmb-music-started");
+        localStorage.removeItem("pmb-app-intro-seen");
+        sessionStorage.removeItem("pmb-app-intro-seen");
+      } catch {}
       window.dispatchEvent(new CustomEvent("pmb-stop-music"));
     }
     try {
@@ -279,7 +281,7 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
     if (onLogout) {
       onLogout();
     } else {
-      window.location.href = "/app?skipIntro=true";
+      window.location.href = "/app";
     }
   };
 
