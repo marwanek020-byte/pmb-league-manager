@@ -2,17 +2,15 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "./login-form";
 
-export default async function LoginPage() {
-  let session = null;
-  try {
-    session = await auth();
-  } catch (error) {
-    console.error("Auth check on LoginPage error:", error);
-  }
+export const dynamic = "force-dynamic";
 
-  if (session) {
+export default async function LoginPage() {
+  const session = await auth();
+
+  if (session?.user) {
     redirect(session.user.role === "ADMINISTRATOR" ? "/admin/dashboard" : "/manager/dashboard");
   }
+
 
   return (
     <main className="relative min-h-screen w-full bg-[#08080a] text-white flex overflow-hidden">

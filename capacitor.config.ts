@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "PMB Manager",
   webDir: "public",
   server: {
-    url: "https://pmb-league-manager.vercel.app/welcome",
+    url: "https://pmb-league-manager.vercel.app",
     cleartext: true,
     androidScheme: "https",
   },

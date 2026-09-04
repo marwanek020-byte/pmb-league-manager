@@ -7,7 +7,6 @@ export const metadata: Metadata = {
   title: "PMB Manager",
   description: "Professional football league management for PMB Club Managers.",
   manifest: "/manifest.json",
-  themeColor: "#0a0a0f",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

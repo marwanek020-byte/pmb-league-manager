@@ -1,4 +1,8 @@
 import { LandingPage } from "@/components/LandingPage";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "PMB — PES Moroccan Bourgeois",
@@ -8,6 +12,18 @@ export const metadata = {
   },
 };
 
-export default function WelcomePage() {
+export default async function WelcomePage() {
+  const session = await auth();
+
+  if (session?.user) {
+    if (session.user.role === "ADMINISTRATOR") {
+      redirect("/admin/dashboard");
+    }
+    if (session.user.role === "CLUB_MANAGER") {
+      redirect("/manager/dashboard");
+    }
+  }
+
   return <LandingPage />;
 }
+
