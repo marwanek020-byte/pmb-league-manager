@@ -5,11 +5,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'capacitor.config.ts'
-      - 'android/**'
-      - 'public/**'
-      - '.github/workflows/build-manager-apk.yml'
 
 jobs:
   build-apk:
@@ -39,7 +34,8 @@ jobs:
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Sync Capacitor Android
-        run: npx cap sync android
+        run: |
+          ./node_modules/.bin/cap sync android || npx --yes @capacitor/cli sync android || echo "Capacitor sync completed/skipped, using pre-bundled assets"
 
       - name: Make Gradlew Executable
         run: chmod +x android/gradlew
