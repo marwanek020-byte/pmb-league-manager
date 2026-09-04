@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppPlayerList } from "./AppPlayerList";
 import { AppCompetitionHub } from "./AppCompetitionHub";
 import { AppContractsHub } from "./AppContractsHub";
+import { AppTransferWindowHub } from "./AppTransferWindowHub";
 import { PlayerDTO } from "@/lib/serialize-player";
 
 interface AppDashboardProps {
@@ -50,7 +51,7 @@ interface AppDashboardProps {
 export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
-  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition" | "contracts">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition" | "contracts" | "transferWindow">("dashboard");
   const [squad, setSquad] = useState<PlayerDTO[]>([]);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
 
@@ -164,6 +165,10 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
 
   if (currentView === "contracts") {
     return <AppContractsHub onBack={() => setCurrentView("dashboard")} />;
+  }
+
+  if (currentView === "transferWindow") {
+    return <AppTransferWindowHub onBack={() => setCurrentView("dashboard")} />;
   }
 
   return (
@@ -305,6 +310,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
               
               {/* CARD 1: MAKE TRANSFER */}
               <div
+                onClick={() => setCurrentView("transferWindow")}
                 className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
               >
                 {/* Gold exchange arrows with star in middle */}
