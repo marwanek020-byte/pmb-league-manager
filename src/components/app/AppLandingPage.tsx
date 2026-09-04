@@ -4,6 +4,7 @@ import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { CinematicIntro } from "@/components/CinematicIntro";
+import { AppHomeDashboard } from "./AppHomeDashboard";
 
 interface AppUser {
   id?: string;
@@ -22,11 +23,12 @@ export function AppLandingPage({
   const router = useRouter();
   const [showIntro, setShowIntro] = useState(true);
 
-  // Scene state: "welcome" (Image 1) | "login" (Image 2) | "enter" (Image 3)
-  const [scene, setScene] = useState<"welcome" | "login" | "enter">(
+  // Scene state: "welcome" (Image 1) | "login" (Image 2) | "enter" (Image 3) | "loading" | "dashboard"
+  const [scene, setScene] = useState<"welcome" | "login" | "enter" | "loading" | "dashboard">(
     initialUser ? "enter" : "welcome"
   );
   const [currentUser, setCurrentUser] = useState<AppUser | null>(initialUser || null);
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
   // Login form state
   const [username, setUsername] = useState("");
@@ -34,22 +36,19 @@ export function AppLandingPage({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Enter click transition
-  const [isEntering, setIsEntering] = useState(false);
-
   // Check if session already exists
   useEffect(() => {
-    if (!initialUser) {
-      fetch("/api/auth/session")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data?.user) {
+    fetch("/api/app/dashboard-data")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data) {
+          setDashboardData(data);
+          if (data.user) {
             setCurrentUser(data.user);
-            setScene("enter");
           }
-        })
-        .catch(() => {});
-    }
+        }
+      })
+      .catch(() => {});
   }, [initialUser]);
 
   async function handleLogin(e: FormEvent) {
@@ -73,10 +72,14 @@ export function AppLandingPage({
       sessionStorage.setItem("pmb-music-started", "true");
       window.dispatchEvent(new Event("pmb-start-music"));
 
-      const sessionRes = await fetch("/api/auth/session").then((r) => r.json());
-      const user = sessionRes?.user;
+      const sessionRes = await fetch("/api/app/dashboard-data").then((r) => r.json());
+      if (sessionRes) {
+        setDashboardData(sessionRes);
+        if (sessionRes.user) {
+          setCurrentUser(sessionRes.user);
+        }
+      }
 
-      setCurrentUser(user || { role: "CLUB_MANAGER", clubName: "FAR RABAT" });
       setIsLoggingIn(false);
       setScene("enter");
     } catch (err) {
@@ -86,15 +89,24 @@ export function AppLandingPage({
   }
 
   function handleEnterApp() {
-    if (isEntering) return;
-    setIsEntering(true);
-    const destination =
-      currentUser?.role === "ADMINISTRATOR"
-        ? "/admin/dashboard"
-        : "/manager/dashboard";
+    setScene("loading");
+
+    // Fetch freshest data
+    fetch("/api/app/dashboard-data")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data) setDashboardData(data);
+      })
+      .catch(() => {});
+
+    // Loading delay (2.2s) before entering the eFootball/FC25 dashboard
     setTimeout(() => {
-      router.push(destination);
-    }, 380);
+      setScene("dashboard");
+    }, 2200);
+  }
+
+  if (scene === "dashboard") {
+    return <AppHomeDashboard initialData={dashboardData} />;
   }
 
   return (
@@ -102,11 +114,44 @@ export function AppLandingPage({
       {/* Cinematic Intro: 5s PMB Logo -> 3s Black Screen -> SAMA Studio */}
       {showIntro && <CinematicIntro onComplete={() => setShowIntro(false)} />}
 
+      {/* ═══ LOADING SCENE (EA FC / eFootball Style) ═══ */}
+      {scene === "loading" && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#070709] select-none animate-fadeIn">
+          {/* Ambient Stadium Glow */}
+          <div className="absolute w-80 h-80 rounded-full bg-[#e9c349]/15 blur-3xl pointer-events-none" />
+
+          {/* Center 3D Lion with Pulsing Gold Ring */}
+          <div className="relative mb-6">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-[#e9c349] bg-black p-1 shadow-[0_0_50px_rgba(233,195,73,0.5)] flex items-center justify-center">
+              <img
+                src="/branding/pmb-official-logo.png"
+                alt="PMB"
+                className="w-full h-full object-contain rounded-full animate-pulse"
+              />
+            </div>
+            <div className="absolute -inset-2 rounded-full border border-[#e9c349]/40 animate-ping pointer-events-none" style={{ animationDuration: "2s" }} />
+          </div>
+
+          {/* Text */}
+          <h2 className="font-montserrat text-base sm:text-lg font-black uppercase tracking-[0.25em] text-white">
+            PMB LEAGUE MANAGER
+          </h2>
+          <p className="font-jetbrains text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] text-[#e9c349] mt-2 animate-pulse">
+            SYNCING MATCHDAYS & LIVE MERCATO...
+          </p>
+
+          {/* Progress Bar */}
+          <div className="w-48 sm:w-64 h-1.5 bg-white/10 rounded-full overflow-hidden mt-6">
+            <div className="h-full bg-gradient-to-r from-[#e9c349] via-amber-300 to-[#e9c349] w-full animate-pulse" />
+          </div>
+        </div>
+      )}
+
       {/* ═══ PMB LUXURY 3D APP PORTAL (Scenes 1, 2, 3) ═══ */}
       <section
         className={`relative w-full h-full flex flex-col justify-between items-center overflow-hidden transition-all duration-700 ${
-          isEntering ? "scale-105 opacity-0" : "scale-100 opacity-100"
-        } ${scene === "enter" ? "cursor-pointer" : ""}`}
+          scene === "enter" ? "cursor-pointer" : ""
+        }`}
         onClick={scene === "enter" ? handleEnterApp : undefined}
       >
         {/* Background Artwork Layer */}
