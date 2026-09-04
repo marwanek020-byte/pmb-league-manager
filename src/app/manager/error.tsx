@@ -21,7 +21,7 @@ export default function ManagerError({
           ⚠️
         </div>
         <h2 className="text-xl font-black uppercase tracking-tight text-white sm:text-2xl">
-          Dashboard Interruption
+          Page Error
         </h2>
         <p className="mt-2 text-xs text-gray-400">
           {error.message || "An unexpected issue occurred while loading this section."}

@@ -31,7 +31,7 @@ export default async function ManagerLayout({
     ? await prisma.club.findUnique({
         where: { id: session.user.clubId },
         select: { budget: true, name: true, logo: true, league: { select: { name: true } } },
-      })
+      }).catch(() => null)
     : null;
 
   const budgetDisplay = club?.budget != null
