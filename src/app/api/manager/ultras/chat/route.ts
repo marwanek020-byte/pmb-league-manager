@@ -15,8 +15,20 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user.clubId) {
-      return NextResponse.json({ error: "Unauthorized or no club assigned" }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    let targetClubId: string | undefined = session.user.clubId || undefined;
+    if (!targetClubId) {
+      const defaultClub = (await prisma.club.findFirst({
+        where: { name: { contains: "FAR" } },
+      })) || (await prisma.club.findFirst());
+      targetClubId = defaultClub?.id;
+    }
+
+    if (!targetClubId) {
+      return NextResponse.json({ error: "No club available" }, { status: 404 });
     }
 
     const { message, history, mode = "TALK" } = await req.json();
@@ -27,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Fetch live club and competition context from database
     const club = await prisma.club.findUnique({
-      where: { id: session.user.clubId },
+      where: { id: targetClubId },
       include: {
         league: true,
         manager: { select: { username: true } },

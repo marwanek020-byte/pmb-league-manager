@@ -222,6 +222,7 @@ export function ManagerSocialHub({
   const [openComments, setOpenComments] = useState<{ [postId: string]: boolean }>({});
   const [commentInputs, setCommentInputs] = useState<{ [postId: string]: string }>({});
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<"FEED" | "MESSAGES" | "POLLS">("FEED");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Direct Messaging & Hierarchy State
@@ -541,8 +542,10 @@ export function ManagerSocialHub({
     );
   }, [contacts, searchLower]);
 
+  const totalUnreadDMs = useMemo(() => contacts.reduce((sum, c) => sum + (c.unread || 0), 0), [contacts]);
+
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr_340px]">
+    <div className="w-full space-y-4">
       {/* ─── FULLSCREEN LIGHTBOX MODAL ─────────────────────────────── */}
       {lightboxImage && (
         <div
@@ -566,8 +569,58 @@ export function ManagerSocialHub({
         </div>
       )}
 
-      {/* ─── LEFT COLUMN: Profile & Category Filters ─────────────────── */}
-      <div className="space-y-4">
+      {/* ─── MOBILE APP NAVIGATION PILLS (Hidden on Desktop) ────────── */}
+      <div className="block lg:hidden w-full">
+        <div className="flex items-center justify-between rounded-2xl border border-[#e9c349]/30 bg-black/80 p-1.5 shadow-lg backdrop-blur-xl">
+          <button
+            type="button"
+            onClick={() => setMobileTab("FEED")}
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition-all ${
+              mobileTab === "FEED"
+                ? "bg-gradient-to-r from-[#f5d475] to-[#d4af37] text-black shadow-[0_0_15px_rgba(233,195,73,0.4)]"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <span>📰</span>
+            <span>FEED</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileTab("MESSAGES")}
+            className={`relative flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition-all ${
+              mobileTab === "MESSAGES"
+                ? "bg-gradient-to-r from-[#f5d475] to-[#d4af37] text-black shadow-[0_0_15px_rgba(233,195,73,0.4)]"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <span>💬</span>
+            <span>MESSAGES</span>
+            {totalUnreadDMs > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-black text-white">
+                {totalUnreadDMs}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileTab("POLLS")}
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition-all ${
+              mobileTab === "POLLS"
+                ? "bg-gradient-to-r from-[#f5d475] to-[#d4af37] text-black shadow-[0_0_15px_rgba(233,195,73,0.4)]"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <span>🗳️</span>
+            <span>POLLS & ULTRAS</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr_340px]">
+        {/* ─── LEFT COLUMN: Profile & Category Filters (Hidden on Mobile) ─── */}
+        <div className="hidden lg:block space-y-4">
         {/* Manager Profile Card */}
         <div className="pmb-card p-5 border-pmb-gold/30 bg-gradient-to-b from-pmb-gold/10 via-black to-black">
           <div className="flex items-center gap-3">
@@ -624,114 +677,143 @@ export function ManagerSocialHub({
       </div>
 
       {/* ─── CENTER COLUMN: Create Post & Feed Wall ─────────────────── */}
-      <div className="space-y-6">
+      <div className={`space-y-6 ${mobileTab === "MESSAGES" ? "hidden lg:block" : "block"}`}>
+        {/* Mobile Horizontal Category Filter Chips */}
+        <div className={`overflow-x-auto scrollbar-none pb-1 ${mobileTab === "FEED" ? "block lg:hidden" : "hidden"}`}>
+          <div className="flex items-center gap-2">
+            {[
+              { id: "ALL", label: "All Activity", icon: "🔥" },
+              { id: "STATEMENT", label: "Official Press", icon: "📢" },
+              { id: "TRANSFER", label: "Transfers", icon: "🔄" },
+              { id: "BANTER", label: "Banter", icon: "⚔️" },
+              { id: "VICTORY", label: "Victories", icon: "🏆" },
+              { id: "GENERAL", label: "Thoughts", icon: "⚽" },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedTag(cat.id)}
+                className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black transition-all ${
+                  selectedTag === cat.id
+                    ? "bg-gradient-to-r from-[#f5d475] to-[#d4af37] text-black shadow-md"
+                    : "border border-white/10 bg-white/5 text-gray-400 hover:text-white"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 🛡️ Ultras Morale & Curva Command Card */}
         {ultrasMorale && (
-          <div className="pmb-card p-4 border border-white/15 bg-gradient-to-r from-black/90 via-pmb-charcoal/90 to-black/90 shadow-xl relative">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              {/* Left: Ultras Crest & Group Details */}
-              <div className="flex items-center gap-3 min-w-0">
-                <UltrasBadge clubName={myClubName} size="md" showTooltip />
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-extrabold text-white truncate">
-                      {ultrasMorale.ultrasGroup?.groupName || "Club Ultras"}
-                    </h3>
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-300 whitespace-nowrap">
-                      {ultrasMorale.statusArabic}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1 line-clamp-2" dir="rtl">
-                    {ultrasMorale.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Right: Morale Meter & Ultras Post Trigger */}
-              <div className="flex items-center gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
-                <div className="min-w-[140px] sm:min-w-[160px]">
-                  <div className="flex justify-between text-[11px] font-bold mb-1">
-                    <span className="text-gray-400">Ultras Morale:</span>
-                    <span className={ultrasMorale.moraleScore >= 70 ? "text-emerald-400" : ultrasMorale.moraleScore >= 40 ? "text-amber-400" : "text-rose-400"}>
-                      {ultrasMorale.moraleScore}%
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-black/80 rounded-full overflow-hidden border border-white/15">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        ultrasMorale.moraleScore >= 70
-                          ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
-                          : ultrasMorale.moraleScore >= 40
-                          ? "bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                          : "bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
-                      }`}
-                      style={{ width: `${ultrasMorale.moraleScore}%` }}
-                    />
+          <div className={mobileTab === "POLLS" ? "block" : "hidden lg:block"}>
+            <div className="pmb-card p-4 border border-white/15 bg-gradient-to-r from-black/90 via-pmb-charcoal/90 to-black/90 shadow-xl relative">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Left: Ultras Crest & Group Details */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <UltrasBadge clubName={myClubName} size="md" showTooltip />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-extrabold text-white truncate">
+                        {ultrasMorale.ultrasGroup?.groupName || "Club Ultras"}
+                      </h3>
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-300 whitespace-nowrap">
+                        {ultrasMorale.statusArabic}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-2" dir="rtl">
+                      {ultrasMorale.description}
+                    </p>
                   </div>
                 </div>
 
-                {/* Ultras Communiqué Dropdown */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowUltrasMenu(!showUltrasMenu)}
-                    disabled={publishingUltrasPost}
-                    className="rounded-xl border border-pmb-gold/40 bg-pmb-gold/15 hover:bg-pmb-gold hover:text-black px-3 py-1.5 text-xs font-bold text-pmb-gold transition flex items-center gap-1.5 shadow-md whitespace-nowrap"
-                    title="Issue an official Ultras Communiqué on the feed"
-                  >
-                    <span>📢</span>
-                    <span>Ultras Post</span>
-                    <span>▾</span>
-                  </button>
-
-                  {showUltrasMenu && (
-                    <>
-                      {/* Invisible backdrop to dismiss */}
+                {/* Right: Morale Meter & Ultras Post Trigger */}
+                <div className="flex items-center gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
+                  <div className="min-w-[140px] sm:min-w-[160px]">
+                    <div className="flex justify-between text-[11px] font-bold mb-1">
+                      <span className="text-gray-400">Ultras Morale:</span>
+                      <span className={ultrasMorale.moraleScore >= 70 ? "text-emerald-400" : ultrasMorale.moraleScore >= 40 ? "text-amber-400" : "text-rose-400"}>
+                        {ultrasMorale.moraleScore}%
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-black/80 rounded-full overflow-hidden border border-white/15">
                       <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowUltrasMenu(false)}
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          ultrasMorale.moraleScore >= 70
+                            ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                            : ultrasMorale.moraleScore >= 40
+                            ? "bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                            : "bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
+                        }`}
+                        style={{ width: `${ultrasMorale.moraleScore}%` }}
                       />
-                      <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/20 bg-pmb-charcoal/95 p-2 shadow-2xl z-50 space-y-1.5 backdrop-blur-2xl">
-                        <div className="px-3 py-1.5 text-[10px] font-black tracking-wider uppercase text-pmb-gold border-b border-white/10 flex items-center justify-between">
-                          <span>📢 Issue Communiqué:</span>
-                          <span className="text-[9px] text-gray-400 font-normal">Official Fans</span>
+                    </div>
+                  </div>
+
+                  {/* Ultras Communiqué Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowUltrasMenu(!showUltrasMenu)}
+                      disabled={publishingUltrasPost}
+                      className="rounded-xl border border-pmb-gold/40 bg-pmb-gold/15 hover:bg-pmb-gold hover:text-black px-3 py-1.5 text-xs font-bold text-pmb-gold transition flex items-center gap-1.5 shadow-md whitespace-nowrap"
+                      title="Issue an official Ultras Communiqué on the feed"
+                    >
+                      <span>📢</span>
+                      <span>Ultras Post</span>
+                      <span>▾</span>
+                    </button>
+
+                    {showUltrasMenu && (
+                      <>
+                        {/* Invisible backdrop to dismiss */}
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowUltrasMenu(false)}
+                        />
+                        <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/20 bg-pmb-charcoal/95 p-2 shadow-2xl z-50 space-y-1.5 backdrop-blur-2xl">
+                          <div className="px-3 py-1.5 text-[10px] font-black tracking-wider uppercase text-pmb-gold border-b border-white/10 flex items-center justify-between">
+                            <span>📢 Issue Communiqué:</span>
+                            <span className="text-[9px] text-gray-400 font-normal">Official Fans</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handlePublishUltrasCommuniqué("DERBY_CALL")}
+                            className="w-full text-left rounded-xl p-2.5 text-xs font-semibold text-gray-200 hover:bg-white/10 hover:text-white transition flex items-center gap-2.5"
+                          >
+                            <span className="text-base">🚨</span>
+                            <div>
+                              <div className="font-bold text-white">Pre-Match Derby Call</div>
+                              <div className="text-[10px] text-gray-400" dir="rtl">نداء وتعبئة الكورفا للقمة</div>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePublishUltrasCommuniqué("TIFO_CELEBRATION")}
+                            className="w-full text-left rounded-xl p-2.5 text-xs font-semibold text-gray-200 hover:bg-white/10 hover:text-white transition flex items-center gap-2.5"
+                          >
+                            <span className="text-base">🎆</span>
+                            <div>
+                              <div className="font-bold text-white">Tifo & Craquage Celebration</div>
+                              <div className="text-[10px] text-gray-400" dir="rtl">احتفال التيفو وإشعال الشماريخ</div>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePublishUltrasCommuniqué("WARNING")}
+                            className="w-full text-left rounded-xl p-2.5 text-xs font-semibold text-rose-300 hover:bg-rose-950/40 hover:text-rose-200 transition flex items-center gap-2.5"
+                          >
+                            <span className="text-base">⚠️</span>
+                            <div>
+                              <div className="font-bold text-rose-300">Curva Warning to Squad</div>
+                              <div className="text-[10px] text-rose-400/80" dir="rtl">بيان تحذيري ومطالبة بالقتالية</div>
+                            </div>
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePublishUltrasCommuniqué("DERBY_CALL")}
-                          className="w-full text-left rounded-xl p-2.5 text-xs font-semibold text-gray-200 hover:bg-white/10 hover:text-white transition flex items-center gap-2.5"
-                        >
-                          <span className="text-base">🚨</span>
-                          <div>
-                            <div className="font-bold text-white">Pre-Match Derby Call</div>
-                            <div className="text-[10px] text-gray-400" dir="rtl">نداء وتعبئة الكورفا للقمة</div>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handlePublishUltrasCommuniqué("TIFO_CELEBRATION")}
-                          className="w-full text-left rounded-xl p-2.5 text-xs font-semibold text-gray-200 hover:bg-white/10 hover:text-white transition flex items-center gap-2.5"
-                        >
-                          <span className="text-base">🎆</span>
-                          <div>
-                            <div className="font-bold text-white">Tifo & Craquage Celebration</div>
-                            <div className="text-[10px] text-gray-400" dir="rtl">احتفال التيفو وإشعال الشماريخ</div>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handlePublishUltrasCommuniqué("WARNING")}
-                          className="w-full text-left rounded-xl p-2.5 text-xs font-semibold text-rose-300 hover:bg-rose-950/40 hover:text-rose-200 transition flex items-center gap-2.5"
-                        >
-                          <span className="text-base">⚠️</span>
-                          <div>
-                            <div className="font-bold text-rose-300">Curva Warning to Squad</div>
-                            <div className="text-[10px] text-rose-400/80" dir="rtl">بيان تحذيري ومطالبة بالقتالية</div>
-                          </div>
-                        </button>
-                      </div>
-                    </>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -739,10 +821,14 @@ export function ManagerSocialHub({
         )}
 
         {/* Pinned Monthly Manager Poll */}
-        <ManagerPollWidget isAdmin={myUsername === "admin"} />
+        <div className={mobileTab === "POLLS" ? "block" : "hidden lg:block"}>
+          <ManagerPollWidget isAdmin={myUsername === "admin"} />
+        </div>
 
-        {/* Create Post Box */}
-        <div className="pmb-card p-5 border-white/15">
+        {/* Create Post Box & Feed Posts Container */}
+        <div className={mobileTab === "FEED" ? "block space-y-6" : "hidden lg:block space-y-6"}>
+          {/* Create Post Box */}
+          <div className="pmb-card p-5 border-white/15">
           <form onSubmit={handleCreatePost}>
             <div className="flex items-start gap-3">
               <ClubBadge name={myClubName} logo={myClubLogo} size="sm" />
@@ -1188,10 +1274,11 @@ export function ManagerSocialHub({
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* ─── RIGHT COLUMN: Hierarchical League Manager Messenger ────── */}
-      <div className="space-y-4">
+      <div className={`space-y-4 ${mobileTab === "MESSAGES" ? "block" : "hidden lg:block"}`}>
         <div className="pmb-card overflow-hidden border-white/15">
           {/* Header */}
           <div className="border-b border-pmb-border bg-black/60 p-4 flex items-center justify-between">
@@ -1399,6 +1486,7 @@ export function ManagerSocialHub({
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }

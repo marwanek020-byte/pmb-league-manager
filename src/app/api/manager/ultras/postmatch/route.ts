@@ -8,11 +8,24 @@ export async function GET(req: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user.clubId) {
-      return NextResponse.json({ error: "Unauthorized or no club assigned" }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const postmatch = await UltrasPostMatchService.generatePostMatchExperience(session.user.clubId);
+    let targetClubId: string | undefined = session.user.clubId || undefined;
+    if (!targetClubId) {
+      const { prisma } = await import("@/lib/prisma");
+      const defaultClub = (await prisma.club.findFirst({
+        where: { name: { contains: "FAR" } },
+      })) || (await prisma.club.findFirst());
+      targetClubId = defaultClub?.id;
+    }
+
+    if (!targetClubId) {
+      return NextResponse.json({ error: "No club found" }, { status: 404 });
+    }
+
+    const postmatch = await UltrasPostMatchService.generatePostMatchExperience(targetClubId);
 
     return NextResponse.json(postmatch);
   } catch (error: any) {

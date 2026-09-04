@@ -261,7 +261,7 @@ export function UltrasCurvaRoom({
       </div>
 
       {/* ═══ 2. SUPPORTER INTERACTION & INNOVATION MODES ═══ */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
         {[
           { id: "TALK", icon: "🗣️", label: "Talk to Capo" },
           { id: "HYPE", icon: "🔥", label: "Matchday Hype" },
@@ -280,7 +280,7 @@ export function UltrasCurvaRoom({
           <button
             key={mode.id}
             onClick={() => setActiveMode(mode.id)}
-            className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-black transition-all ${
+            className={`shrink-0 flex items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-black transition-all ${
               activeMode === mode.id
                 ? "border-pmb-gold bg-pmb-gold text-black shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-105"
                 : "border-white/10 bg-zinc-900/80 text-gray-300 hover:border-white/30 hover:text-white"
@@ -292,8 +292,8 @@ export function UltrasCurvaRoom({
         ))}
       </div>
 
-      {/* ═══ 2.5 MATCHDAY BRIEFING CARD (When activeMode === HYPE or live upcoming match) ═══ */}
-      {matchdayBriefing && (activeMode === "HYPE" || (matchdayBriefing.hasUpcomingMatch && activeMode === "TALK")) && (
+      {/* ═══ 2.5 MATCHDAY BRIEFING CARD (When activeMode === HYPE) ═══ */}
+      {matchdayBriefing && activeMode === "HYPE" && (
         <CurvaMatchdayBriefing briefing={matchdayBriefing} clubName={clubName} />
       )}
 
