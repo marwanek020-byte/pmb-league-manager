@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
 export default async function HomePage() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch (error) {
+    console.error("Auth check on HomePage error:", error);
+  }
 
   if (!session) {
     redirect("/welcome");

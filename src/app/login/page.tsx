@@ -3,7 +3,12 @@ import { auth } from "@/auth";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch (error) {
+    console.error("Auth check on LoginPage error:", error);
+  }
 
   if (session) {
     redirect(session.user.role === "ADMINISTRATOR" ? "/admin/dashboard" : "/manager/dashboard");
