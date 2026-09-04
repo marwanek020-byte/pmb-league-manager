@@ -108,7 +108,7 @@ export function Navbar({
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {/* Mobile Top Quick Dugout Button */}
             <Link
               href={socialHref}
@@ -118,7 +118,7 @@ export function Navbar({
               <span>Dugout</span>
             </Link>
 
-            <span className="hidden text-sm text-gray-400 sm:inline">{rightLabel}</span>
+            <span className="hidden text-sm text-gray-400 lg:inline">{rightLabel}</span>
             {extra}
             <SignOutButton />
           </div>
