@@ -15,15 +15,6 @@ export const metadata = {
 export default async function HomePage() {
   const session = await auth();
 
-  if (session?.user) {
-    if (session.user.role === "ADMINISTRATOR") {
-      redirect("/admin/dashboard");
-    }
-    if (session.user.role === "CLUB_MANAGER") {
-      redirect("/manager/dashboard");
-    }
-  }
-
-  return <LandingPage />;
+  return <LandingPage initialUser={session?.user || null} />;
 }
 

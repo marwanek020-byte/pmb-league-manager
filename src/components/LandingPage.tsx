@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { CinematicIntro } from "@/components/CinematicIntro";
 
 /* ─── IMAGE URLS ─── */
@@ -69,16 +71,88 @@ const STATS = [
   { value: "26/27", label: "Season-Based" },
 ];
 
-export function LandingPage() {
+export function LandingPage({
+  initialUser,
+}: {
+  initialUser?: {
+    id?: string;
+    username?: string;
+    role?: "ADMINISTRATOR" | "CLUB_MANAGER";
+    clubId?: string | null;
+    clubName?: string | null;
+    leagueName?: string | null;
+  } | null;
+}) {
+  const router = useRouter();
   const [showIntro, setShowIntro] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
+
+  // Scene state: "welcome" (Image 1) | "login" (Image 2) | "enter" (Image 3)
+  const [scene, setScene] = useState<"welcome" | "login" | "enter">(
+    initialUser ? "enter" : "welcome"
+  );
+  const [currentUser, setCurrentUser] = useState(initialUser || null);
+
+  // Login form state
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Enter click transition
+  const [isEntering, setIsEntering] = useState(false);
+
+  async function handleLogin(e: FormEvent) {
+    e.preventDefault();
+    setLoginError(null);
+    setIsLoggingIn(true);
+
+    try {
+      const res = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
+      });
+
+      if (!res || res.error) {
+        setLoginError("Incorrect username or password. Please try again.");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      sessionStorage.setItem("pmb-music-started", "true");
+      window.dispatchEvent(new Event("pmb-start-music"));
+
+      const sessionRes = await fetch("/api/auth/session").then((r) => r.json());
+      const user = sessionRes?.user;
+
+      setCurrentUser(user || { role: "CLUB_MANAGER", clubName: "FAR RABAT" });
+      setIsLoggingIn(false);
+      setScene("enter");
+    } catch (err) {
+      setLoginError("Login failed. Please try again.");
+      setIsLoggingIn(false);
+    }
+  }
+
+  function handleEnterApp() {
+    if (isEntering) return;
+    setIsEntering(true);
+    const destination =
+      currentUser?.role === "ADMINISTRATOR"
+        ? "/admin/dashboard"
+        : "/manager/dashboard";
+    setTimeout(() => {
+      router.push(destination);
+    }, 380);
+  }
 
   return (
     <div className="landing-page" style={{ background: "#121414", color: "#e2e2e2", fontFamily: "'Inter', sans-serif" }}>
       {showIntro && <CinematicIntro onComplete={() => setShowIntro(false)} />}
 
       {/* ═══ DESKTOP NAV ═══ */}
-      <nav className="fixed top-0 w-full z-50 hidden md:block" style={{ background: "rgba(18,20,20,0.9)", backdropFilter: "blur(16px)", borderTop: "2px solid #e9c349" }}>
+      <nav className="fixed top-0 w-full z-40 hidden md:block" style={{ background: "rgba(18,20,20,0.8)", backdropFilter: "blur(16px)", borderTop: "2px solid #e9c349" }}>
         <div className="flex justify-between items-center mx-auto" style={{ maxWidth: 1200, padding: "12px 32px" }}>
           <span className="font-montserrat" style={{ fontSize: 26, fontWeight: 800, color: "#e2e2e2" }}>PMB</span>
           <div className="flex items-center" style={{ gap: 20 }}>
@@ -86,16 +160,29 @@ export function LandingPage() {
               <a key={item} href={`#${item.toLowerCase()}`} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 500, color: item === "PACKS" ? "#e9c349" : "#c4c7c7", textDecoration: "none", padding: "6px 12px" }}>{item}</a>
             ))}
           </div>
-          <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.4)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
+          <button
+            type="button"
+            onClick={() => setScene("login")}
+            className="font-jetbrains gold-glow cursor-pointer"
+            style={{ fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.4)", borderRadius: 4, background: "transparent" }}
+          >
+            LOGIN
+          </button>
         </div>
       </nav>
 
       {/* ═══ MOBILE NAV ═══ */}
-      <header className="fixed top-0 w-full z-50 md:hidden" style={{ background: "rgba(18,20,20,0.9)", backdropFilter: "blur(16px)", borderBottom: "1px solid #282a2b" }}>
+      <header className="fixed top-0 w-full z-40 md:hidden" style={{ background: "rgba(18,20,20,0.85)", backdropFilter: "blur(16px)", borderBottom: "1px solid #282a2b" }}>
         <div className="flex justify-between items-center" style={{ padding: "12px 16px" }}>
           <span className="font-montserrat" style={{ fontSize: 20, fontWeight: 800 }}>PMB</span>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", textDecoration: "none" }}>LOGIN</Link>
+            <button
+              type="button"
+              onClick={() => setScene("login")}
+              className="font-jetbrains text-[#e9c349] text-xs font-bold"
+            >
+              LOGIN
+            </button>
             <button onClick={() => setMobileMenu(!mobileMenu)} style={{ color: "#c4c7c7", background: "none", border: "none", cursor: "pointer", fontSize: 22 }}>{mobileMenu ? "✕" : "☰"}</button>
           </div>
         </div>
@@ -104,43 +191,195 @@ export function LandingPage() {
             {["ABOUT", "LEAGUES", "PACKS", "ADMINISTRATION"].map((item) => (
               <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileMenu(false)} className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.15em", color: item === "PACKS" ? "#e9c349" : "#c4c7c7", textDecoration: "none", padding: "6px 0" }}>{item}</a>
             ))}
-            <Link href="/login" className="font-jetbrains gold-glow" style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.3)", borderRadius: 4, textDecoration: "none" }}>LOGIN</Link>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenu(false);
+                setScene("login");
+              }}
+              className="font-jetbrains gold-glow"
+              style={{ fontSize: 11, letterSpacing: "0.15em", color: "#e9c349", padding: "6px 20px", border: "1px solid rgba(233,195,73,0.3)", borderRadius: 4, background: "transparent" }}
+            >
+              LOGIN
+            </button>
           </div>
         )}
       </header>
 
-      {/* ═══ HERO ═══ */}
-      <section className="relative w-full flex items-center justify-center overflow-hidden" style={{ minHeight: "92vh", paddingTop: 70 }}>
-        <div className="absolute inset-0" style={{ background: "#0c0f0f" }} />
-        <div className="absolute inset-0" style={{ backgroundImage: `url('${HERO_BG_DESKTOP}')`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.35 }} />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #121414, rgba(18,20,20,0.8), transparent)" }} />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(18,20,20,0.9), transparent, rgba(18,20,20,0.5))" }} />
-        <div className="absolute inset-0 hero-pattern-bg hidden md:block" />
+      {/* ═══ PMB LUXURY 3D HERO PORTAL (Scenes 1, 2, 3) ═══ */}
+      <section
+        className={`relative w-full h-[100dvh] min-h-[660px] flex flex-col justify-between items-center overflow-hidden select-none transition-all duration-700 ${
+          isEntering ? "scale-105 opacity-0" : "scale-100 opacity-100"
+        } ${scene === "enter" ? "cursor-pointer" : ""}`}
+        onClick={scene === "enter" ? handleEnterApp : undefined}
+      >
+        {/* Background Artwork Layer */}
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-all duration-700 pointer-events-none"
+          style={{
+            backgroundImage:
+              scene === "welcome"
+                ? "url('/landing/pmb-welcome-bg.jpg')"
+                : scene === "login"
+                ? "url('/landing/pmb-login-bg.jpg')"
+                : "url('/landing/pmb-enter-bg.png')",
+            backgroundColor: "#070709",
+          }}
+        />
 
-        <div className="relative flex flex-col items-center text-center w-full" style={{ zIndex: 10, maxWidth: 900, margin: "0 auto", padding: "0 20px" }}>
-          {/* Tag */}
-          <div className="inline-flex items-center gap-2" style={{ marginBottom: 18, padding: "4px 14px", border: "1px solid #e9c349", background: "rgba(26,28,28,0.5)", backdropFilter: "blur(12px)" }}>
-            <div className="animate-pulse" style={{ width: 5, height: 5, background: "#e9c349" }} />
-            <span className="font-jetbrains" style={{ fontSize: 11, letterSpacing: "0.2em", fontWeight: 500, color: "#e9c349" }}>PMB SEASON 2026/27</span>
+        {/* Subtle Dark Backdrop for Form in Login Mode */}
+        {scene === "login" && (
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] pointer-events-none" />
+        )}
+
+        {/* Top Floating Badge Bar */}
+        <div className="relative z-20 w-full flex justify-between items-center px-6 sm:px-12 pt-20 md:pt-24 pb-4">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-black/40 backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-[#e9c349] animate-pulse" />
+            <span className="font-jetbrains text-[10px] tracking-[0.2em] text-gray-300 font-bold uppercase">
+              PMB 2026/27
+            </span>
           </div>
 
-          <h1 className="font-montserrat" style={{ fontSize: "clamp(42px, 8vw, 56px)", lineHeight: 1.05, letterSpacing: "-0.02em", fontWeight: 800, marginBottom: 6 }}>PMB</h1>
-          <h2 className="font-montserrat" style={{ fontSize: "clamp(18px, 3.5vw, 26px)", fontWeight: 700, letterSpacing: "0.05em", color: "#c4c7c7", marginBottom: 18, textTransform: "uppercase" }}>
-            PES MOROCCAN <span style={{ color: "#e2e2e2" }}>BOURGEOIS</span>
-          </h2>
-          <p className="font-inter" style={{ fontSize: 14, color: "#c9c6c5", maxWidth: 540, marginBottom: 32, opacity: 0.85, borderTop: "1px solid rgba(68,71,72,0.3)", borderBottom: "1px solid rgba(68,71,72,0.3)", padding: "12px 0", letterSpacing: "0.08em" }}>
-            THE HOME OF MOROCCAN eFOOTBALL
-          </p>
-
-          <Link href="/login" className="font-montserrat gold-glow group relative overflow-hidden inline-block" style={{ padding: "12px 32px", background: "#e9c349", color: "#0a0a0a", fontSize: 14, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", textDecoration: "none", borderRadius: 4 }}>
-            <span className="relative" style={{ zIndex: 10 }}>EXPLORE PMB →</span>
-          </Link>
+          {scene === "login" && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setScene("welcome");
+              }}
+              className="font-jetbrains text-[11px] tracking-wider text-gray-400 hover:text-white px-3.5 py-1.5 rounded-full border border-white/15 bg-black/60 backdrop-blur-md transition cursor-pointer"
+            >
+              ✕ CANCEL
+            </button>
+          )}
         </div>
 
-        <div className="absolute flex flex-col items-center animate-bounce" style={{ bottom: 20, zIndex: 10, opacity: 0.4 }}>
-          <span className="font-jetbrains" style={{ fontSize: 9, color: "#c4c7c7", marginBottom: 4 }}>SCROLL</span>
-          <span style={{ color: "#e9c349", fontSize: 14 }}>▼</span>
-        </div>
+        {/* ─── SCENE 1: WELCOME SCREEN (IMAGE 1) ─── */}
+        {scene === "welcome" && (
+          <div className="relative z-20 my-auto flex flex-col items-center justify-center pt-36 sm:pt-48 md:pt-56">
+            {/* Interactive "LOG IN >" Pill Button */}
+            <button
+              type="button"
+              onClick={() => setScene("login")}
+              className="group relative inline-flex items-center justify-center gap-3 px-12 py-3 rounded-full border-2 border-[#e9c349]/90 bg-black/75 hover:bg-black/95 backdrop-blur-md text-[#e9c349] hover:text-white font-montserrat text-sm sm:text-base font-extrabold tracking-[0.25em] uppercase shadow-[0_0_35px_rgba(233,195,73,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_55px_rgba(233,195,73,0.7)] cursor-pointer active:scale-95"
+            >
+              <span>LOG IN</span>
+              <span className="text-xs transition-transform duration-200 group-hover:translate-x-1">›</span>
+            </button>
+          </div>
+        )}
+
+        {/* ─── SCENE 2: LOGIN FORM (IMAGE 2) ─── */}
+        {scene === "login" && (
+          <div
+            className="relative z-30 my-auto flex flex-col items-center justify-center w-full px-4 pt-28 sm:pt-40 md:pt-48"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full max-w-[380px] rounded-3xl border border-white/15 bg-[#0e0e11]/95 p-6 sm:p-7 shadow-[0_25px_70px_rgba(0,0,0,0.95),0_0_30px_rgba(233,195,73,0.15)] backdrop-blur-2xl animate-fadeIn">
+              
+              <form onSubmit={handleLogin} className="space-y-4">
+                {loginError && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-2.5 text-center text-xs font-bold text-red-400">
+                    {loginError}
+                  </div>
+                )}
+
+                {/* USERNAME */}
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 pointer-events-none text-sm">
+                    👤
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="USERNAME"
+                    className="w-full rounded-xl border border-white/10 bg-[#08080a] py-3 pl-10 pr-4 font-montserrat text-xs font-bold tracking-wider text-white placeholder-gray-500 focus:border-[#e9c349] focus:outline-none focus:ring-1 focus:ring-[#e9c349]/50 transition-all uppercase"
+                  />
+                </div>
+
+                {/* PASSWORD */}
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 pointer-events-none text-sm">
+                    🔒
+                  </span>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="PASSWORD"
+                    className="w-full rounded-xl border border-white/10 bg-[#08080a] py-3 pl-10 pr-4 font-montserrat text-xs font-bold tracking-wider text-white placeholder-gray-500 focus:border-[#e9c349] focus:outline-none focus:ring-1 focus:ring-[#e9c349]/50 transition-all uppercase"
+                  />
+                </div>
+
+                {/* GOLD LOG IN BUTTON */}
+                <button
+                  type="submit"
+                  disabled={isLoggingIn}
+                  className="w-full rounded-xl py-3 font-montserrat text-sm font-black uppercase tracking-widest text-[#0a0a0a] transition-all duration-300 shadow-[0_4px_25px_rgba(212,175,55,0.4)] hover:brightness-110 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  style={{
+                    background: "linear-gradient(180deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
+                  }}
+                >
+                  {isLoggingIn ? "LOGGING IN..." : "LOG IN"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ─── SCENE 3: ENTER SCREEN (IMAGE 3) ─── */}
+        {scene === "enter" && (
+          <div className="relative z-20 my-auto flex flex-col items-center justify-center pt-36 sm:pt-48 md:pt-56">
+            {/* Pulsing "CLICK TO ENTER" sentence directly under PMB MANAGER */}
+            <div className="flex flex-col items-center text-center gap-2 select-none animate-pulse">
+              <div className="flex items-center gap-3">
+                <span className="w-6 sm:w-12 h-[1.5px] bg-gradient-to-r from-transparent to-[#e9c349]" />
+                <span className="font-montserrat text-xl sm:text-2xl md:text-3xl font-black uppercase tracking-[0.35em] text-[#e9c349] drop-shadow-[0_0_25px_rgba(233,195,73,0.9)]">
+                  CLICK TO ENTER
+                </span>
+                <span className="w-6 sm:w-12 h-[1.5px] bg-gradient-to-l from-transparent to-[#e9c349]" />
+              </div>
+              <span className="text-[10px] sm:text-xs font-mono tracking-[0.28em] text-gray-300 uppercase drop-shadow">
+                PRESS ANYWHERE ON SCREEN TO ENTER PORTAL
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Left Manager Badge (Scene 3 - Image 3) */}
+        {scene === "enter" && (
+          <div className="absolute bottom-6 left-6 z-30 flex items-center gap-3 rounded-2xl border border-[#e9c349]/50 bg-black/85 px-4 py-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.9)] backdrop-blur-md pointer-events-none animate-fadeIn">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-pmb-gold/50 bg-black p-1 shadow-gold">
+              <img
+                src="/branding/pmb-official-logo.png"
+                alt="Lion"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="leading-tight">
+              <p className="text-xs font-black uppercase tracking-wider text-white">
+                {currentUser?.clubName || "FAR RABAT"}
+              </p>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#e9c349]">
+                {currentUser?.role === "ADMINISTRATOR" ? "ADMINISTRATOR" : "MANAGER"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Center Scroll Hint (When in Welcome mode) */}
+        {scene === "welcome" && (
+          <div className="relative z-20 pb-6 flex flex-col items-center opacity-60 hover:opacity-100 transition animate-bounce">
+            <span className="font-jetbrains text-[9px] tracking-widest text-gray-400 uppercase">
+              SCROLL FOR LEAGUES & INFO
+            </span>
+            <span className="text-[#e9c349] text-xs mt-1">▼</span>
+          </div>
+        )}
       </section>
 
       {/* ═══ ABOUT / ECOSYSTEM ═══ */}
