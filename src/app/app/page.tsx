@@ -8,6 +8,15 @@ export const metadata = {
   description: "Official PMB League Manager Mobile App",
 };
 
+export const viewport = {
+  themeColor: "#070709",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 export default async function AppRootPage() {
   const session = await auth();
 

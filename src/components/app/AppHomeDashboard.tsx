@@ -301,13 +301,13 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
       <div className="absolute -bottom-10 -right-10 w-96 h-[2px] bg-gradient-to-r from-transparent via-[#e9c349]/50 to-transparent rotate-45 pointer-events-none shadow-[0_0_20px_#e9c349]" />
 
       {/* ─── TOP BAR (BUDGET + NAVIGATION TABS) ─── */}
-      <header className="relative z-20 w-full flex flex-wrap items-center justify-between gap-4 px-6 sm:px-10 pt-6 pb-3">
+      <header className="relative z-20 w-full flex flex-wrap items-center justify-between gap-3 sm:gap-4 px-4 sm:px-8 pt-3 sm:pt-5 pb-2">
         
         {/* CLUB BADGE + BUDGET PILL BUTTON (Top Left) */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {club.logo && (
             <div
-              className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-[#e9c349]/80 bg-black/80 p-1 shadow-[0_0_15px_rgba(233,195,73,0.3)] flex items-center justify-center overflow-hidden"
+              className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-[#e9c349]/80 bg-black/80 p-1 shadow-[0_0_15px_rgba(233,195,73,0.3)] flex items-center justify-center overflow-hidden"
               title={club.name}
             >
               <img
@@ -319,25 +319,25 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
           )}
           <div
             onClick={() => setCurrentView("budgetHistory")}
-            className="group flex items-center gap-3 rounded-full border border-[#e9c349]/80 bg-black/80 px-4 py-2 shadow-[0_0_20px_rgba(233,195,73,0.3)] backdrop-blur-md cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] active:scale-95"
+            className="group flex items-center gap-2 sm:gap-3 rounded-full border border-[#e9c349]/80 bg-black/80 px-3 sm:px-4 py-1.5 sm:py-2 shadow-[0_0_20px_rgba(233,195,73,0.3)] backdrop-blur-md cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] active:scale-95"
             title={`${club.name} Available Budget - Click for Budget History`}
           >
-            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-[#e9c349] bg-gradient-to-b from-[#f5d475] to-[#b8860b] text-black font-black text-xs shadow-sm">
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border border-[#e9c349] bg-gradient-to-b from-[#f5d475] to-[#b8860b] text-black font-black text-[10px] sm:text-xs shadow-sm">
               €
             </div>
-            <span className="font-montserrat text-sm sm:text-base font-black tracking-wider text-white">
+            <span className="font-montserrat text-xs sm:text-base font-black tracking-wider text-white">
               {formattedBudget}
             </span>
           </div>
         </div>
 
         {/* TOP SEGMENTED NAVIGATION TABS */}
-        <nav className="flex items-center rounded-full border border-white/15 bg-black/60 p-1 backdrop-blur-md shadow-2xl">
+        <nav className="flex items-center rounded-full border border-white/15 bg-black/60 p-0.5 sm:p-1 backdrop-blur-md shadow-2xl">
           {/* TAB 1: TEAM */}
           <button
             type="button"
             onClick={() => setActiveTab("TEAM")}
-            className={`relative rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+            className={`relative rounded-full px-3.5 sm:px-7 py-1.5 sm:py-2 text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest transition-all ${
               activeTab === "TEAM"
                 ? "text-black shadow-[0_2px_15px_rgba(233,195,73,0.5)]"
                 : "text-gray-400 hover:text-white"
@@ -360,7 +360,7 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
           <button
             type="button"
             onClick={() => setActiveTab("TRANSFERS")}
-            className={`relative rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+            className={`relative rounded-full px-3.5 sm:px-7 py-1.5 sm:py-2 text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest transition-all ${
               activeTab === "TRANSFERS"
                 ? "text-black shadow-[0_2px_15px_rgba(233,195,73,0.5)]"
                 : "text-gray-400 hover:text-white"
@@ -383,7 +383,7 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
           <button
             type="button"
             onClick={() => setActiveTab("DUGOUT")}
-            className={`relative rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+            className={`relative rounded-full px-3.5 sm:px-7 py-1.5 sm:py-2 text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest transition-all ${
               activeTab === "DUGOUT"
                 ? "text-black shadow-[0_2px_15px_rgba(233,195,73,0.5)]"
                 : "text-gray-400 hover:text-white"
@@ -406,7 +406,7 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
           <button
             type="button"
             onClick={() => setActiveTab("EXTRAS")}
-            className={`relative rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+            className={`relative rounded-full px-3.5 sm:px-7 py-1.5 sm:py-2 text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest transition-all ${
               activeTab === "EXTRAS"
                 ? "text-black shadow-[0_2px_15px_rgba(233,195,73,0.5)]"
                 : "text-gray-400 hover:text-white"
