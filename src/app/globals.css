@@ -291,3 +291,73 @@ body {
   transform: scale(1.05);
 }
 
+/* ═══ eFootball Mobile Intro Styles ═══ */
+@keyframes cinematicZoomIn {
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(8px);
+  }
+  20% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.04);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+@keyframes studioFadeIn {
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(8px);
+  }
+  25% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.03);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+@keyframes goldShine {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-cinematic-zoom {
+  animation: cinematicZoomIn 2.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-studio-fade {
+  animation: studioFadeIn 2.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.gold-metallic-text {
+  background: linear-gradient(120deg, #ffffff 0%, #fae082 20%, #d4af37 40%, #ffffff 60%, #e9cf6b 80%, #ffffff 100%);
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: goldShine 3s linear infinite;
+}
+
+.cyan-studio-text {
+  background: linear-gradient(120deg, #ffffff 0%, #a5f3fc 25%, #38bdf8 50%, #ffffff 75%, #7dd3fc 100%);
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: goldShine 3s linear infinite;
+}
+
