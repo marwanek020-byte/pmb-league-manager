@@ -21,7 +21,8 @@ export function AppLandingPage({
   initialUser?: AppUser | null;
 }) {
   const router = useRouter();
-  const [showIntro, setShowIntro] = useState(true);
+  // Never show intro if already seen, if user was already logged in, or on logout
+  const [showIntro, setShowIntro] = useState(false);
 
   // Scene state: "welcome" (Image 1) | "login" (Image 2) | "enter" (Image 3) | "loading" | "dashboard"
   const [scene, setScene] = useState<"welcome" | "login" | "enter" | "loading" | "dashboard">(
@@ -35,6 +36,20 @@ export function AppLandingPage({
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Check whether to show the cinematic intro on first visit only
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const skip =
+      searchParams.get("skipIntro") === "true" ||
+      sessionStorage.getItem("pmb-app-intro-seen") === "true" ||
+      localStorage.getItem("pmb-app-intro-seen") === "true";
+
+    if (!skip && !initialUser) {
+      setShowIntro(true);
+    }
+  }, [initialUser]);
 
   // Check if session already exists
   useEffect(() => {
@@ -111,6 +126,10 @@ export function AppLandingPage({
       <AppHomeDashboard
         initialData={dashboardData}
         onLogout={() => {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("pmb-app-intro-seen", "true");
+            localStorage.setItem("pmb-app-intro-seen", "true");
+          }
           setShowIntro(false);
           setCurrentUser(null);
           setDashboardData(null);
@@ -125,7 +144,17 @@ export function AppLandingPage({
   return (
     <div className="fixed inset-0 w-full h-[100dvh] bg-[#070709] text-white select-none overflow-hidden font-montserrat">
       {/* Cinematic Intro: 5s PMB Logo -> 3s Black Screen -> SAMA Studio */}
-      {showIntro && <CinematicIntro onComplete={() => setShowIntro(false)} />}
+      {showIntro && (
+        <CinematicIntro
+          onComplete={() => {
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("pmb-app-intro-seen", "true");
+              localStorage.setItem("pmb-app-intro-seen", "true");
+            }
+            setShowIntro(false);
+          }}
+        />
+      )}
 
       {/* ═══ LOADING SCENE (EA FC / eFootball Style) ═══ */}
       {scene === "loading" && (

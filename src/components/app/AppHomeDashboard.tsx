@@ -257,6 +257,8 @@ export function AppHomeDashboard({ initialData, onLogout }: AppDashboardProps) {
   const handleConfirmLogout = async () => {
     setIsLoggingOut(true);
     if (typeof window !== "undefined") {
+      sessionStorage.setItem("pmb-app-intro-seen", "true");
+      localStorage.setItem("pmb-app-intro-seen", "true");
       sessionStorage.removeItem("pmb-music-started");
       window.dispatchEvent(new CustomEvent("pmb-stop-music"));
     }
@@ -270,7 +272,7 @@ export function AppHomeDashboard({ initialData, onLogout }: AppDashboardProps) {
     if (onLogout) {
       onLogout();
     } else {
-      window.location.href = "/app";
+      window.location.href = "/app?skipIntro=true";
     }
   };
 
