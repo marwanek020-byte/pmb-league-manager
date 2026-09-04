@@ -79,10 +79,22 @@ export function PMBMusic() {
      * Listen for the login interaction.
      * This allows the browser to accept audio playback.
      */
-    window.addEventListener(
-      "pmb-start-music",
-      startMusicFromLogin,
-    );
+    function stopMusic() {
+      audio.pause();
+    }
+
+    function resumeMusic() {
+      if (sessionStorage.getItem("pmb-music-started") === "true" && audio.paused && audio.src) {
+        audio.play().catch(() => {});
+      }
+    }
+
+    /*
+     * Listen for external pause/stop and resume events (e.g. entering Live Auctions).
+     */
+    window.addEventListener("pmb-pause-music", stopMusic);
+    window.addEventListener("pmb-stop-music", stopMusic);
+    window.addEventListener("pmb-resume-music", resumeMusic);
 
     return () => {
       audio.pause();
@@ -93,6 +105,9 @@ export function PMBMusic() {
         "pmb-start-music",
         startMusicFromLogin,
       );
+      window.removeEventListener("pmb-pause-music", stopMusic);
+      window.removeEventListener("pmb-stop-music", stopMusic);
+      window.removeEventListener("pmb-resume-music", resumeMusic);
 
       audio.src = "";
       audioRef.current = null;

@@ -201,6 +201,19 @@ export function LiveAuctionRoom({
   const [celebratedAuctionId, setCelebratedAuctionId] = useState<string | null>(null);
   const prevBidRef = useRef<number>(0);
 
+  // Stop background music across app/website when entering Live Auctions, resume on exit
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("pmb-pause-music"));
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("pmb-resume-music"));
+      }
+    };
+  }, []);
+
   const fetchAuctions = useCallback(async () => {
     try {
       const res = await fetch("/api/auctions");
