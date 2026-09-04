@@ -74,34 +74,14 @@ export function Navbar({
                   <Link href="/manager/players" className="text-gray-400 hover:text-pmb-gold transition">
                     Players
                   </Link>
-                  <Link href="/manager/contracts" className="flex items-center gap-1 text-pmb-gold hover:text-white transition">
-                    <span>📝</span>
-                    <span>Contracts</span>
+                  <Link href="/manager/contracts" className="text-gray-400 hover:text-pmb-gold transition">
+                    Contracts
                   </Link>
                   <Link href="/manager/transfers" className="text-gray-400 hover:text-pmb-gold transition">
                     Transfers
                   </Link>
                   <Link href="/manager/competition" className="text-gray-400 hover:text-pmb-gold transition">
                     Competition
-                  </Link>
-                  <Link href="/manager/auctions" className="flex items-center gap-1.5 text-pmb-gold hover:text-white transition">
-                    <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                    Live Auctions
-                  </Link>
-                  <Link href="/manager/free-agents" className="flex items-center gap-1 text-emerald-400 hover:text-white transition">
-                    <span>🏪</span>
-                    <span>Free Agent Store</span>
-                  </Link>
-                  <Link href="/manager/social" className="text-gray-400 hover:text-pmb-gold transition">
-                    💬 Dugout
-                  </Link>
-                  <Link href="/manager/ultras" className="flex items-center gap-1 text-pmb-gold hover:text-white transition">
-                    <span>🛡️</span>
-                    <span>Curva Ultras</span>
-                  </Link>
-                  <Link href="/manager/scouting" className="flex items-center gap-1 rounded-full border border-pmb-gold/40 bg-pmb-gold/10 px-2.5 py-0.5 text-pmb-gold hover:bg-pmb-gold hover:text-black transition">
-                    <span>🤖</span>
-                    <span>AI Scout</span>
                   </Link>
                 </>
               )}

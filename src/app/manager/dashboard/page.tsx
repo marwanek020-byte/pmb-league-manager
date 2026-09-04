@@ -140,6 +140,18 @@ export default async function ManagerDashboardPage() {
   // ── Quick Access cards ────────────────────────────────────────────────
   const quickCards = [
     {
+      href: "/manager/free-agents",
+      title: "Free Agent Store",
+      sub: "Sign free players with 0 fee",
+      img: "/dashboard/card-transfers.jpg",
+    },
+    {
+      href: "/manager/ultras",
+      title: "Curva Ultras",
+      sub: "Fan loyalty, chants & morale",
+      img: "/dashboard/login-stadium.jpg",
+    },
+    {
       href: "/manager/social",
       title: "Dugout Social",
       sub: "Manager discussions & chat",
@@ -197,6 +209,34 @@ export default async function ManagerDashboardPage() {
 
       {/* Action Header Pills */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Free Agent Store Quick Button */}
+        <Link
+          href="/manager/free-agents"
+          className="flex items-center gap-2.5 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/40 via-black to-black p-3 transition hover:border-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+        >
+          <span className="text-base">🏪</span>
+          <div className="text-left">
+            <span className="block text-[9px] font-black uppercase tracking-widest text-emerald-400">
+              Free Agent Store
+            </span>
+            <span className="text-xs font-bold text-white">Direct Signings (0 €) →</span>
+          </div>
+        </Link>
+
+        {/* Curva Ultras Quick Button */}
+        <Link
+          href="/manager/ultras"
+          className="flex items-center gap-2.5 rounded-2xl border border-purple-500/40 bg-gradient-to-r from-purple-950/40 via-black to-black p-3 transition hover:border-purple-400 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+        >
+          <span className="text-base">🛡️</span>
+          <div className="text-left">
+            <span className="block text-[9px] font-black uppercase tracking-widest text-purple-400">
+              Curva Ultras
+            </span>
+            <span className="text-xs font-bold text-white">Fan Loyalty & Morale →</span>
+          </div>
+        </Link>
+
         {/* AI Scout Quick Button */}
         <Link
           href="/manager/scouting"
