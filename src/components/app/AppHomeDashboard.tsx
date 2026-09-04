@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppPlayerList } from "./AppPlayerList";
+import { AppCompetitionHub } from "./AppCompetitionHub";
 import { PlayerDTO } from "@/lib/serialize-player";
 
 interface AppDashboardProps {
@@ -48,7 +49,7 @@ interface AppDashboardProps {
 export function AppHomeDashboard({ initialData }: AppDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"TEAM" | "TRANSFERS" | "DUGOUT" | "EXTRAS">("TEAM");
-  const [currentView, setCurrentView] = useState<"dashboard" | "players">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "players" | "competition">("dashboard");
   const [squad, setSquad] = useState<PlayerDTO[]>([]);
   const [isLoadingSquad, setIsLoadingSquad] = useState(false);
 
@@ -156,6 +157,10 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
     );
   }
 
+  if (currentView === "competition") {
+    return <AppCompetitionHub onBack={() => setCurrentView("dashboard")} />;
+  }
+
   return (
     <div
       className="fixed inset-0 w-full h-[100dvh] bg-[#070709] text-white flex flex-col justify-between overflow-y-auto overflow-x-hidden font-montserrat select-none"
@@ -250,7 +255,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
             type="button"
             onClick={() => {
               setActiveTab("DUGOUT");
-              router.push("/manager/fixtures");
+              setCurrentView("competition");
             }}
             className={`rounded-full px-6 sm:px-8 py-2 text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === "DUGOUT"
@@ -380,7 +385,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
             <div className="flex justify-center mt-4">
               <button
                 type="button"
-                onClick={() => router.push("/manager/fixtures")}
+                onClick={() => setCurrentView("competition")}
                 className="group/btn flex items-center justify-center gap-2 rounded-full px-8 py-2.5 text-xs font-black uppercase tracking-widest text-black shadow-[0_4px_20px_rgba(233,195,73,0.4)] transition-all hover:scale-105 hover:brightness-110 active:scale-95 cursor-pointer"
                 style={{
                   background: "linear-gradient(135deg, #f5d475 0%, #d4af37 50%, #b8860b 100%)",
@@ -607,7 +612,7 @@ export function AppHomeDashboard({ initialData }: AppDashboardProps) {
 
           {/* ACTION 2: COMPETITION */}
           <div
-            onClick={() => router.push("/manager/fixtures")}
+            onClick={() => setCurrentView("competition")}
             className="group flex items-center justify-between rounded-2xl border border-white/15 bg-black/75 p-4 shadow-xl backdrop-blur-md cursor-pointer transition-all hover:scale-[1.02] hover:border-[#e9c349]/70 hover:shadow-[0_0_25px_rgba(233,195,73,0.2)] active:scale-98"
           >
             <div className="flex items-center gap-3.5">
