@@ -193,11 +193,21 @@ export default async function ContractsPage() {
   }
 
   let club = null;
+  let isBotola = false;
   try {
     club = await prisma.club.findUnique({
       where: { id: clubId },
-      select: { name: true, budget: true },
+      select: {
+        name: true,
+        budget: true,
+        league: { select: { name: true, country: true } },
+      },
     });
+
+    isBotola =
+      club?.league?.name?.toUpperCase().includes("BOTOLA") ||
+      club?.league?.country?.toLowerCase() === "morocco" ||
+      false;
   } catch (err) {
     console.warn("ContractsPage: club fetch failed:", err);
   }
@@ -214,6 +224,7 @@ export default async function ContractsPage() {
       clubId={clubId}
       clubName={club?.name ?? ""}
       clubBudget={Number(club?.budget ?? 0)}
+      isBotola={isBotola}
     />
   );
 }

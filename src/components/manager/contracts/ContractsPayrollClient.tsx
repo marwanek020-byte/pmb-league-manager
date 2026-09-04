@@ -35,6 +35,7 @@ interface Props {
   clubId: string;
   clubName: string;
   clubBudget: number;
+  isBotola?: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -54,6 +55,7 @@ export function ContractsPayrollClient({
   clubId,
   clubName,
   clubBudget,
+  isBotola = false,
 }: Props) {
   const [players, setPlayers] = useState(squad);
   const [pendingList, setPendingList] = useState(pendingSignings);
@@ -341,46 +343,48 @@ export function ContractsPayrollClient({
             </div>
           )}
 
-          {/* Botola Pro FRMF Foreign Player Quota Bar */}
-          <div
-            className="mt-4 p-4 rounded-xl border bg-black/40 backdrop-blur flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-            style={{ borderColor: foreignPlayersCount >= 5 ? "rgba(239, 68, 68, 0.4)" : "rgba(212, 175, 55, 0.3)" }}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🌍</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-black text-white">كوتة اللاعبين الأجانب في البطولة (FRMF Quota)</h4>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                    foreignPlayersCount >= 5 ? "bg-red-600 text-white" : "bg-emerald-600/30 text-emerald-300 border border-emerald-500/30"
-                  }`}>
-                    {foreignPlayersCount >= 5 ? "⚠️ الحد الأقصى (مكتمل)" : "✅ قانوني"}
-                  </span>
+          {/* Botola Pro FRMF Foreign Player Quota Bar (Only shown for Botola Pro clubs) */}
+          {isBotola && (
+            <div
+              className="mt-4 p-4 rounded-xl border bg-black/40 backdrop-blur flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              style={{ borderColor: foreignPlayersCount >= 5 ? "rgba(239, 68, 68, 0.4)" : "rgba(212, 175, 55, 0.3)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🌍</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-black text-white">كوتة اللاعبين الأجانب في البطولة (FRMF Quota)</h4>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                      foreignPlayersCount >= 5 ? "bg-red-600 text-white" : "bg-emerald-600/30 text-emerald-300 border border-emerald-500/30"
+                    }`}>
+                      {foreignPlayersCount >= 5 ? "⚠️ الحد الأقصى (مكتمل)" : "✅ قانوني"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    تسمح لوائح الجامعة بـ 5 لاعبين أجانب (غير مغاربة) كحد أقصى لكل فريق.
+                    {foreignPlayersCount >= 5
+                      ? " تم استيفاء الكوتة بالكامل (5/5). لا يمكن تسجيل أي أجنبي جديد إلا بعد فسخ عقد أو بيع لاعب أجنبي."
+                      : ` متاح لك تسجيل ${5 - foreignPlayersCount} لاعبين أجانب إضافيين في التشكيلة.`}
+                  </p>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  تسمح لوائح الجامعة بـ 5 لاعبين أجانب (غير مغاربة) كحد أقصى لكل فريق.
-                  {foreignPlayersCount >= 5
-                    ? " تم استيفاء الكوتة بالكامل (5/5). لا يمكن تسجيل أي أجنبي جديد إلا بعد فسخ عقد أو بيع لاعب أجنبي."
-                    : ` متاح لك تسجيل ${5 - foreignPlayersCount} لاعبين أجانب إضافيين في التشكيلة.`}
-                </p>
+              </div>
+              <div className="flex items-center gap-3 self-end sm:self-center">
+                <div className="w-28 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${(foreignPlayersCount / 5) * 100}%`,
+                      background: foreignPlayersCount >= 5 ? "#ef4444" : "#10b981",
+                    }}
+                  />
+                </div>
+                <span className="text-sm font-black">
+                  <span className={foreignPlayersCount >= 5 ? "text-red-400" : "text-emerald-400"}>{foreignPlayersCount}</span>
+                  <span className="text-gray-500"> / 5</span>
+                </span>
               </div>
             </div>
-            <div className="flex items-center gap-3 self-end sm:self-center">
-              <div className="w-28 h-2 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${(foreignPlayersCount / 5) * 100}%`,
-                    background: foreignPlayersCount >= 5 ? "#ef4444" : "#10b981",
-                  }}
-                />
-              </div>
-              <span className="text-sm font-black">
-                <span className={foreignPlayersCount >= 5 ? "text-red-400" : "text-emerald-400"}>{foreignPlayersCount}</span>
-                <span className="text-gray-500"> / 5</span>
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
