@@ -7,7 +7,6 @@ import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-// Infer the exact type that Prisma returns with the pmbClub include
 type PlayerWithClub = Prisma.PlayerGetPayload<{
   include: { pmbClub: { select: { name: true } } };
 }>;
@@ -19,6 +18,7 @@ export default async function PlayerListPage() {
   }
 
   let rawSquad: PlayerWithClub[] = [];
+  let dbError: string | null = null;
 
   try {
     rawSquad = await prisma.player.findMany({
@@ -26,8 +26,9 @@ export default async function PlayerListPage() {
       include: { pmbClub: { select: { name: true } } },
       orderBy: { fullName: "asc" },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("PlayerListPage DB error:", err);
+    dbError = err?.message ?? "DB error";
   }
 
   const initialSquad: PlayerDTO[] = rawSquad.map(serializePlayer);
@@ -41,6 +42,16 @@ export default async function PlayerListPage() {
             Players currently registered to {session.user.clubName ?? "your club"}.
           </p>
         </div>
+      </div>
+
+      {/* Server-side debug — remove after fix confirmed */}
+      <div className="rounded-xl border border-yellow-500/40 bg-yellow-950/20 p-4 text-xs font-mono text-yellow-300 space-y-1">
+        <p>📦 Server clubId: <strong>{session.user.clubId}</strong></p>
+        <p>📊 Server found: <strong>{rawSquad.length}</strong> raw rows, serialized to <strong>{initialSquad.length}</strong> players</p>
+        {dbError && <p className="text-red-400">❌ DB Error: {dbError}</p>}
+        {initialSquad.slice(0, 3).map((p) => (
+          <p key={p.id} className="text-green-400">✓ {p.fullName} ({p.status})</p>
+        ))}
       </div>
 
       <PlayerListClient
