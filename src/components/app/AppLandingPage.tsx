@@ -209,16 +209,14 @@ export function AppLandingPage({
             backgroundImage:
               scene === "welcome"
                 ? "url('/landing/pmb-welcome-bg.jpg')"
-                : scene === "login"
-                ? "url('/landing/pmb-login-bg.jpg')"
-                : "url('/landing/pmb-enter-bg.png')",
+                : "url('/landing/pmb-master-clean-bg.png')",
             backgroundColor: "#070709",
           }}
         />
 
         {/* Subtle Dark Backdrop for Form in Login Mode */}
         {scene === "login" && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] pointer-events-none" />
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-md pointer-events-none" />
         )}
 
         {/* Top Header Bar */}
