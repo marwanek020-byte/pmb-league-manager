@@ -7,10 +7,10 @@
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#d4af37",
-  "orientation": "portrait",
+  "orientation": "landscape",
   "icons": [
     {
-      "src": "/branding/pmb-lion.jpg",
+      "src": "/branding/pmb-app-logo.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any maskable"

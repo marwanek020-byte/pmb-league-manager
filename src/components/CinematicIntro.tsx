@@ -85,16 +85,16 @@ export function CinematicIntro({ onComplete }: CinematicIntroProps) {
         </button>
       )}
 
-      {/* ─── VERTICAL SCREEN FRAME (eFootball Mobile Portrait Layout) ─── */}
-      <div className="relative w-full max-w-md h-[100dvh] flex flex-col justify-between items-center px-6 py-10 z-10">
+      {/* ─── CINEMATIC WIDESCREEN HORIZONTAL FRAME (Landscape Layout) ─── */}
+      <div className="relative w-full max-w-4xl h-[100dvh] flex flex-col justify-between items-center px-6 py-5 sm:px-12 sm:py-7 z-10">
         
-        {/* Top Branding (eFootball Mobile Style) */}
-        <div className="w-full flex justify-between items-center text-[10px] font-mono tracking-[0.25em] text-zinc-500 uppercase">
-          <span className="flex items-center gap-1.5">
+        {/* Top Branding */}
+        <div className="w-full flex justify-between items-center text-[10px] sm:text-xs font-mono tracking-[0.25em] text-zinc-500 uppercase">
+          <span className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#e9c349] animate-ping" />
-            PMB MOBILE
+            PMB LEAGUE MANAGER
           </span>
-          <span className="text-zinc-600">2026/27</span>
+          <span className="text-zinc-500 font-bold">2026/27</span>
         </div>
 
         {/* ─── CENTER ANIMATION CONTAINER ─── */}
@@ -102,7 +102,7 @@ export function CinematicIntro({ onComplete }: CinematicIntroProps) {
           
           {/* Ambient Stadium Glow Rays */}
           <div className="absolute -inset-20 bg-radial-gradient pointer-events-none opacity-40 flex items-center justify-center">
-            <div className="w-72 h-72 rounded-full bg-gradient-to-tr from-[#e9c349]/20 to-[#38bdf8]/10 blur-3xl animate-pulse" />
+            <div className="w-80 h-80 rounded-full bg-gradient-to-tr from-[#e9c349]/20 to-[#38bdf8]/10 blur-3xl animate-pulse" />
           </div>
 
           {/* ════ PHASE 1: PES MOROCCAN BOURGEOIS ════ */}
@@ -110,35 +110,34 @@ export function CinematicIntro({ onComplete }: CinematicIntroProps) {
             <div className="flex flex-col items-center text-center animate-cinematic-zoom px-4">
               
               {/* PMB Emblem Shield */}
-              <div className="relative mb-6">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-2 border-[#e9c349]/70 bg-black p-1.5 shadow-[0_0_50px_rgba(233,195,73,0.45)] relative overflow-hidden">
+              <div className="relative mb-3 sm:mb-4">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl sm:rounded-3xl border-2 border-[#e9c349]/70 bg-black p-1 shadow-[0_0_50px_rgba(233,195,73,0.45)] relative overflow-hidden">
                   <img
                     src="/branding/pmb-app-logo.jpg"
                     alt="PES Moroccan Bourgeois"
-                    className="w-full h-full object-cover rounded-2xl"
+                    className="w-full h-full object-cover rounded-xl sm:rounded-2xl"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/10 pointer-events-none rounded-2xl" />
                 </div>
                 {/* Ambient Golden Halo Pulse */}
-                <div className="absolute -inset-3 rounded-3xl border border-[#e9c349]/30 animate-ping pointer-events-none" style={{ animationDuration: "3s" }} />
+                <div className="absolute -inset-2 sm:-inset-3 rounded-2xl sm:rounded-3xl border border-[#e9c349]/30 animate-ping pointer-events-none" style={{ animationDuration: "3s" }} />
               </div>
 
               {/* Tag */}
-              <span className="font-jetbrains text-[10px] uppercase tracking-[0.3em] text-[#e9c349] mb-2 font-bold drop-shadow-[0_0_8px_rgba(233,195,73,0.6)]">
+              <span className="font-jetbrains text-[9px] sm:text-[11px] uppercase tracking-[0.35em] text-[#e9c349] mb-1 font-bold drop-shadow-[0_0_8px_rgba(233,195,73,0.6)]">
                 THE HOME OF MOROCCAN eFOOTBALL
               </span>
 
-              {/* Main Title: PES MOROCCAN BOURGEOIS */}
-              <h1 className="font-montserrat text-2xl sm:text-3xl font-extrabold uppercase tracking-[0.18em] leading-tight gold-metallic-text">
-                PES MOROCCAN
-                <br />
+              {/* Main Title: PES MOROCCAN BOURGEOIS (Landscape Wide Heading) */}
+              <h1 className="font-montserrat text-2xl sm:text-4xl md:text-5xl font-extrabold uppercase tracking-[0.16em] leading-tight gold-metallic-text">
+                PES MOROCCAN{" "}
                 <span className="text-white drop-shadow-[0_0_25px_rgba(255,255,255,0.5)]">
                   BOURGEOIS
                 </span>
               </h1>
 
               {/* Glowing Accent Line */}
-              <div className="mt-5 w-28 h-[2px] bg-gradient-to-r from-transparent via-[#e9c349] to-transparent shadow-[0_0_15px_#e9c349]" />
+              <div className="mt-3 sm:mt-4 w-32 sm:w-44 h-[2px] bg-gradient-to-r from-transparent via-[#e9c349] to-transparent shadow-[0_0_15px_#e9c349]" />
             </div>
           )}
 
@@ -147,8 +146,8 @@ export function CinematicIntro({ onComplete }: CinematicIntroProps) {
             <div className="flex flex-col items-center text-center animate-studio-fade px-4">
               
               {/* Official SAMA Studio Logo */}
-              <div className="relative mb-5 max-w-[240px] sm:max-w-[280px]">
-                <div className="relative rounded-2xl overflow-hidden p-2 shadow-[0_0_60px_rgba(233,195,73,0.3)]">
+              <div className="relative mb-2 sm:mb-3 max-w-[160px] sm:max-w-[220px] md:max-w-[260px]">
+                <div className="relative rounded-2xl overflow-hidden p-1 sm:p-2 shadow-[0_0_60px_rgba(233,195,73,0.3)]">
                   <img
                     src="/branding/sama-studio-logo.png"
                     alt="SAMA App Development & Game Studio"
@@ -160,12 +159,12 @@ export function CinematicIntro({ onComplete }: CinematicIntroProps) {
               </div>
 
               {/* PRESENTS */}
-              <div className="inline-flex items-center gap-4 mt-2">
-                <span className="w-8 h-[1px] bg-gradient-to-r from-transparent to-[#e9c349]/70" />
-                <span className="font-jetbrains text-xs uppercase tracking-[0.5em] text-[#e9c349] font-black drop-shadow-[0_0_10px_rgba(233,195,73,0.5)]">
+              <div className="inline-flex items-center gap-4 mt-1 sm:mt-2">
+                <span className="w-8 sm:w-12 h-[1px] bg-gradient-to-r from-transparent to-[#e9c349]/70" />
+                <span className="font-jetbrains text-xs sm:text-sm uppercase tracking-[0.5em] text-[#e9c349] font-black drop-shadow-[0_0_10px_rgba(233,195,73,0.5)]">
                   PRESENTS
                 </span>
-                <span className="w-8 h-[1px] bg-gradient-to-l from-transparent to-[#e9c349]/70" />
+                <span className="w-8 sm:w-12 h-[1px] bg-gradient-to-l from-transparent to-[#e9c349]/70" />
               </div>
             </div>
           )}
