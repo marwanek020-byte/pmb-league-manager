@@ -1,10 +1,16 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { serializePlayer } from "@/lib/serialize-player";
+import { serializePlayer, PlayerDTO } from "@/lib/serialize-player";
 import { PlayerListClient } from "@/components/manager/PlayerListClient";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+// Infer the exact type that Prisma returns with the pmbClub include
+type PlayerWithClub = Prisma.PlayerGetPayload<{
+  include: { pmbClub: { select: { name: true } } };
+}>;
 
 export default async function PlayerListPage() {
   const session = await auth();
@@ -12,19 +18,19 @@ export default async function PlayerListPage() {
     redirect("/unauthorized");
   }
 
-  let squad: Awaited<ReturnType<typeof prisma.player.findMany>> = [];
-  let queryError: string | null = null;
+  let rawSquad: PlayerWithClub[] = [];
 
   try {
-    squad = await prisma.player.findMany({
+    rawSquad = await prisma.player.findMany({
       where: { pmbClubId: session.user.clubId, status: "REGISTERED" },
       include: { pmbClub: { select: { name: true } } },
       orderBy: { fullName: "asc" },
     });
-  } catch (err: any) {
-    console.error("PlayerListPage: failed to load squad:", err);
-    queryError = err?.message ?? "Unknown DB error";
+  } catch (err) {
+    console.error("PlayerListPage DB error:", err);
   }
+
+  const initialSquad: PlayerDTO[] = rawSquad.map(serializePlayer);
 
   return (
     <div className="space-y-6">
@@ -37,15 +43,8 @@ export default async function PlayerListPage() {
         </div>
       </div>
 
-      {/* Temporary debug info - remove after fixing */}
-      <div className="rounded-xl border border-yellow-500/30 bg-yellow-950/20 p-4 font-mono text-xs text-yellow-300">
-        <p>🔍 Debug: clubId in session = <strong>{session.user.clubId}</strong></p>
-        <p>Players found by query: <strong>{squad.length}</strong></p>
-        {queryError && <p className="text-red-400">❌ Query error: {queryError}</p>}
-      </div>
-
       <PlayerListClient
-        initialSquad={squad.map(serializePlayer)}
+        initialSquad={initialSquad}
         clubName={session.user.clubName ?? ""}
         clubId={session.user.clubId}
       />
