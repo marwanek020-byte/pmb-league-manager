@@ -7,7 +7,11 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
 
   return (
     <div className="flex items-center gap-3">
-      <img src="/branding/pmb-lion.jpg" alt="PMB lion" className={`${dims.box} rounded-full object-cover shadow-gold`} />
+      <img
+        src="/branding/pmb-lion.jpg"
+        alt="PMB Logo"
+        className={`${dims.box} rounded-xl object-contain shadow-gold border border-pmb-gold/30 bg-black`}
+      />
       <div className="leading-tight">
         <p className="text-base font-bold tracking-wide text-white">
           PMB <span className="text-pmb-gold">League Manager</span>

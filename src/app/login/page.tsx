@@ -34,7 +34,7 @@ export default async function LoginPage() {
             <img
               src="/branding/pmb-lion.jpg"
               alt="PMB Lion Emblem"
-              className="h-full w-full rounded-xl object-cover"
+              className="h-full w-full rounded-xl object-contain"
             />
           </div>
           <div>
@@ -83,8 +83,8 @@ export default async function LoginPage() {
           <div className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 backdrop-blur-md">
             <img
               src="/branding/pmb-lion.jpg"
-              alt="PMB"
-              className="h-5 w-5 rounded-full object-cover shadow-sm"
+              alt="PMB Logo"
+              className="h-5 w-5 rounded-lg object-contain shadow-sm"
             />
             <span className="text-[10px] font-black uppercase tracking-[.25em] text-pmb-gold">
               PMB LEAGUE MANAGER
