@@ -25,14 +25,68 @@ export function MixamoAgent({
 }: Props) {
   const group = useRef<THREE.Group>(null);
 
-  // Switch to Handshake / Agreement on contract finalized
   const isAccepted = phase === "ACCEPTED";
   const modelUrl = isAccepted
     ? "/models/agent_handshake.glb"
     : "/models/agent_sitting_talking.glb";
 
   const { scene, animations } = useGLTF(modelUrl);
-  const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
+
+  const clone = useMemo(() => {
+    const c = SkeletonUtils.clone(scene);
+    c.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        if (mesh.material) {
+          const mat = (mesh.material as THREE.Material).clone() as THREE.MeshStandardMaterial;
+          const name = (mesh.name || "").toLowerCase();
+
+          if (name.includes("body")) {
+            // Warm Mediterranean / Moroccan natural skin tone
+            mat.color.set("#c88f6b");
+            mat.roughness = 0.52;
+            mat.metalness = 0.02;
+          } else if (name.includes("hair")) {
+            // Dark groomed executive hair
+            mat.color.set("#1a1512");
+            mat.roughness = 0.82;
+            mat.metalness = 0.05;
+          } else if (name.includes("suit") || name.includes("pants")) {
+            // Elegant Midnight Navy wool suit & trousers
+            mat.color.set("#151f33");
+            mat.roughness = 0.65;
+            mat.metalness = 0.1;
+          } else if (name.includes("shirt")) {
+            // Crisp clean dress shirt
+            mat.color.set("#f4f5f8");
+            mat.roughness = 0.5;
+            mat.metalness = 0.0;
+          } else if (name.includes("tie")) {
+            // Regal burgundy silk tie
+            mat.color.set("#82182b");
+            mat.roughness = 0.35;
+            mat.metalness = 0.22;
+          } else if (name.includes("shoes") || name.includes("belt")) {
+            // Polished leather
+            mat.color.set("#111111");
+            mat.roughness = 0.28;
+            mat.metalness = 0.3;
+          } else if (name.includes("eyelashes")) {
+            mat.color.set("#111111");
+            mat.roughness = 0.9;
+          }
+
+          mat.needsUpdate = true;
+          mesh.material = mat;
+        }
+      }
+    });
+    return c;
+  }, [scene]);
+
   const mixer = useMemo(() => new THREE.AnimationMixer(clone), [clone]);
 
   useEffect(() => {
@@ -43,17 +97,16 @@ export function MixamoAgent({
     action.setLoop(THREE.LoopRepeat, Infinity);
     action.play();
 
-    // Adjust playback speed based on mood
     if (isAccepted) {
-      action.timeScale = 1.1; // Deal finalized
+      action.timeScale = 1.1;
     } else if (phase === "BREAKDOWN" || mood === "ANGRY") {
-      action.timeScale = 1.4; // Tense and irritated
+      action.timeScale = 1.4;
     } else if (mood === "FRUSTRATED") {
       action.timeScale = 0.8;
     } else if (talking) {
       action.timeScale = 1.05;
     } else {
-      action.timeScale = 0.7; // Calm listening
+      action.timeScale = 0.7;
     }
 
     return () => {
@@ -61,83 +114,6 @@ export function MixamoAgent({
     };
   }, [animations, mixer, mood, phase, talking, isAccepted]);
 
-  // Apply rich PBR materials, skin tones, hair & suit colors
-  useEffect(() => {
-    clone.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-
-        const name = (mesh.name || "").toLowerCase();
-
-        if (name.includes("body")) {
-          // Warm Mediterranean / Moroccan natural skin tone
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#c88f6b"),
-            roughness: 0.52,
-            metalness: 0.02,
-          });
-        } else if (name.includes("hair")) {
-          // Dark groomed executive hair
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#1a1512"),
-            roughness: 0.82,
-            metalness: 0.05,
-          });
-        } else if (name.includes("suit")) {
-          // Elegant Midnight Navy executive wool suit
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#151f33"),
-            roughness: 0.65,
-            metalness: 0.1,
-          });
-        } else if (name.includes("shirt")) {
-          // Crisp clean dress shirt
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#f4f5f8"),
-            roughness: 0.5,
-            metalness: 0.0,
-          });
-        } else if (name.includes("tie")) {
-          // Regal burgundy silk tie
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#82182b"),
-            roughness: 0.35,
-            metalness: 0.22,
-          });
-        } else if (name.includes("pants")) {
-          // Matching tailored navy trousers
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#151f33"),
-            roughness: 0.65,
-            metalness: 0.1,
-          });
-        } else if (name.includes("shoes")) {
-          // Polished Italian dress shoes
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#111111"),
-            roughness: 0.28,
-            metalness: 0.3,
-          });
-        } else if (name.includes("belt")) {
-          // Dark leather belt with buckle
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#161616"),
-            roughness: 0.35,
-            metalness: 0.25,
-          });
-        } else if (name.includes("eyelashes")) {
-          mesh.material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color("#111111"),
-            roughness: 0.9,
-          });
-        }
-      }
-    });
-  }, [clone]);
-
-  // Frame update
   useFrame((state, delta) => {
     mixer.update(delta);
 
@@ -145,7 +121,6 @@ export function MixamoAgent({
       const t = state.clock.getElapsedTime();
       group.current.position.y = position[1] + Math.sin(t * 1.3) * 0.004;
 
-      // Micro head nods or shakes
       if (mood === "ANGRY" || phase === "BREAKDOWN") {
         group.current.rotation.z = rotation[2] + Math.sin(t * 6) * 0.02;
       } else if (mood === "HAPPY" || isAccepted) {
