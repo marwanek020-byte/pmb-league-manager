@@ -192,9 +192,15 @@ export function AppLandingPage({
       {/* ═══ PMB LUXURY 3D APP PORTAL (Scenes 1, 2, 3) ═══ */}
       <section
         className={`relative w-full h-full flex flex-col justify-between items-center overflow-hidden transition-all duration-700 ${
-          scene === "enter" ? "cursor-pointer" : ""
+          scene === "enter" || scene === "welcome" ? "cursor-pointer" : ""
         }`}
-        onClick={scene === "enter" ? handleEnterApp : undefined}
+        onClick={
+          scene === "enter"
+            ? handleEnterApp
+            : scene === "welcome"
+            ? () => setScene("login")
+            : undefined
+        }
       >
         {/* Background Artwork Layer */}
         <div
@@ -240,16 +246,11 @@ export function AppLandingPage({
 
         {/* ─── SCENE 1: WELCOME SCREEN (IMAGE 1) ─── */}
         {scene === "welcome" && (
-          <div className="relative z-20 my-auto flex flex-col items-center justify-center pt-36 sm:pt-48 md:pt-56">
-            {/* Interactive "LOG IN >" Pill Button */}
-            <button
-              type="button"
-              onClick={() => setScene("login")}
-              className="group relative inline-flex items-center justify-center gap-3 px-12 py-3 rounded-full border-2 border-[#e9c349]/90 bg-black/75 hover:bg-black/95 backdrop-blur-md text-[#e9c349] hover:text-white font-montserrat text-sm sm:text-base font-extrabold tracking-[0.25em] uppercase shadow-[0_0_35px_rgba(233,195,73,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_55px_rgba(233,195,73,0.7)] cursor-pointer active:scale-95"
-            >
-              <span>LOG IN</span>
-              <span className="text-xs transition-transform duration-200 group-hover:translate-x-1">›</span>
-            </button>
+          <div className="relative z-20 my-auto flex flex-col items-center justify-center select-none pointer-events-none">
+            {/* The single luxury 3D 'LOG IN >' button is built directly into the background art with full visibility of '— MANAGER —' */}
+            <div className="sr-only">
+              PMB MANAGER — TAP TO LOG IN
+            </div>
           </div>
         )}
 
