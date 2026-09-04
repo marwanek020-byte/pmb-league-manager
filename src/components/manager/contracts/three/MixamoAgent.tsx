@@ -61,13 +61,78 @@ export function MixamoAgent({
     };
   }, [animations, mixer, mood, phase, talking, isAccepted]);
 
-  // Shadows
+  // Apply rich PBR materials, skin tones, hair & suit colors
   useEffect(() => {
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+
+        const name = (mesh.name || "").toLowerCase();
+
+        if (name.includes("body")) {
+          // Warm Mediterranean / Moroccan natural skin tone
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#c88f6b"),
+            roughness: 0.52,
+            metalness: 0.02,
+          });
+        } else if (name.includes("hair")) {
+          // Dark groomed executive hair
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#1a1512"),
+            roughness: 0.82,
+            metalness: 0.05,
+          });
+        } else if (name.includes("suit")) {
+          // Elegant Midnight Navy executive wool suit
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#151f33"),
+            roughness: 0.65,
+            metalness: 0.1,
+          });
+        } else if (name.includes("shirt")) {
+          // Crisp clean dress shirt
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#f4f5f8"),
+            roughness: 0.5,
+            metalness: 0.0,
+          });
+        } else if (name.includes("tie")) {
+          // Regal burgundy silk tie
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#82182b"),
+            roughness: 0.35,
+            metalness: 0.22,
+          });
+        } else if (name.includes("pants")) {
+          // Matching tailored navy trousers
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#151f33"),
+            roughness: 0.65,
+            metalness: 0.1,
+          });
+        } else if (name.includes("shoes")) {
+          // Polished Italian dress shoes
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#111111"),
+            roughness: 0.28,
+            metalness: 0.3,
+          });
+        } else if (name.includes("belt")) {
+          // Dark leather belt with buckle
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#161616"),
+            roughness: 0.35,
+            metalness: 0.25,
+          });
+        } else if (name.includes("eyelashes")) {
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color("#111111"),
+            roughness: 0.9,
+          });
+        }
       }
     });
   }, [clone]);
