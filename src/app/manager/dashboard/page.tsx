@@ -146,6 +146,12 @@ export default async function ManagerDashboardPage() {
       img: "/dashboard/card-transfers.jpg",
     },
     {
+      href: "/manager/stadium",
+      title: "Stadium & Finance",
+      sub: "Tickets, arena & matchday finances",
+      img: "/dashboard/login-stadium.jpg",
+    },
+    {
       href: "/manager/ultras",
       title: "Curva Ultras",
       sub: "Fan loyalty, chants & morale",
@@ -290,6 +296,20 @@ export default async function ManagerDashboardPage() {
             <span className="text-xs font-bold text-white">
               {liveAuction ? "Active Bidding War →" : "Auction Arena →"}
             </span>
+          </div>
+        </Link>
+
+        {/* Stadium & Finance Quick Button */}
+        <Link
+          href="/manager/stadium"
+          className="flex items-center gap-2.5 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-black to-black p-3 transition hover:border-amber-400 hover:shadow-[0_0_25px_rgba(245,158,11,0.3)]"
+        >
+          <span className="text-base">🏟️</span>
+          <div className="text-left">
+            <span className="block text-[9px] font-black uppercase tracking-widest text-amber-400">
+              Stadium &amp; Finance
+            </span>
+            <span className="text-xs font-bold text-white">Tickets &amp; Arena →</span>
           </div>
         </Link>
       </div>

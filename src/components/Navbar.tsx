@@ -133,6 +133,12 @@ export function Navbar({
                     Competition
                   </Link>
                   <Link
+                    href="/manager/stadium"
+                    className={`transition ${pathname.startsWith("/manager/stadium") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
+                  >
+                    Stadium
+                  </Link>
+                  <Link
                     href="/manager/social"
                     className={`transition ${pathname.startsWith("/manager/social") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
                   >
