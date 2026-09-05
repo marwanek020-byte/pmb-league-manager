@@ -191,6 +191,91 @@ function runVerificationSuite() {
   const fuzzyCallResult = StadiumEconomyEngine.calculateMatchday("raja", 12, 80, 7, "regular", 85);
   assert("Test 7.2: Fuzzy & case-insensitive club lookup ('raja' resolves to Raja Casablanca)", fuzzyCallResult.club === "Raja Casablanca");
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TEST 8: THE THRONE CUP JACKPOT (calculateCupBonus)
+  // ─────────────────────────────────────────────────────────────────────────────
+  const cupBonusTrue = StadiumEconomyEngine.calculateCupBonus(true);
+  const cupBonusFalse = StadiumEconomyEngine.calculateCupBonus(false);
+
+  assert("Test 8.1: Throne Cup match awards fixed 4,000,000 € bonus", cupBonusTrue === 4000000, { cupBonusTrue });
+  assert("Test 8.2: Non-cup match returns 0 € bonus", cupBonusFalse === 0, { cupBonusFalse });
+
+  const cupMatchResult = StadiumEconomyEngine.calculateMatchday({
+    clubIdentifier: "Berkane",
+    standardPrice: 12,
+    vipPrice: 80,
+    teamForm: 7,
+    matchImportance: "decider",
+    clubPrestige: 75,
+    isThroneCupMatch: true,
+  });
+  assert(
+    "Test 8.3: calculateMatchday includes 4,000,000 € Throne Cup bonus in financial ledger",
+    cupMatchResult.finances.revenue.cupBonus === 4000000 && cupMatchResult.finances.netProfit > 4000000,
+    cupMatchResult.finances
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TEST 9: ULTRAS BOYCOTT & THE DUGOUT SOCIAL FEED (evaluateUltrasReaction)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Trigger condition: teamForm < 4 AND standardPrice >= basePrice * 2.5 (e.g. form 2, price 30 >= 12 * 2.5)
+  const boycottReaction = StadiumEconomyEngine.evaluateUltrasReaction(2, 30, 12);
+  const expectedCommunique = "بيان الكورفا: نتائج كارثية، هزائم متتالية، وإدارة جشعة ترفع أثمنة التذاكر! نعلن مقاطعة المباراة القادمة، التيرّان غيبقى خاوي.";
+
+  assert(
+    "Test 9.1: Ultras Boycott triggers on terrible form (< 4) and aggressive pricing (>= 2.5x base)",
+    boycottReaction.isBoycotting === true && boycottReaction.communiqueString === expectedCommunique,
+    boycottReaction
+  );
+
+  // Non-trigger 1: High price but great team form (fans tolerate price hike when winning)
+  const winningReaction = StadiumEconomyEngine.evaluateUltrasReaction(8, 30, 12);
+  assert(
+    "Test 9.2: Ultras do NOT boycott if team form is good (form 8 >= 4)",
+    winningReaction.isBoycotting === false && winningReaction.communiqueString === null,
+    winningReaction
+  );
+
+  // Non-trigger 2: Terrible form but loyal fan-friendly ticket price (e.g. 10 €)
+  const cheapReaction = StadiumEconomyEngine.evaluateUltrasReaction(2, 10, 12);
+  assert(
+    "Test 9.3: Ultras do NOT boycott if manager keeps prices affordable (< 2.5x base)",
+    cheapReaction.isBoycotting === false && cheapReaction.communiqueString === null,
+    cheapReaction
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TEST 10: INTEGRATION OF ULTRAS BOYCOTT INTO calculateMatchday
+  // ─────────────────────────────────────────────────────────────────────────────
+  // When isBoycotting === true, standard attendance must drop to 0, VIP unaffected
+  const normalWydad = StadiumEconomyEngine.calculateMatchday("Wydad AC", 15, 90, 7, "regular", 88, false);
+  const boycottedWydad = StadiumEconomyEngine.calculateMatchday("Wydad AC", 15, 90, 7, "regular", 88, true);
+
+  assert(
+    "Test 10.1: isBoycotting forces standard attendance to exactly 0",
+    boycottedWydad.attendance.standard === 0 && normalWydad.attendance.standard > 20000,
+    { boycottedStandard: boycottedWydad.attendance.standard, normalStandard: normalWydad.attendance.standard }
+  );
+
+  assert(
+    "Test 10.2: VIP attendance remains unaffected during Ultras boycott",
+    boycottedWydad.attendance.vip === normalWydad.attendance.vip && boycottedWydad.attendance.vip > 0,
+    { boycottedVip: boycottedWydad.attendance.vip, normalVip: normalWydad.attendance.vip }
+  );
+
+  // Ultras boycott triggered during slump (form 2, price 30, prestige 60)
+  const boycottedSlump = StadiumEconomyEngine.calculateMatchday("Wydad AC", 30, 90, 2, "regular", 60, true);
+  assert(
+    "Test 10.3: Standard revenue collapses to 0 and large stadium suffers heavy net loss during boycott slump",
+    boycottedSlump.finances.revenue.standard === 0 && boycottedSlump.finances.netProfit < 0,
+    {
+      standardRevenue: boycottedSlump.finances.revenue.standard,
+      vipRevenue: boycottedSlump.finances.revenue.vip,
+      operatingCost: boycottedSlump.finances.operatingCost,
+      netProfit: boycottedSlump.finances.netProfit,
+    }
+  );
+
   console.log("\n===============================================================================");
   console.log(`  VERIFICATION RESULTS: ${passed} / ${total} TESTS PASSED`);
   console.log("===============================================================================\n");

@@ -14,6 +14,11 @@ export interface StadiumVenueInfo {
 
 export type MatchImportance = "regular" | "derby" | "decider";
 
+export interface UltrasReactionResult {
+  isBoycotting: boolean;
+  communiqueString: string | null;
+}
+
 export interface MatchdayEconomyInput {
   clubIdentifier: string;
   standardPrice: number;
@@ -21,6 +26,8 @@ export interface MatchdayEconomyInput {
   teamForm: number; // 1 to 10
   matchImportance: MatchImportance;
   clubPrestige: number; // 1 to 100
+  isBoycotting?: boolean;
+  isThroneCupMatch?: boolean;
 }
 
 export interface MatchdayEconomyResult {
@@ -37,6 +44,7 @@ export interface MatchdayEconomyResult {
     total: number;
     occupancyRatePercent: number;
     isSoldOut: boolean;
+    isBoycotted: boolean;
   };
   finances: {
     ticketPrices: {
@@ -47,6 +55,7 @@ export interface MatchdayEconomyResult {
       standard: number;
       vip: number;
       grossTotal: number;
+      cupBonus: number;
     };
     operatingCost: number;
     netProfit: number;
@@ -58,6 +67,7 @@ export interface MatchdayEconomyResult {
     matchImportance: MatchImportance;
     bigStadiumTrapRisk: boolean;
     breakEvenStandardAttendance: number;
+    isBoycotting: boolean;
   };
 }
 
@@ -161,6 +171,7 @@ export class StadiumEconomyEngine {
    * @param teamForm - Recent form (1 = terrible losing slump, 10 = winning streak)
    * @param matchImportance - Match context tier ('regular', 'derby', 'decider')
    * @param clubPrestige - Historical & fan base standing (1 to 100)
+   * @param isBoycotting - Ultras boycott active: forces standard attendance to 0 (VIP unaffected)
    */
   static calculateMatchday(
     clubIdentifierOrOptions: string | MatchdayEconomyInput,
@@ -168,7 +179,8 @@ export class StadiumEconomyEngine {
     vipPrice?: number,
     teamForm?: number,
     matchImportance?: MatchImportance,
-    clubPrestige?: number
+    clubPrestige?: number,
+    isBoycotting: boolean = false
   ): MatchdayEconomyResult {
     const input: MatchdayEconomyInput = typeof clubIdentifierOrOptions === "object" && clubIdentifierOrOptions !== null
       ? clubIdentifierOrOptions
@@ -179,6 +191,7 @@ export class StadiumEconomyEngine {
           teamForm: teamForm ?? 5,
           matchImportance: matchImportance ?? "regular",
           clubPrestige: clubPrestige ?? 50,
+          isBoycotting: isBoycotting ?? false,
         };
 
     const {
@@ -188,6 +201,8 @@ export class StadiumEconomyEngine {
       teamForm: rawForm = 5,
       matchImportance: rawImportance = "regular",
       clubPrestige: rawPrestige = 50,
+      isBoycotting: rawBoycotting = false,
+      isThroneCupMatch = false,
     } = input;
 
     // ── 1. VALIDATE & RESOLVE CLUB VENUE ─────────────────────────────────────
@@ -236,11 +251,14 @@ export class StadiumEconomyEngine {
       importance.standardDemand *
       priceElasticityMultiplier;
 
-    const standardAttendance = Math.min(standardCapacity, Math.max(0, Math.round(rawStandardDemand)));
+    // Step 2: If Ultras boycott is active, force standard attendance to 0
+    const activeBoycott = Boolean(rawBoycotting);
+    const calculatedStandardAttendance = Math.min(standardCapacity, Math.max(0, Math.round(rawStandardDemand)));
+    const standardAttendance = activeBoycott ? 0 : calculatedStandardAttendance;
 
     // ── 3. VIP ATTENDANCE ("Glory Hunters" Dynamics) ─────────────────────────
     // VIPs care overwhelmingly about prestige and current hype, with low price elasticity.
-    // If prestige or form collapses, luxury suites sit desolate.
+    // VIP attendance remains completely unaffected by Ultras boycotts.
     const vipPrestigeWeight = Math.pow(prestige / 100, 1.8);
     const vipFormWeight = Math.pow(form / 10, 2.0);
     const gloryFactor = (vipPrestigeWeight * 0.60) + (vipFormWeight * 0.40);
@@ -264,11 +282,14 @@ export class StadiumEconomyEngine {
     const vipRevenue = Math.round(vipAttendance * vipPrc);
     const totalGrossRevenue = standardRevenue + vipRevenue;
 
+    // Throne Cup flat participation/TV bonus
+    const cupBonus = this.calculateCupBonus(Boolean(isThroneCupMatch));
+
     // ── 5. THE BIG STADIUM TRAP (Exponential Operating Costs) ────────────────
     // Opening a 45k - 65k arena mandates massive municipal lease fees, police deployment,
     // fire safety marshals, floodlight arrays, turnstile crews, and turf maintenance.
     const operatingCost = this._calculateOperatingCost(totalCapacity);
-    const netProfit = totalGrossRevenue - operatingCost;
+    const netProfit = (totalGrossRevenue + cupBonus) - operatingCost;
 
     return {
       club: venue.clubName,
@@ -284,6 +305,7 @@ export class StadiumEconomyEngine {
         total: totalAttendance,
         occupancyRatePercent: overallOccupancyRate,
         isSoldOut: totalAttendance >= totalCapacity,
+        isBoycotted: activeBoycott,
       },
       finances: {
         ticketPrices: {
@@ -294,6 +316,7 @@ export class StadiumEconomyEngine {
           standard: standardRevenue,
           vip: vipRevenue,
           grossTotal: totalGrossRevenue,
+          cupBonus,
         },
         operatingCost,
         netProfit,
@@ -305,7 +328,56 @@ export class StadiumEconomyEngine {
         matchImportance: importanceKey,
         bigStadiumTrapRisk: totalCapacity >= 45000 && (form <= 3 || stdPrice > this.BENCHMARKS.STANDARD_PRICE_BASE * 1.5),
         breakEvenStandardAttendance: Math.max(0, Math.ceil((operatingCost - vipRevenue) / stdPrice)),
+        isBoycotting: activeBoycott,
       },
+    };
+  }
+
+  /**
+   * 1. The Throne Cup Jackpot (كأس العرش).
+   * Fixed flat TV / Participation bonus completely separate from ticket sales.
+   *
+   * @param isThroneCupMatch - Boolean indicating whether the fixture is a Throne Cup clash
+   * @returns 4,000,000 € if true, 0 otherwise
+   */
+  static calculateCupBonus(isThroneCupMatch: boolean): number {
+    return isThroneCupMatch === true ? 4000000 : 0;
+  }
+
+  /**
+   * 2. Ultras Boycott & "The Dugout" Social Feed.
+   *
+   * Trigger: If teamForm is terrible (< 4) AND the manager sets standardPrice aggressively high (>= basePrice * 2.5).
+   * Consequence: Returns an object with { isBoycotting: true, communiqueString: "..." }
+   * with a fiery Arabic statement (بيان رسمي) attacking managerial greed and catastrophic results.
+   * If not triggered, returns { isBoycotting: false, communiqueString: null }.
+   *
+   * @param teamForm - Current team form (1 to 10)
+   * @param standardPrice - Configured ticket price for standard stands
+   * @param basePrice - Benchmark standard ticket price (default 12)
+   */
+  static evaluateUltrasReaction(
+    teamForm: number,
+    standardPrice: number,
+    basePrice: number = 12
+  ): UltrasReactionResult {
+    const formNum = Number(teamForm);
+    const priceNum = Number(standardPrice);
+    const baseNum = Number(basePrice) || this.BENCHMARKS.STANDARD_PRICE_BASE;
+
+    const isFormTerrible = formNum < 4;
+    const isPriceAggressive = priceNum >= baseNum * 2.5;
+
+    if (isFormTerrible && isPriceAggressive) {
+      return {
+        isBoycotting: true,
+        communiqueString: "بيان الكورفا: نتائج كارثية، هزائم متتالية، وإدارة جشعة ترفع أثمنة التذاكر! نعلن مقاطعة المباراة القادمة، التيرّان غيبقى خاوي.",
+      };
+    }
+
+    return {
+      isBoycotting: false,
+      communiqueString: null,
     };
   }
 
