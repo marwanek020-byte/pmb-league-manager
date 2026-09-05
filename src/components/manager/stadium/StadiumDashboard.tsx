@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Lock,
   Unlock,
@@ -124,32 +124,26 @@ const RENTAL_STADIUMS: RentalStadium[] = [
   { id: "rent-honour",   name: "Stade d'Honneur Meknès",  city: "Meknès",    rentalCapacity: 20_000 },
 ];
 
-/** Mock upcoming fixtures — in a real game this would come from the season schedule */
-const MOCK_FIXTURES: Record<string, NextFixture> = {
-  "FAR Rabat":           { opponent: "Wydad AC",         tier: "derby",   matchday: 14, isHome: true },
-  "Raja Casablanca":     { opponent: "Wydad AC",         tier: "derby",   matchday: 14, isHome: true },
-  "Wydad AC":            { opponent: "Raja Casablanca",  tier: "derby",   matchday: 14, isHome: false },
-  "IR Tanger":           { opponent: "FAR Rabat",        tier: "decider", matchday: 14, isHome: true },
-  "Hassania Agadir":     { opponent: "Maghreb Fez",      tier: "regular", matchday: 14, isHome: true },
-  "Kawkab Marrakech":    { opponent: "COD Meknes",       tier: "regular", matchday: 14, isHome: true },
-  "Maghreb Fez":         { opponent: "Hassania Agadir",  tier: "regular", matchday: 14, isHome: false },
-  "COD Meknes":          { opponent: "Kawkab Marrakech", tier: "regular", matchday: 14, isHome: false },
-  "FUS Rabat":           { opponent: "FAR Rabat",        tier: "decider", matchday: 14, isHome: true },
-  "Olympique Safi":      { opponent: "Berkane",          tier: "regular", matchday: 14, isHome: true },
-  "Difaa El Jadidi":     { opponent: "Dcheira",          tier: "regular", matchday: 14, isHome: true },
-  "Berkane":             { opponent: "Olympique Safi",   tier: "regular", matchday: 14, isHome: false },
-  "Renaissance Zemamra": { opponent: "Union Touarga",    tier: "regular", matchday: 14, isHome: true },
-  "Union Touarga":       { opponent: "Renaissance Zemamra", tier: "regular", matchday: 14, isHome: false },
-  "Dcheira":             { opponent: "Difaa El Jadidi",  tier: "regular", matchday: 14, isHome: false },
-  "Yacoub El Mansour":   { opponent: "FUS Rabat",        tier: "decider", matchday: 14, isHome: true },
-};
-
+/** Fallback fixture shown while the API is loading or when no schedule exists */
 const DEFAULT_FIXTURE: NextFixture = {
-  opponent: "Unknown",
+  opponent: "Loading…",
   tier: "regular",
-  matchday: 14,
+  matchday: 1,
   isHome: true,
 };
+
+/** Shape returned by /api/manager/next-home-match */
+interface NextHomeMatchAPIResponse {
+  fixture: {
+    matchday: number;
+    homeClub: { id: string; name: string; logo: string | null };
+    awayClub: { id: string; name: string; logo: string | null };
+    tier: "regular" | "decider" | "derby";
+    seasonName: string;
+  } | null;
+  reason?: string;
+  error?: string;
+}
 
 const CLUB_PRESTIGE: Record<string, number> = {
   "Raja Casablanca": 90, "Wydad AC": 88, "FAR Rabat": 82, "IR Tanger": 72,
@@ -324,14 +318,49 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
   const [rentalOffers,     setRentalOffers]     = useState<Record<string, number>>(Object.fromEntries(RENTAL_STADIUMS.map((s) => [s.id, 0])));
   const [lastOfferMessage, setLastOfferMessage] = useState<string>("");
 
-  // ── NEW: NEXT FIXTURE STATE ───────────────────────────────────────────────
+  // ── NEXT FIXTURE STATE — fetched from real DB via API ───────────────────────
+  const [nextFixture, setNextFixture] = useState<NextFixture>(DEFAULT_FIXTURE);
+  const [fixtureLoading, setFixtureLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFixtureLoading(true);
+    fetch("/api/manager/next-home-match")
+      .then((r) => r.json())
+      .then((data: NextHomeMatchAPIResponse) => {
+        if (cancelled) return;
+        if (data.fixture) {
+          setNextFixture({
+            opponent: data.fixture.awayClub.name,
+            tier:     data.fixture.tier as MatchTier, // API returns regular|decider|derby (never "throne")
+            matchday: data.fixture.matchday,
+            isHome:   true,
+          });
+        } else {
+          // No upcoming home match found — keep default with "No fixture" label
+          setNextFixture({ opponent: "No upcoming home match", tier: "regular", matchday: 0, isHome: true });
+        }
+      })
+      .catch(() => {
+        if (!cancelled)
+          setNextFixture({ opponent: "Schedule unavailable", tier: "regular", matchday: 0, isHome: true });
+      })
+      .finally(() => { if (!cancelled) setFixtureLoading(false); });
+    return () => { cancelled = true; };
+  // currentClub change should trigger a re-fetch
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentClub]);
+
+  // ── PRICE CONFIRMATION STATE ──────────────────────────────────────────────
   /**
-   * The upcoming home fixture. Initialised from the mock schedule.
-   * Tier can be overridden live from the Dev Toolbar.
+   * null          = not yet confirmed
+   * "confirmed"   = prices locked in, no boycott
+   * "boycott"     = prices locked in, boycott active at confirmation time
    */
-  const [nextFixture, setNextFixture] = useState<NextFixture>(
-    () => MOCK_FIXTURES[currentClub] ?? DEFAULT_FIXTURE
-  );
+  const [priceConfirmStatus, setPriceConfirmStatus] = useState<null | "confirmed" | "boycott">(null);
+
+  /** Locked-in prices at the moment of confirmation (for the forecast calculation) */
+  const [confirmedPrices, setConfirmedPrices] = useState<{ standard: number; vip: number } | null>(null);
 
   // ── DEV TOOLBAR ───────────────────────────────────────────────────────────
   const [devToolbarOpen, setDevToolbarOpen] = useState(false);
@@ -445,6 +474,30 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
     setNextFixture((prev) => ({ ...prev, tier }));
   }
 
+  /**
+   * Confirms the current ticket prices for the next match.
+   * Locks in the boycott state at the moment of confirmation.
+   * Resets on price slider change so the manager must re-confirm after any edit.
+   */
+  function handleConfirmPrices() {
+    const status = isBoycottActive ? "boycott" : "confirmed";
+    setPriceConfirmStatus(status);
+    setConfirmedPrices({ standard: standardPrice, vip: vipLocked ? 0 : vipPrice });
+  }
+
+  // Reset confirmation if manager changes prices after confirming
+  // (we track this via a simple guard in the existing handlers)
+  function handleStandardPriceChangeWithReset(e: React.ChangeEvent<HTMLInputElement>) {
+    handleStandardPriceChange(e);
+    setPriceConfirmStatus(null);
+    setConfirmedPrices(null);
+  }
+  function handleVipPriceChangeWithReset(e: React.ChangeEvent<HTMLInputElement>) {
+    handleVipPriceChange(e);
+    setPriceConfirmStatus(null);
+    setConfirmedPrices(null);
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
@@ -522,11 +575,11 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
             {/* Left: fixture info */}
             <div className="flex items-center gap-4">
               <div className={`p-3 rounded-xl border ${tierMeta.borderColor} bg-black/30`}>
-                {tierMeta.icon}
+                {fixtureLoading ? <Clock className="w-4 h-4 text-gray-500 animate-spin" /> : tierMeta.icon}
               </div>
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-0.5">
-                  Next Hosting Match · Matchday {nextFixture.matchday}
+                  Next Hosting Match{nextFixture.matchday > 0 ? ` · Matchday ${nextFixture.matchday}` : ""}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-xl font-extrabold text-white">
@@ -706,6 +759,29 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
                   </span>
                 )}
               </div>
+
+              {/* Price confirmation result banner */}
+              {priceConfirmStatus === "confirmed" && (
+                <div className="mb-4 flex items-start gap-2 bg-emerald-900/30 border border-emerald-700/50 rounded-xl px-4 py-3 text-sm text-emerald-300">
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+                  <div>
+                    <p className="font-bold">✅ Ticket prices confirmed for the upcoming match!</p>
+                    <p className="text-xs text-emerald-400/80 mt-0.5">
+                      Standard: €{confirmedPrices?.standard} · VIP: {confirmedPrices?.vip ? `€${confirmedPrices.vip}` : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {priceConfirmStatus === "boycott" && (
+                <div className="mb-4 flex items-start gap-2 bg-red-900/40 border border-red-600 rounded-xl px-4 py-3 text-sm text-red-300 shadow-[0_0_20px_rgba(239,68,68,0.25)]">
+                  <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0 text-red-400 animate-pulse" />
+                  <div>
+                    <p className="font-bold text-red-200">⚠️ Warning: Prices confirmed under active Ultras boycott.</p>
+                    <p className="text-xs text-red-400 mt-0.5">Expect empty stands! Standard attendance will be forced to 0.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Standard */}
               <div className="space-y-2 mb-5">
                 <div className="flex justify-between items-center">
@@ -713,7 +789,7 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
                   <span className={`text-lg font-extrabold ${isBoycottActive ? "text-red-400" : "text-yellow-500"}`}>€{standardPrice}</span>
                 </div>
                 <input id="standard-price-range" type="range" min={1} max={200} step={1} value={standardPrice}
-                  onChange={handleStandardPriceChange}
+                  onChange={handleStandardPriceChangeWithReset}
                   className="w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 cursor-pointer" />
                 <div className="flex justify-between text-xs text-gray-500"><span>€1</span><span>€200</span></div>
               </div>
@@ -727,7 +803,7 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
                   <span className="text-lg font-extrabold text-yellow-500">{vipLocked ? "N/A" : `€${vipPrice}`}</span>
                 </div>
                 <input id="vip-price-range" type="range" min={50} max={500} step={10} value={vipPrice}
-                  disabled={vipLocked} onChange={handleVipPriceChange}
+                  disabled={vipLocked} onChange={handleVipPriceChangeWithReset}
                   className="w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 cursor-pointer" />
                 <div className="flex justify-between text-xs text-gray-500"><span>€50</span><span>€500</span></div>
               </div>
@@ -737,6 +813,34 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
                   <span>⚠️ Locked: Stadium capacity must be 25,000+ to unlock VIP Suites.</span>
                 </div>
               )}
+
+              {/* ── CONFIRM TICKET PRICES BUTTON ───────────────────────── */}
+              <div className="mt-5 pt-4 border-t border-gray-800">
+                <button
+                  type="button"
+                  onClick={handleConfirmPrices}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all cursor-pointer ${
+                    isBoycottActive
+                      ? "bg-red-700 hover:bg-red-600 text-white border border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.35)] hover:shadow-[0_0_30px_rgba(239,68,68,0.5)]"
+                      : priceConfirmStatus === "confirmed"
+                      ? "bg-emerald-700/60 border border-emerald-600 text-emerald-200 cursor-default"
+                      : "bg-yellow-500 hover:bg-yellow-400 text-gray-950 shadow-[0_0_16px_rgba(234,179,8,0.35)] hover:shadow-[0_0_28px_rgba(234,179,8,0.55)]"
+                  }`}
+                >
+                  {isBoycottActive ? (
+                    <><ShieldAlert className="w-4 h-4" /> Confirm Prices (Boycott Active)</>
+                  ) : priceConfirmStatus === "confirmed" ? (
+                    <><CheckCircle2 className="w-4 h-4" /> Prices Confirmed — Re-confirm to Update</>
+                  ) : (
+                    <><CheckCircle2 className="w-4 h-4" /> Confirm Ticket Prices</>
+                  )}
+                </button>
+                {priceConfirmStatus === null && (
+                  <p className="text-xs text-gray-500 text-center mt-2">
+                    Lock in your pricing strategy for Matchday {nextFixture.matchday > 0 ? nextFixture.matchday : "—"}
+                  </p>
+                )}
+              </div>
             </section>
 
             {/* STADIUM OVERVIEW */}
