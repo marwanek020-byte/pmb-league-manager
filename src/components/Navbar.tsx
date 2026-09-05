@@ -21,6 +21,7 @@ export function Navbar({
 
   const socialHref = isAdmin ? "/admin/social" : "/manager/social";
   const auctionsHref = isAdmin ? "/admin/auctions" : "/manager/auctions";
+  const freeAgentsHref = isAdmin ? "/admin/free-agents" : "/manager/free-agents";
   const competitionHref = isAdmin ? "/admin/competition" : "/manager/competition";
   const transfersHref = isAdmin ? "/admin/transfers" : "/manager/transfers";
   const playersHref = isAdmin ? "/admin/clubs" : "/manager/players";
@@ -49,6 +50,12 @@ export function Navbar({
                     className={`transition ${pathname.startsWith("/admin/auctions") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
                   >
                     Auctions
+                  </Link>
+                  <Link
+                    href="/admin/free-agents"
+                    className={`transition ${pathname.startsWith("/admin/free-agents") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
+                  >
+                    Free Agents
                   </Link>
                   <Link
                     href="/admin/clubs"
@@ -94,6 +101,12 @@ export function Navbar({
                     className={`transition ${pathname.startsWith("/manager/auctions") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
                   >
                     Auctions
+                  </Link>
+                  <Link
+                    href="/manager/free-agents"
+                    className={`transition ${pathname.startsWith("/manager/free-agents") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
+                  >
+                    Free Agents
                   </Link>
                   <Link
                     href="/manager/players"
@@ -164,6 +177,17 @@ export function Navbar({
           >
             <span className="text-sm">🔨</span>
             <span>Auctions</span>
+          </Link>
+
+          {/* Free Agents */}
+          <Link
+            href={freeAgentsHref}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 text-[9px] font-bold uppercase tracking-wider shrink-0 transition ${
+              pathname.includes("/free-agents") ? "text-pmb-gold scale-105" : "text-gray-400"
+            }`}
+          >
+            <span className="text-sm">🆓</span>
+            <span>Free Agents</span>
           </Link>
 
           {/* Players / Clubs */}

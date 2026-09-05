@@ -16,6 +16,7 @@ export default async function AdminDashboardPage() {
     managerCount,
     liveAuctionCount,
     aiScoutEnabledClubCount,
+    freeAgentCount,
   ] = await Promise.all([
     prisma.league.findMany({
       orderBy: { name: "asc" },
@@ -72,10 +73,17 @@ export default async function AdminDashboardPage() {
         aiScoutEnabled: true,
       },
     }),
+
+    prisma.player.count({
+      where: {
+        isFreeAgentMarket: true,
+      },
+    }),
   ]);
 
   const activeAuctionCount = liveAuctionCount ?? 0;
   const activeAiScoutClubCount = aiScoutEnabledClubCount ?? 0;
+  const activeFreeAgentCount = freeAgentCount ?? 0;
 
   const leagueData = leagues.map((league) => ({
     id: league.id,
@@ -103,7 +111,7 @@ export default async function AdminDashboardPage() {
       </section>
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <div className="pmb-card border-pmb-gold/30 p-6">
           <p className="text-3xl font-bold text-pmb-gold">
             {leagues.length}
@@ -137,7 +145,15 @@ export default async function AdminDashboardPage() {
           <p className="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400">Active Auctions</p>
         </div>
 
-        <div className="pmb-card border-cyan-500/40 p-6 bg-gradient-to-br from-cyan-950/20 to-pmb-charcoal/80 col-span-2 sm:col-span-1">
+        <div className="pmb-card border-emerald-500/40 p-6 bg-gradient-to-br from-emerald-950/20 to-pmb-charcoal/80">
+          <p className="text-3xl font-bold text-emerald-400">
+            {activeFreeAgentCount}
+          </p>
+
+          <p className="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400">Free Agents</p>
+        </div>
+
+        <div className="pmb-card border-cyan-500/40 p-6 bg-gradient-to-br from-cyan-950/20 to-pmb-charcoal/80">
           <p className="text-3xl font-bold text-cyan-400">
             {activeAiScoutClubCount}
           </p>
@@ -146,8 +162,8 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ═══ ADMIN FEATURES: AUCTIONS, AI SCOUT, DUGOUT ═══ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* ═══ ADMIN FEATURES: AUCTIONS, FREE AGENTS, AI SCOUT, DUGOUT ═══ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Live Auctions Card */}
         <div className="rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
           <div>
@@ -173,6 +189,28 @@ export default async function AdminDashboardPage() {
             className="mt-5 inline-flex items-center justify-center rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
           >
             Open Auction Room →
+          </Link>
+        </div>
+
+        {/* Free Agent Store Card */}
+        <div className="rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl">🆓</span>
+              <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
+                {activeFreeAgentCount} Available
+              </span>
+            </div>
+            <h3 className="mt-3 text-lg font-bold text-white">Free Agent Store</h3>
+            <p className="mt-1.5 text-xs text-gray-400 leading-relaxed">
+              Browse unassigned talent, manage direct signings with 0 € transfer fee, and release expired contracts to the market.
+            </p>
+          </div>
+          <Link
+            href="/admin/free-agents"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
+          >
+            Open Free Agent Store →
           </Link>
         </div>
 
