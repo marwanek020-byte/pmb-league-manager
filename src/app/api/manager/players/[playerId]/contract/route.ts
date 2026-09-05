@@ -138,20 +138,72 @@ export async function POST(
   }
 
   const body = await req.json();
-  const { demands, offer, currentPatience } = body;
+  const { demands, offer, currentPatience, previousOffers, hiddenDealBreaker } = body;
 
   if (!demands || !offer || currentPatience === undefined) {
     return NextResponse.json({ error: "Missing required negotiation data." }, { status: 400 });
   }
 
-  const result = evaluateNegotiationOffer(demands, offer, currentPatience);
+  // Enrich negotiation context dynamically from database
+  const [player, club, transferWindow] = await Promise.all([
+    prisma.player.findUnique({
+      where: { id: params.playerId },
+      select: {
+        id: true,
+        dateOfBirth: true,
+        pmbClubId: true,
+        isFreeAgentMarket: true,
+        overallRating: true,
+      },
+    }),
+    prisma.club.findUnique({
+      where: { id: session.user.clubId },
+      include: {
+        powerRating: true,
+      },
+    }),
+    prisma.transferWindow.findUnique({
+      where: { id: "singleton" },
+    }),
+  ]);
+
+  // Derive player age (default 25 if not set)
+  let playerAge = 25;
+  if (player?.dateOfBirth) {
+    const ageDiffMs = Date.now() - new Date(player.dateOfBirth).getTime();
+    playerAge = Math.floor(ageDiffMs / (365.25 * 24 * 60 * 60 * 1000));
+  }
+
+  // Derive club prestige (scale 1 - 100)
+  const powerRating = club?.powerRating?.rating ? Number(club.powerRating.rating) : 50;
+  const clubPrestige = Math.max(1, Math.min(100, Math.round(powerRating)));
+
+  // Homegrown / loyalty flag
+  const isHomegrownOrLoyal = player?.pmbClubId === session.user.clubId;
+
+  // Player leverage based on performance tier or overall rating
+  let playerLeverage = 1.0;
+  if (demands.performance?.performanceTier === "WORLD_CLASS") playerLeverage = 1.6;
+  else if (demands.performance?.performanceTier === "EXCELLENT") playerLeverage = 1.35;
+  else if (demands.performance?.performanceTier === "POOR") playerLeverage = 0.65;
+  else if (demands.performance?.performanceTier === "BELOW_AVERAGE") playerLeverage = 0.85;
+  else if ((player?.overallRating ?? 70) >= 80) playerLeverage = 1.3;
+
+  // Transfer urgency
+  const clubUrgency = transferWindow ? !transferWindow.isOpen : false;
+
+  const result = evaluateNegotiationOffer(demands, offer, currentPatience, {
+    playerAge,
+    clubPrestige,
+    playerLeverage,
+    clubUrgency,
+    isHomegrownOrLoyal,
+    hiddenDealBreaker: hiddenDealBreaker || null,
+    previousOffers: Array.isArray(previousOffers) ? previousOffers : [],
+  });
 
   if (result.status === "BREAKDOWN") {
     // If this is a free agent, record that this club exhausted its one chance
-    const player = await prisma.player.findUnique({
-      where: { id: params.playerId },
-      select: { isFreeAgentMarket: true },
-    });
     if (player?.isFreeAgentMarket) {
       await ExpiredContractsService.recordFailedFreeAgentNegotiation(
         params.playerId,

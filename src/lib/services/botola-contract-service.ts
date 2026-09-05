@@ -9,6 +9,7 @@ import { Prisma, BudgetTransactionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
+import { NegotiationMathEngine, type NegotiationEvaluationParams } from "@/lib/services/NegotiationMathEngine";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -480,56 +481,41 @@ export async function calculatePlayerDemands(playerId: string): Promise<Contract
 
 /**
  * 2. Evaluate the manager's counter-offer and return the agent's response.
- *    Must be called per negotiation round. Patience decrements on poor offers.
+ *    Powered by NegotiationMathEngine (v4.0 Grandmaster) with cross-compensation,
+ *    hypocrisy checks, wonderkid rules, deal-breakers, prestige scaling, and redlines.
  */
 export function evaluateNegotiationOffer(
   demands: ContractDemands,
   offer: NegotiationOffer,
-  currentPatience: number
+  currentPatience: number,
+  contextOptions: Partial<NegotiationEvaluationParams> = {}
 ): NegotiationResult {
-  const strength = offerStrength(offer, demands);
+  const result = NegotiationMathEngine.evaluateOffer({
+    demands: {
+      ...demands,
+      agentPersonality: demands.agentPersonality as any,
+    },
+    offer: {
+      ...offer,
+    },
+    currentPatience,
+    previousOffers: contextOptions.previousOffers || [],
+    playerLeverage: contextOptions.playerLeverage ?? 1.0,
+    playerAge: contextOptions.playerAge ?? 25,
+    clubPrestige: contextOptions.clubPrestige ?? 50,
+    clubUrgency: contextOptions.clubUrgency ?? false,
+    rivalOffersCount: contextOptions.rivalOffersCount ?? 0,
+    isHomegrownOrLoyal: contextOptions.isHomegrownOrLoyal ?? false,
+    hiddenDealBreaker: contextOptions.hiddenDealBreaker ?? null,
+    agentPersonality: (demands.agentPersonality as any) || "PRAGMATIST",
+  });
 
-  // ACCEPTED: offer is 90%+ of demands
-  if (strength >= 0.90) {
-    return {
-      status: "ACCEPTED",
-      agentPatience: currentPatience,
-      agentMood: "HAPPY",
-      agentMessage: "ممتاز! هذا العرض يعكس قيمة موكلي الحقيقية. نوافق على الشروط ونحن مستعدون للتوقيع! 🤝",
-    };
-  }
-
-  // Last patience point: final warning
-  if (currentPatience <= 1) {
-    return {
-      status: "BREAKDOWN",
-      agentPatience: 0,
-      agentMood: "ANGRY",
-      agentMessage: "هذا العرض غير مقبول على الإطلاق. موكلي لن يستمر في هذه المفاوضات. سنبحث عن نادٍ يقدر مكانته! ❌",
-    };
-  }
-
-  // COUNTER: offer is 70-89% – agent proposes a middle ground
-  if (strength >= 0.70) {
-    const counterPrime = Math.round(demands.primeSignature * 0.95);
-    return {
-      status: "COUNTER",
-      agentPatience: currentPatience - 1,
-      agentMood: "NEUTRAL",
-      agentMessage: `العرض قريب لكنه لم يصل للحد المقبول. موكلي يقترح منحة توقيع لا تقل عن ${counterPrime.toLocaleString("fr-MA")} درهم كحد أدنى للتفاوض.`,
-      counterDemands: {
-        primeSignature: counterPrime,
-        seasonSalary: Math.round(demands.seasonSalary * 0.95),
-      },
-    };
-  }
-
-  // REJECTED: offer below 70% – agent is frustrated
   return {
-    status: "REJECTED",
-    agentPatience: currentPatience - 1,
-    agentMood: "FRUSTRATED",
-    agentMessage: `هذا الرقم بعيد جداً عن الواقع. موكلي يشعر أنكم لا تقدرون قيمته. لدينا ${currentPatience - 1} فرصة أخرى للوصول لاتفاق.`,
+    status: result.status,
+    agentPatience: result.agentPatience,
+    agentMood: result.agentMood,
+    agentMessage: result.agentMessage,
+    counterDemands: result.counterDemands as Partial<NegotiationOffer> | undefined,
   };
 }
 
