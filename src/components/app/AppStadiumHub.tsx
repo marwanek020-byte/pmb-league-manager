@@ -61,7 +61,14 @@ export function AppStadiumHub({
 
       {/* ─── MAIN STADIUM DASHBOARD ─── */}
       <main className="relative z-10 w-full max-w-7xl mx-auto px-2 sm:px-6 py-4 flex-1">
-        <StadiumDashboard />
+        <StadiumDashboard
+            currentClub={clubName}
+            globalBudget={budget}
+            onBudgetChange={(newBudget) => {
+              // TODO: Bubble up to the app's global budget store
+              console.log("[AppStadiumHub] Budget change requested:", newBudget);
+            }}
+          />
       </main>
 
       {/* ─── FOOTER ─── */}
