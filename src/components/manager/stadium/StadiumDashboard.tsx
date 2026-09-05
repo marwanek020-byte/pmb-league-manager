@@ -17,27 +17,73 @@ import {
   Zap,
 } from "lucide-react";
 
+export interface BotolaStadiumData {
+  stadium: string;
+  capacity: number;
+  arabicName: string;
+}
+
+export const OFFICIAL_BOTOLA_STADIUMS: Record<string, BotolaStadiumData> = {
+  "IR Tanger": { stadium: "Grand Stade de Tanger", capacity: 65000, arabicName: "اتحاد طنجة" },
+  "FAR Rabat": { stadium: "Stade Prince Moulay Abdellah", capacity: 53000, arabicName: "الجيش الملكي" },
+  "Raja Casablanca": { stadium: "Stade Mohammed V", capacity: 45891, arabicName: "الرجاء الرياضي" },
+  "Wydad AC": { stadium: "Stade Mohammed V", capacity: 45891, arabicName: "الوداد الرياضي" },
+  "Hassania Agadir": { stadium: "Grand Stade d'Agadir", capacity: 45480, arabicName: "حسنية أكادير" },
+  "Kawkab Marrakech": { stadium: "Grand Stade de Marrakech", capacity: 45240, arabicName: "الكوكب المراكشي" },
+  "Maghreb Fez": { stadium: "Grand Stade de Fès", capacity: 45000, arabicName: "المغرب الفاسي" },
+  "COD Meknes": { stadium: "Stade d'Honneur de Meknès", capacity: 20000, arabicName: "النادي المكناسي" },
+  "Olympique Safi": { stadium: "Stade El Massira", capacity: 15000, arabicName: "أولمبيك آسفي" },
+  "Difaa El Jadidi": { stadium: "Stade El Abdi", capacity: 15000, arabicName: "الدفاع الحسني الجديدي" },
+  "FUS Rabat": { stadium: "Stade Moulay Hassan", capacity: 22000, arabicName: "الفتح الرباطي" },
+  "Union Touarga": { stadium: "Stade Moulay Hassan", capacity: 22000, arabicName: "اتحاد تواركة" },
+  "Berkane": { stadium: "Stade Municipal de Berkane", capacity: 15000, arabicName: "نهضة بركان" },
+  "Renaissance Zemamra": { stadium: "Stade Ahmed Choukri", capacity: 12000, arabicName: "نهضة الزمامرة" },
+  "Dcheira": { stadium: "Stade Ahmed Fana", capacity: 12000, arabicName: "أولمبيك الدشيرة" },
+  "Yacoub El Mansour": { stadium: "Stade Municipal de rabat", capacity: 18000, arabicName: "اتحاد يعقوب المنصور" },
+};
+
 export interface StadiumDashboardProps {
+  initialClub?: string;
   initialStandardPrice?: number;
   initialVipPrice?: number;
   initialTeamForm?: number;
 }
 
 export default function StadiumDashboard({
+  initialClub = "FAR Rabat",
   initialStandardPrice = 15,
   initialVipPrice = 150,
   initialTeamForm = 5,
 }: StadiumDashboardProps) {
   // ── 1. STATE MANAGEMENT ───────────────────────────────────────────────────
+  // Find matching club or fallback to FAR Rabat
+  const resolvedInitialClub = useMemo(() => {
+    const keys = Object.keys(OFFICIAL_BOTOLA_STADIUMS);
+    const matched = keys.find(
+      (k) => k.toLowerCase() === initialClub.toLowerCase() || initialClub.toLowerCase().includes(k.toLowerCase())
+    );
+    return matched || "FAR Rabat";
+  }, [initialClub]);
+
+  const [selectedClub, setSelectedClub] = useState<string>(resolvedInitialClub);
   const [standardPrice, setStandardPrice] = useState<number>(initialStandardPrice);
   const [vipPrice, setVipPrice] = useState<number>(initialVipPrice);
   const [teamForm, setTeamForm] = useState<number>(initialTeamForm); // 1 to 10
 
-  // Venue Constants (Stade Mohammed V - Casablanca)
-  const totalCapacity = 45891;
-  const vipCapacity = Math.floor(totalCapacity * 0.05); // 2,294 VIP seats (5%)
-  const standardCapacity = totalCapacity - vipCapacity; // 43,597 Standard seats (95%)
-  const OPERATING_COST = 70000; // Fixed high cost for a 45k arena (€70,000)
+  // Venue Data derived from official registry
+  const venue = OFFICIAL_BOTOLA_STADIUMS[selectedClub] || OFFICIAL_BOTOLA_STADIUMS["FAR Rabat"];
+  const totalCapacity = venue.capacity;
+  const vipCapacity = Math.floor(totalCapacity * 0.05); // 5% VIP seats
+  const standardCapacity = totalCapacity - vipCapacity; // 95% Standard seats
+
+  // Real exponential operating cost calculated from capacity (The Big Stadium Trap formula)
+  const operatingCost = useMemo(() => {
+    const baseOverhead = 2000;
+    const variablePerSeat = 0.6 * totalCapacity;
+    const capacityUnits = totalCapacity / 10000;
+    const exponentialBurden = 1450 * Math.pow(capacityUnits, 2.22);
+    return Math.round(baseOverhead + variablePerSeat + exponentialBurden);
+  }, [totalCapacity]);
 
   // ── 2. DERIVED MOCK ECONOMY ENGINE ────────────────────────────────────────
   const economy = useMemo(() => {
@@ -65,7 +111,7 @@ export default function StadiumDashboard({
     const standardRevenue = standardAttendance * standardPrice;
     const vipRevenue = vipAttendance * vipPrice;
     const grossRevenue = standardRevenue + vipRevenue;
-    const netProfit = grossRevenue - OPERATING_COST;
+    const netProfit = grossRevenue - operatingCost;
     const isProfitable = netProfit >= 0;
 
     // Stadium Occupancy
@@ -78,7 +124,7 @@ export default function StadiumDashboard({
     // Break-even attendance needed
     const breakEvenStandardAttendance = Math.max(
       0,
-      Math.ceil((OPERATING_COST - vipRevenue) / Math.max(1, standardPrice))
+      Math.ceil((operatingCost - vipRevenue) / Math.max(1, standardPrice))
     );
 
     return {
@@ -92,13 +138,13 @@ export default function StadiumDashboard({
       standardRevenue,
       vipRevenue,
       grossRevenue,
-      operatingCost: OPERATING_COST,
+      operatingCost,
       netProfit,
       isProfitable,
       isBigStadiumTrap,
       breakEvenStandardAttendance,
     };
-  }, [standardPrice, vipPrice, teamForm, standardCapacity, vipCapacity, totalCapacity]);
+  }, [standardPrice, vipPrice, teamForm, standardCapacity, vipCapacity, totalCapacity, operatingCost]);
 
   // Quick Preset Handlers for Instant Testing
   const handleTriggerBoycott = () => {
@@ -128,28 +174,45 @@ export default function StadiumDashboard({
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            {/* Stadium Info & Title */}
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="p-2 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500">
-                  <Building2 className="w-6 h-6" />
-                </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-xl md:text-2xl font-black tracking-wide text-white">
-                      Stade Mohammed V
-                    </h1>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                      دونور Casablancais
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-0.5">
+            {/* Stadium Info, Club Selector & Title */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <span className="p-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 shrink-0 self-start sm:self-auto">
+                <Building2 className="w-7 h-7" />
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="text-xl md:text-2xl font-black tracking-wide text-white">
+                    {venue.stadium}
+                  </h1>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                    {venue.arabicName}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-gray-400">
+                  <p>
                     Total Capacity:{" "}
-                    <span className="font-semibold text-gray-200">
+                    <span className="font-bold text-yellow-500">
                       {totalCapacity.toLocaleString()}
                     </span>{" "}
-                    Seats (Standard 95% / VIP 5%)
+                    Seats
                   </p>
+                  <span className="text-gray-600">•</span>
+                  {/* Official Club Selector */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400 font-medium">Club:</span>
+                    <select
+                      value={selectedClub}
+                      onChange={(e) => setSelectedClub(e.target.value)}
+                      className="bg-gray-950 text-white text-xs font-bold rounded-lg border border-gray-700 px-2.5 py-1 focus:border-yellow-500 focus:outline-none cursor-pointer"
+                    >
+                      {Object.keys(OFFICIAL_BOTOLA_STADIUMS).map((clubKey) => (
+                        <option key={clubKey} value={clubKey}>
+                          {clubKey} ({OFFICIAL_BOTOLA_STADIUMS[clubKey].capacity.toLocaleString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>

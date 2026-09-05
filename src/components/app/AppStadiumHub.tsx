@@ -61,7 +61,7 @@ export function AppStadiumHub({
 
       {/* ─── MAIN STADIUM DASHBOARD ─── */}
       <main className="relative z-10 w-full max-w-7xl mx-auto px-2 sm:px-6 py-4 flex-1">
-        <StadiumDashboard />
+        <StadiumDashboard initialClub={clubName} />
       </main>
 
       {/* ─── FOOTER ─── */}

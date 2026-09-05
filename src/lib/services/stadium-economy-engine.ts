@@ -105,7 +105,7 @@ export class StadiumEconomyEngine {
     },
     "FUS Rabat": {
       stadium: "Stade Moulay Hassan",
-      capacity: 12000,
+      capacity: 22000,
     },
     "Maghreb Fez": {
       stadium: "Grand Stade de Fès",
@@ -113,7 +113,7 @@ export class StadiumEconomyEngine {
     },
     "Berkane": {
       stadium: "Stade Municipal de Berkane",
-      capacity: 10000,
+      capacity: 15000,
     },
     "IR Tanger": {
       stadium: "Grand Stade de Tanger",
@@ -141,19 +141,19 @@ export class StadiumEconomyEngine {
     },
     "Renaissance Zemamra": {
       stadium: "Stade Ahmed Choukri",
-      capacity: 5000,
+      capacity: 12000,
     },
     "Union Touarga": {
       stadium: "Stade Moulay Hassan",
-      capacity: 12000,
+      capacity: 22000,
     },
     "Dcheira": {
       stadium: "Stade Ahmed Fana",
-      capacity: 5000,
+      capacity: 12000,
     },
     "Yacoub El Mansour": {
-      stadium: "Stade Municipal de Yacoub El Mansour",
-      capacity: 5000,
+      stadium: "Stade Municipal de rabat",
+      capacity: 18000,
     },
   });
 
