@@ -14,6 +14,7 @@ import { AppGlobalDugoutHub } from "./AppGlobalDugoutHub";
 import { AppUltrasHub } from "./AppUltrasHub";
 import { AppAboutUsHub } from "./AppAboutUsHub";
 import { AppMusicSettingsHub } from "./AppMusicSettingsHub";
+import { AppStadiumHub } from "./AppStadiumHub";
 import { signOut } from "next-auth/react";
 import { PlayerDTO } from "@/lib/serialize-player";
 
@@ -78,6 +79,7 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
     | "freeAgents"
     | "globalDugout"
     | "ultrasHub"
+    | "stadiumHub"
     | "aboutUs"
     | "musicSettings"
   >("dashboard");
@@ -233,6 +235,17 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
         clubName={club.name}
         clubLogo={club.logo}
         managerUsername={initialData?.user?.username}
+        budget={club.budget}
+        onBack={() => setCurrentView("dashboard")}
+      />
+    );
+  }
+
+  if (currentView === "stadiumHub") {
+    return (
+      <AppStadiumHub
+        clubName={club.name}
+        clubLogo={club.logo}
         budget={club.budget}
         onBack={() => setCurrentView("dashboard")}
       />
@@ -539,9 +552,9 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
             </div>
           </div>
         ) : activeTab === "DUGOUT" ? (
-          /* ════ 2 DUGOUT ACTION CARDS (GLOBAL DUGOUT & TALK WITH ULTRAS) ════ */
+          /* ════ 3 DUGOUT ACTION CARDS (GLOBAL DUGOUT, TALK WITH ULTRAS & STADIUM FINANCE) ════ */
           <div className="rounded-3xl border border-[#e9c349]/35 bg-gradient-to-b from-[#141419]/90 to-[#0a0a0d]/95 p-6 sm:p-8 shadow-[0_15px_45px_rgba(0,0,0,0.8),0_0_30px_rgba(233,195,73,0.12)] backdrop-blur-xl">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               {/* CARD 1: GLOBAL DUGOUT */}
               <div
@@ -610,6 +623,47 @@ export function AppHomeDashboard({ initialData, onLogout, initialTab = "TEAM" }:
                 </h3>
                 <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
                   Curva Virage · AI Capo Companion, Morale & Chants Studio
+                </p>
+              </div>
+
+              {/* CARD 3: STADIUM & FINANCE */}
+              <div
+                onClick={() => setCurrentView("stadiumHub")}
+                className="group relative rounded-2xl border border-[#e9c349]/40 bg-gradient-to-b from-[#101014] to-[#070709] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-105 hover:border-[#e9c349] hover:shadow-[0_0_35px_rgba(233,195,73,0.3)] active:scale-95 min-h-[290px]"
+              >
+                {/* Gold Stadium Arena & Floodlights */}
+                <div className="mb-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg viewBox="0 0 120 90" className="w-28 h-20 drop-shadow-[0_0_12px_rgba(233,195,73,0.4)]">
+                    <defs>
+                      <linearGradient id="goldGradStadium" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f5d475" />
+                        <stop offset="50%" stopColor="#d4af37" />
+                        <stop offset="100%" stopColor="#b8860b" />
+                      </linearGradient>
+                    </defs>
+                    {/* Outer Oval Grandstand */}
+                    <ellipse cx="60" cy="46" rx="46" ry="26" fill="none" stroke="url(#goldGradStadium)" strokeWidth="3.5" />
+                    {/* Inner Pitch Border */}
+                    <ellipse cx="60" cy="46" rx="30" ry="16" fill="none" stroke="url(#goldGradStadium)" strokeWidth="1.8" opacity="0.6" />
+                    {/* Center Pitch Field */}
+                    <rect x="42" y="38" width="36" height="16" rx="2" fill="none" stroke="url(#goldGradStadium)" strokeWidth="1.5" />
+                    <circle cx="60" cy="46" r="4" fill="none" stroke="url(#goldGradStadium)" strokeWidth="1.2" />
+                    {/* 4 Floodlight Pillars */}
+                    <line x1="22" y1="26" x2="16" y2="14" stroke="url(#goldGradStadium)" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="16" cy="14" r="3" fill="#f5d475" />
+                    <line x1="98" y1="26" x2="104" y2="14" stroke="url(#goldGradStadium)" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="104" cy="14" r="3" fill="#f5d475" />
+                    <line x1="26" y1="64" x2="20" y2="76" stroke="url(#goldGradStadium)" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="20" cy="76" r="3" fill="#f5d475" />
+                    <line x1="94" y1="64" x2="100" y2="76" stroke="url(#goldGradStadium)" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="100" cy="76" r="3" fill="#f5d475" />
+                  </svg>
+                </div>
+                <h3 className="font-montserrat text-xl sm:text-2xl font-black uppercase tracking-wider text-[#e9c349] drop-shadow-[0_0_12px_rgba(233,195,73,0.6)]">
+                  STADIUM &amp; FINANCE
+                </h3>
+                <p className="mt-2 text-xs text-gray-400 font-bold uppercase tracking-widest max-w-xs">
+                  Matchday Tickets · The Big Stadium Trap &amp; Boycotts
                 </p>
               </div>
 
