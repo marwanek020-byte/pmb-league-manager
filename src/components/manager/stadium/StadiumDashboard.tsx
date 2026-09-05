@@ -1,762 +1,814 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
-  ShieldAlert,
-  Flame,
-  Crown,
-  TrendingDown,
+  Lock,
+  Unlock,
+  Trophy,
   TrendingUp,
+  TrendingDown,
+  Minus,
   AlertTriangle,
-  Building2,
-  Users,
-  Coins,
-  Ticket,
-  Sparkles,
-  RefreshCw,
+  Hammer,
+  MapPin,
+  Clock,
+  Wallet,
+  Star,
+  ChevronDown,
+  ChevronUp,
   Zap,
+  Users,
+  Send,
+  ShieldAlert,
+  CheckCircle2,
+  Building2,
 } from "lucide-react";
 
-export interface BotolaStadiumData {
-  stadium: string;
+// ─────────────────────────────────────────────────────────────────────────────
+// TYPE DEFINITIONS  (unchanged from Step 2)
+// ─────────────────────────────────────────────────────────────────────────────
+type MatchResult = "W" | "D" | "L";
+
+interface Club {
+  name: string;
   capacity: number;
-  arabicName: string;
+  vipCapacity: number;
 }
 
-export const OFFICIAL_BOTOLA_STADIUMS: Record<string, BotolaStadiumData> = {
-  "IR Tanger": { stadium: "Grand Stade de Tanger", capacity: 65000, arabicName: "اتحاد طنجة" },
-  "FAR Rabat": { stadium: "Stade Prince Moulay Abdellah", capacity: 53000, arabicName: "الجيش الملكي" },
-  "Raja Casablanca": { stadium: "Stade Mohammed V", capacity: 45891, arabicName: "الرجاء الرياضي" },
-  "Wydad AC": { stadium: "Stade Mohammed V", capacity: 45891, arabicName: "الوداد الرياضي" },
-  "Hassania Agadir": { stadium: "Grand Stade d'Agadir", capacity: 45480, arabicName: "حسنية أكادير" },
-  "Kawkab Marrakech": { stadium: "Grand Stade de Marrakech", capacity: 45240, arabicName: "الكوكب المراكشي" },
-  "Maghreb Fez": { stadium: "Grand Stade de Fès", capacity: 45000, arabicName: "المغرب الفاسي" },
-  "COD Meknes": { stadium: "Stade d'Honneur de Meknès", capacity: 20000, arabicName: "النادي المكناسي" },
-  "Olympique Safi": { stadium: "Stade El Massira", capacity: 15000, arabicName: "أولمبيك آسفي" },
-  "Difaa El Jadidi": { stadium: "Stade El Abdi", capacity: 15000, arabicName: "الدفاع الحسني الجديدي" },
-  "FUS Rabat": { stadium: "Stade Moulay Hassan", capacity: 22000, arabicName: "الفتح الرباطي" },
-  "Union Touarga": { stadium: "Stade Moulay Hassan", capacity: 22000, arabicName: "اتحاد تواركة" },
-  "Berkane": { stadium: "Stade Municipal de Berkane", capacity: 15000, arabicName: "نهضة بركان" },
-  "Renaissance Zemamra": { stadium: "Stade Ahmed Choukri", capacity: 12000, arabicName: "نهضة الزمامرة" },
-  "Dcheira": { stadium: "Stade Ahmed Fana", capacity: 12000, arabicName: "أولمبيك الدشيرة" },
-  "Yacoub El Mansour": { stadium: "Stade Municipal de rabat", capacity: 18000, arabicName: "اتحاد يعقوب المنصور" },
-};
-
-export interface StadiumDashboardProps {
-  initialClub?: string;
-  initialStandardPrice?: number;
-  initialVipPrice?: number;
-  initialTeamForm?: number;
+interface UpgradeOption {
+  id: string;
+  label: string;
+  seatsAdded: number;
+  cost: number;
+  rounds: number;
+  type: "standard" | "vip";
 }
 
-export default function StadiumDashboard({
-  initialClub = "FAR Rabat",
-  initialStandardPrice = 15,
-  initialVipPrice = 150,
-  initialTeamForm = 5,
-}: StadiumDashboardProps) {
-  // ── 1. STATE MANAGEMENT ───────────────────────────────────────────────────
-  // Find matching club or fallback to FAR Rabat
-  const resolvedInitialClub = useMemo(() => {
-    const keys = Object.keys(OFFICIAL_BOTOLA_STADIUMS);
-    const matched = keys.find(
-      (k) => k.toLowerCase() === initialClub.toLowerCase() || initialClub.toLowerCase().includes(k.toLowerCase())
-    );
-    return matched || "FAR Rabat";
-  }, [initialClub]);
+interface UpgradeStatus {
+  isUpgrading: boolean;
+  roundsLeft: number;
+  pendingStandardCapacity: number;
+  pendingVipCapacity: number;
+  projectLabel: string;
+}
 
-  const [selectedClub, setSelectedClub] = useState<string>(resolvedInitialClub);
-  const [standardPrice, setStandardPrice] = useState<number>(initialStandardPrice);
-  const [vipPrice, setVipPrice] = useState<number>(initialVipPrice);
-  const [teamForm, setTeamForm] = useState<number>(initialTeamForm); // 1 to 10
+interface RentalStadium {
+  id: string;
+  name: string;
+  city: string;
+  rentalCapacity: number;
+}
 
-  // Venue Data derived from official registry
-  const venue = OFFICIAL_BOTOLA_STADIUMS[selectedClub] || OFFICIAL_BOTOLA_STADIUMS["FAR Rabat"];
-  const totalCapacity = venue.capacity;
-  const vipCapacity = Math.floor(totalCapacity * 0.05); // 5% VIP seats
-  const standardCapacity = totalCapacity - vipCapacity; // 95% Standard seats
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS  (unchanged from Step 2)
+// ─────────────────────────────────────────────────────────────────────────────
+const VIP_CAPACITY_THRESHOLD = 25000;
 
-  // Real exponential operating cost calculated from capacity (The Big Stadium Trap formula)
-  const operatingCost = useMemo(() => {
-    const baseOverhead = 2000;
-    const variablePerSeat = 0.6 * totalCapacity;
-    const capacityUnits = totalCapacity / 10000;
-    const exponentialBurden = 1450 * Math.pow(capacityUnits, 2.22);
-    return Math.round(baseOverhead + variablePerSeat + exponentialBurden);
-  }, [totalCapacity]);
+const RESULT_SCORE: Record<MatchResult, number> = { W: 1, D: 0.5, L: 0 };
 
-  // ── 2. DERIVED MOCK ECONOMY ENGINE ────────────────────────────────────────
-  const economy = useMemo(() => {
-    // BOYCOTT RULE: Terrible form (< 4) AND aggressive standard ticket price (> 30€)
-    const isBoycotting = teamForm < 4 && standardPrice > 30;
+const UPGRADE_OPTIONS: UpgradeOption[] = [
+  { id: "std-sm", label: "+2,000 Standard Seats",  seatsAdded: 2_000,  cost: 300_000,   rounds: 2, type: "standard" },
+  { id: "std-md", label: "+10,000 Standard Seats", seatsAdded: 10_000, cost: 1_600_000, rounds: 3, type: "standard" },
+  { id: "std-lg", label: "+20,000 Standard Seats", seatsAdded: 20_000, cost: 3_000_000, rounds: 5, type: "standard" },
+  { id: "vip-sm", label: "+500 VIP Suite Seats",   seatsAdded: 500,    cost: 800_000,   rounds: 2, type: "vip" },
+  { id: "vip-lg", label: "+1,500 VIP Suite Seats", seatsAdded: 1_500,  cost: 2_000_000, rounds: 4, type: "vip" },
+];
 
-    // Standard Attendance (Price Elasticity: High sensitivity to price surges)
-    let standardAttendance = 0;
-    if (!isBoycotting) {
-      const formFactor = teamForm <= 5 ? 0.3 + (teamForm / 5) * 0.6 : 0.9 + ((teamForm - 5) / 5) * 0.45;
-      const priceRatio = 15 / Math.max(1, standardPrice);
-      const elasticity = Math.pow(priceRatio, 1.45); // Elasticity ~1.45
-      const projected = Math.round(standardCapacity * 0.78 * formFactor * elasticity);
-      standardAttendance = Math.min(standardCapacity, Math.max(0, projected));
-    }
+const RENTAL_STADIUMS: RentalStadium[] = [
+  { id: "rent-fes",      name: "Grand Stade de Fès",    city: "Fès",        rentalCapacity: 45_000 },
+  { id: "rent-massira",  name: "Stade El Massira",       city: "Agadir",     rentalCapacity: 15_000 },
+  { id: "rent-complexe", name: "Complexe Mohammed V",    city: "Casablanca", rentalCapacity: 45_891 },
+  { id: "rent-honour",   name: "Stade d'Honneur Meknès", city: "Meknès",    rentalCapacity: 20_000 },
+];
 
-    // VIP Attendance ("Glory Hunters" Dynamic: Inelastic, driven heavily by team form/hype)
-    const vipFormFactor = Math.pow(teamForm / 10, 1.85); // Needs good form to fill VIP boxes
-    const vipPriceRatio = 150 / Math.max(1, vipPrice);
-    const vipElasticity = Math.pow(vipPriceRatio, 0.55); // Inelastic: VIPs tolerate high prices
-    const rawVipDemand = Math.round(vipCapacity * (0.45 + vipFormFactor * 0.75) * vipElasticity);
-    const vipAttendance = Math.min(vipCapacity, Math.max(0, rawVipDemand));
+// Boycott thresholds (pure constants, logic untouched)
+const BOYCOTT_FORM_THRESHOLD  = 4;
+const BOYCOTT_PRICE_THRESHOLD = 30;
 
-    // Financial Ledger
-    const standardRevenue = standardAttendance * standardPrice;
-    const vipRevenue = vipAttendance * vipPrice;
-    const grossRevenue = standardRevenue + vipRevenue;
-    const netProfit = grossRevenue - operatingCost;
-    const isProfitable = netProfit >= 0;
+// ─────────────────────────────────────────────────────────────────────────────
+// PURE LOGIC HELPERS  (unchanged from Step 2)
+// ─────────────────────────────────────────────────────────────────────────────
+function calculateTeamForm(past10Matches: MatchResult[]): number {
+  if (past10Matches.length === 0) return 0;
+  const totalPoints = past10Matches.reduce((acc, r) => acc + RESULT_SCORE[r], 0);
+  return Math.round(((totalPoints / past10Matches.length) * 10) * 10) / 10;
+}
 
-    // Stadium Occupancy
-    const totalAttendance = standardAttendance + vipAttendance;
-    const occupancyPercent = Number(((totalAttendance / totalCapacity) * 100).toFixed(1));
+function getMatchBreakdown(matches: MatchResult[]) {
+  return matches.reduce(
+    (acc, r) => {
+      if (r === "W") acc.wins++;
+      else if (r === "D") acc.draws++;
+      else acc.losses++;
+      return acc;
+    },
+    { wins: 0, draws: 0, losses: 0 }
+  );
+}
 
-    // The Big Stadium Trap Detection: High overhead exceeds revenue due to low turnout
-    const isBigStadiumTrap = totalCapacity >= 40000 && (!isProfitable || occupancyPercent < 35);
+function isVipLocked(capacity: number): boolean {
+  return capacity < VIP_CAPACITY_THRESHOLD;
+}
 
-    // Break-even attendance needed
-    const breakEvenStandardAttendance = Math.max(
-      0,
-      Math.ceil((operatingCost - vipRevenue) / Math.max(1, standardPrice))
-    );
+function addMatchResult(current: MatchResult[], newResult: MatchResult): MatchResult[] {
+  return [...current, newResult].slice(-10);
+}
 
-    return {
-      isBoycotting,
-      standardCapacity,
-      vipCapacity,
-      standardAttendance,
-      vipAttendance,
-      totalAttendance,
-      occupancyPercent,
-      standardRevenue,
-      vipRevenue,
-      grossRevenue,
-      operatingCost,
-      netProfit,
-      isProfitable,
-      isBigStadiumTrap,
-      breakEvenStandardAttendance,
-    };
-  }, [standardPrice, vipPrice, teamForm, standardCapacity, vipCapacity, totalCapacity, operatingCost]);
+function formatEuro(amount: number): string {
+  return `${amount.toLocaleString()} €`;
+}
 
-  // Quick Preset Handlers for Instant Testing
-  const handleTriggerBoycott = () => {
-    setTeamForm(2);
-    setStandardPrice(35);
+function getPurchaseBlockReason(
+  option: UpgradeOption,
+  budget: number,
+  isUpgrading: boolean,
+  currentCapacity: number
+): string | null {
+  if (isUpgrading) return "Construction in progress";
+  if (budget < option.cost) return "Insufficient budget";
+  if (option.type === "vip" && isVipLocked(currentCapacity))
+    return `Requires ${VIP_CAPACITY_THRESHOLD.toLocaleString()}+ seats`;
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLE HELPERS  (NEW — Step 3 only, zero logic)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Returns Tailwind badge classes based on form score */
+function getFormBadgeClasses(form: number): string {
+  if (form >= 7) return "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50";
+  if (form >= 4) return "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/50";
+  return "bg-red-500/20 text-red-400 ring-1 ring-red-500/50";
+}
+
+/** Returns the right lucide icon component for the form trend */
+function FormTrendIcon({ form }: { form: number }) {
+  if (form >= 7) return <TrendingUp className="w-4 h-4 text-emerald-400" />;
+  if (form >= 4) return <Minus className="w-4 h-4 text-yellow-400" />;
+  return <TrendingDown className="w-4 h-4 text-red-400" />;
+}
+
+/** Small coloured pill for each match result in the sequence */
+function MatchPill({ result }: { result: MatchResult }) {
+  const colorMap: Record<MatchResult, string> = {
+    W: "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40",
+    D: "bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/40",
+    L: "bg-red-500/20 text-red-300 ring-1 ring-red-500/40",
   };
-
-  const handleOptimalDerby = () => {
-    setTeamForm(9);
-    setStandardPrice(22);
-    setVipPrice(220);
-  };
-
-  const handleReset = () => {
-    setStandardPrice(15);
-    setVipPrice(150);
-    setTeamForm(5);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-4 md:p-6 lg:p-8 font-sans selection:bg-yellow-500 selection:text-black">
-      {/* Subtle Moroccan Geometric Watermark Header Glow */}
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* ── TOP HEADER ───────────────────────────────────────────────────── */}
-        <header className="relative bg-gray-900 border border-gray-800 rounded-2xl p-5 md:p-6 shadow-2xl overflow-hidden">
-          {/* Moroccan Arabesque / Gold Accent Top Border */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
+    <span className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-bold ${colorMap[result]}`}>
+      {result}
+    </span>
+  );
+}
 
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            {/* Stadium Info, Club Selector & Title */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <span className="p-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 shrink-0 self-start sm:self-auto">
-                <Building2 className="w-7 h-7" />
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+export default function StadiumDashboard() {
+
+  // ── STATE (100% identical to Step 2) ──────────────────────────────────────
+  const [club, setClub] = useState<Club>({
+    name: "FAR Rabat",
+    capacity: 10_000,
+    vipCapacity: 0,
+  });
+
+  const [past10Matches, setPast10Matches] = useState<MatchResult[]>([
+    "W", "W", "D", "L", "W", "W", "D", "L", "W", "W",
+  ]);
+
+  const [standardPrice, setStandardPrice] = useState<number>(15);
+  const [vipPrice, setVipPrice] = useState<number>(120);
+  const [budget, setBudget] = useState<number>(5_000_000);
+
+  const [upgradeStatus, setUpgradeStatus] = useState<UpgradeStatus>({
+    isUpgrading: false,
+    roundsLeft: 0,
+    pendingStandardCapacity: 0,
+    pendingVipCapacity: 0,
+    projectLabel: "",
+  });
+
+  const [rentalOffers, setRentalOffers] = useState<Record<string, number>>(
+    Object.fromEntries(RENTAL_STADIUMS.map((s) => [s.id, 0]))
+  );
+  const [lastOfferMessage, setLastOfferMessage] = useState<string>("");
+
+  // Step 3 only: controls whether the Dev Toolbar accordion is open
+  const [devToolbarOpen, setDevToolbarOpen] = useState(false);
+
+  // ── DERIVED VALUES (100% identical to Step 2) ─────────────────────────────
+  const teamForm = useMemo(() => calculateTeamForm(past10Matches), [past10Matches]);
+  const vipLocked = useMemo(() => isVipLocked(club.capacity), [club.capacity]);
+  const breakdown = useMemo(() => getMatchBreakdown(past10Matches), [past10Matches]);
+
+  /** NEW (Step 3): Boycott is active when form is terrible AND tickets are too expensive */
+  const isBoycottActive = teamForm < BOYCOTT_FORM_THRESHOLD && standardPrice >= BOYCOTT_PRICE_THRESHOLD;
+
+  // ── HANDLERS (100% identical to Step 2) ───────────────────────────────────
+  function handleStandardPriceChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setStandardPrice(Math.max(1, Math.min(200, Number(e.target.value))));
+  }
+
+  function handleVipPriceChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (vipLocked) return;
+    setVipPrice(Math.max(50, Math.min(500, Number(e.target.value))));
+  }
+
+  function handlePurchaseUpgrade(option: UpgradeOption) {
+    const blockReason = getPurchaseBlockReason(option, budget, upgradeStatus.isUpgrading, club.capacity);
+    if (blockReason) { alert(`Cannot purchase: ${blockReason}`); return; }
+    setBudget((prev) => prev - option.cost);
+    setUpgradeStatus({
+      isUpgrading: true,
+      roundsLeft: option.rounds,
+      pendingStandardCapacity: option.type === "standard" ? option.seatsAdded : 0,
+      pendingVipCapacity: option.type === "vip" ? option.seatsAdded : 0,
+      projectLabel: option.label,
+    });
+  }
+
+  function handleRentalOfferChange(stadiumId: string, value: number) {
+    setRentalOffers((prev) => ({ ...prev, [stadiumId]: Math.max(0, value) }));
+  }
+
+  function handleSendOffer(stadium: RentalStadium) {
+    const offerAmount = rentalOffers[stadium.id] ?? 0;
+    if (offerAmount <= 0) { alert("Please enter an offer amount greater than 0 €."); return; }
+    const message = `✅ Offer of ${formatEuro(offerAmount)} sent to the owner of ${stadium.name} (${stadium.city})!`;
+    setLastOfferMessage(message);
+    setTimeout(() => setLastOfferMessage(""), 5000);
+  }
+
+  function simulateMatchweek() {
+    const pool: MatchResult[] = ["W", "W", "D", "L", "W"];
+    setPast10Matches((prev) => addMatchResult(prev, pool[Math.floor(Math.random() * pool.length)]));
+    if (!upgradeStatus.isUpgrading) return;
+    const newRoundsLeft = upgradeStatus.roundsLeft - 1;
+    if (newRoundsLeft <= 0) {
+      setClub((prev) => ({
+        ...prev,
+        capacity: prev.capacity + upgradeStatus.pendingStandardCapacity,
+        vipCapacity: prev.vipCapacity + upgradeStatus.pendingVipCapacity,
+      }));
+      setUpgradeStatus({ isUpgrading: false, roundsLeft: 0, pendingStandardCapacity: 0, pendingVipCapacity: 0, projectLabel: "" });
+    } else {
+      setUpgradeStatus((prev) => ({ ...prev, roundsLeft: newRoundsLeft }));
+    }
+  }
+
+  function devUnlockVip()          { setClub((prev) => ({ ...prev, capacity: 30_000 })); }
+  function devLockVip()            { setClub((prev) => ({ ...prev, capacity: 10_000 })); }
+  function devAddWin()             { setPast10Matches((prev) => addMatchResult(prev, "W")); }
+  function devAddDraw()            { setPast10Matches((prev) => addMatchResult(prev, "D")); }
+  function devAddLoss()            { setPast10Matches((prev) => addMatchResult(prev, "L")); }
+  function devAddBudget()          { setBudget((prev) => prev + 1_000_000); }
+  function devCompleteConstruction() {
+    if (!upgradeStatus.isUpgrading) return;
+    setClub((prev) => ({
+      ...prev,
+      capacity: prev.capacity + upgradeStatus.pendingStandardCapacity,
+      vipCapacity: prev.vipCapacity + upgradeStatus.pendingVipCapacity,
+    }));
+    setUpgradeStatus({ isUpgrading: false, roundsLeft: 0, pendingStandardCapacity: 0, pendingVipCapacity: 0, projectLabel: "" });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pb-20">
+
+      {/* ── BOYCOTT BANNER (fullscreen alert, conditional) ──────────────── */}
+      {isBoycottActive && (
+        <div className="sticky top-0 z-50 w-full bg-red-950 border-b border-red-700 shadow-[0_0_40px_rgba(239,68,68,0.4)]">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+            <ShieldAlert className="w-6 h-6 text-red-400 shrink-0 animate-pulse" />
+            <p className="text-red-300 font-bold text-sm md:text-base text-center w-full" dir="rtl">
+              🚨 بيان الكورفا: نتائج كارثية، وإدارة جشعة.. نعلن مقاطعة المباراة!
+            </p>
+            <ShieldAlert className="w-6 h-6 text-red-400 shrink-0 animate-pulse" />
+          </div>
+        </div>
+      )}
+
+      {/* ── PAGE CONTAINER ───────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+
+        {/* ══════════════════════════════════════════════════════════════════
+            HEADER — Club name + key KPIs
+        ══════════════════════════════════════════════════════════════════ */}
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-yellow-500 text-xs font-semibold uppercase tracking-widest mb-1">
+              <Building2 className="w-4 h-4" />
+              <span>Stadium Command Centre</span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+              {club.name}
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">Botola Pro Manager Interface</p>
+          </div>
+
+          {/* KPI chips */}
+          <div className="flex flex-wrap gap-3">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 flex items-center gap-2">
+              <Users className="w-4 h-4 text-yellow-500" />
+              <span className="text-xs text-gray-400">Total Capacity</span>
+              <span className="text-sm font-bold text-white">
+                {(club.capacity + club.vipCapacity).toLocaleString()}
               </span>
-              <div>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="text-xl md:text-2xl font-black tracking-wide text-white">
-                    {venue.stadium}
-                  </h1>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                    {venue.arabicName}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-gray-400">
-                  <p>
-                    Total Capacity:{" "}
-                    <span className="font-bold text-yellow-500">
-                      {totalCapacity.toLocaleString()}
-                    </span>{" "}
-                    Seats
-                  </p>
-                  <span className="text-gray-600">•</span>
-                  {/* Official Club Selector */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-400 font-medium">Club:</span>
-                    <select
-                      value={selectedClub}
-                      onChange={(e) => setSelectedClub(e.target.value)}
-                      className="bg-gray-950 text-white text-xs font-bold rounded-lg border border-gray-700 px-2.5 py-1 focus:border-yellow-500 focus:outline-none cursor-pointer"
-                    >
-                      {Object.keys(OFFICIAL_BOTOLA_STADIUMS).map((clubKey) => (
-                        <option key={clubKey} value={clubKey}>
-                          {clubKey} ({OFFICIAL_BOTOLA_STADIUMS[clubKey].capacity.toLocaleString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
             </div>
-
-            {/* Interactive Team Form Controller & Preset Quick-Actions */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-gray-950/70 p-3.5 rounded-xl border border-gray-800">
-              {/* Form Slider & Rating */}
-              <div className="flex items-center gap-3 min-w-[220px]">
-                <div className="text-left">
-                  <div className="text-xs text-gray-400 font-medium flex items-center gap-1">
-                    <Flame
-                      className={`w-3.5 h-3.5 ${
-                        teamForm >= 7
-                          ? "text-green-400"
-                          : teamForm <= 3
-                          ? "text-red-400 animate-pulse"
-                          : "text-yellow-500"
-                      }`}
-                    />
-                    Team Form:
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span
-                      className={`text-xl font-black ${
-                        teamForm >= 7
-                          ? "text-green-400"
-                          : teamForm <= 3
-                          ? "text-red-500"
-                          : "text-yellow-500"
-                      }`}
-                    >
-                      {teamForm}
-                    </span>
-                    <span className="text-xs text-gray-500">/ 10</span>
-                  </div>
-                </div>
-
-                <div className="flex-1">
-                  <input
-                    type="range"
-                    min={1}
-                    max={10}
-                    value={teamForm}
-                    onChange={(e) => setTeamForm(Number(e.target.value))}
-                    className="w-full accent-yellow-500 cursor-pointer h-2 bg-gray-800 rounded-lg"
-                  />
-                  <div className="flex justify-between text-[10px] text-gray-500 mt-1 font-mono">
-                    <span>1 (Slump)</span>
-                    <span>5</span>
-                    <span>10 (Streak)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Preset Buttons */}
-              <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-gray-800 pt-2 sm:pt-0 sm:pl-4">
-                <button
-                  onClick={handleTriggerBoycott}
-                  title="Form 2 + Standard Ticket €35 to trigger the Ultras boycott"
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-red-950/60 text-red-400 hover:bg-red-900/60 border border-red-800/60 transition flex items-center gap-1.5"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Test Boycott
-                </button>
-                <button
-                  onClick={handleOptimalDerby}
-                  title="High Form + Derby Pricing"
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border border-yellow-500/30 transition flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Derby Mode
-                </button>
-                <button
-                  onClick={handleReset}
-                  title="Reset to default settings"
-                  className="p-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 bg-gray-800/80 hover:bg-gray-700 transition"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
-              </div>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs text-gray-400">Budget</span>
+              <span className="text-sm font-bold text-emerald-400">{formatEuro(budget)}</span>
             </div>
+            {upgradeStatus.isUpgrading && (
+              <div className="bg-amber-900/40 border border-amber-600/50 rounded-xl px-4 py-2 flex items-center gap-2 animate-pulse">
+                <Hammer className="w-4 h-4 text-amber-400" />
+                <span className="text-xs text-amber-300">
+                  {upgradeStatus.projectLabel} — {upgradeStatus.roundsLeft} round(s) left
+                </span>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* ── MIDDLE SECTION: THE SPLIT (CURVA VS PRESTIGE) ────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════════
+            MAIN GRID — Two-column on desktop
+        ══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ═════════════════════════════════════════════════════════════════ */}
-          {/* LEFT SIDE: THE CURVA / VIRAGE POPULAIRE (95% SEATS)               */}
-          {/* ═════════════════════════════════════════════════════════════════ */}
-          <div
-            className={`relative rounded-2xl border transition-all duration-500 overflow-hidden flex flex-col justify-between ${
-              economy.isBoycotting
-                ? "bg-black border-red-600 shadow-[0_0_35px_rgba(239,68,68,0.35)]"
-                : "bg-gray-900 border-gray-800 hover:border-gray-700 shadow-xl"
-            }`}
-          >
-            {/* Header Ribbon */}
-            <div
-              className={`p-5 border-b flex items-center justify-between transition-colors ${
-                economy.isBoycotting
-                  ? "bg-red-950/60 border-red-800/70"
-                  : "bg-gray-900/90 border-gray-800"
+
+          {/* ── LEFT COLUMN ─────────────────────────────────────────────── */}
+          <div className="space-y-6">
+
+            {/* ── TEAM FORM PANEL ────────────────────────────────────────── */}
+            <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-5 h-5 text-yellow-500" />
+                <h2 className="text-base font-bold text-white uppercase tracking-wide">Team Form</h2>
+              </div>
+
+              {/* Form score badge */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-2xl font-extrabold ${getFormBadgeClasses(teamForm)}`}>
+                  <FormTrendIcon form={teamForm} />
+                  {teamForm} <span className="text-sm font-normal opacity-70">/ 10</span>
+                </span>
+                <div className="text-sm text-gray-400">
+                  <span className="text-emerald-400 font-semibold">{breakdown.wins}W</span>
+                  {" · "}
+                  <span className="text-yellow-400 font-semibold">{breakdown.draws}D</span>
+                  {" · "}
+                  <span className="text-red-400 font-semibold">{breakdown.losses}L</span>
+                </div>
+              </div>
+
+              {/* Match result sequence */}
+              <div className="flex flex-wrap gap-1.5">
+                {past10Matches.map((result, index) => (
+                  <MatchPill key={index} result={result} />
+                ))}
+              </div>
+            </section>
+
+            {/* ── TICKET PRICING PANEL ───────────────────────────────────── */}
+            <section
+              className={`border rounded-2xl p-5 transition-all duration-500 ${
+                isBoycottActive
+                  ? "bg-red-950/30 border-red-700 shadow-[0_0_30px_rgba(239,68,68,0.2)]"
+                  : "bg-gray-900 border-gray-800"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`p-2 rounded-xl transition-colors ${
-                    economy.isBoycotting
-                      ? "bg-red-600 text-white animate-bounce"
-                      : "bg-gray-800 text-yellow-500"
-                  }`}
-                >
-                  <Users className="w-5 h-5" />
-                </span>
-                <div>
-                  <h2 className="text-lg font-black tracking-wide text-white flex items-center gap-2">
-                    المدرجات الشعبية • The Curva
-                    {economy.isBoycotting && (
-                      <span className="text-xs bg-red-600 text-white font-black px-2 py-0.5 rounded uppercase tracking-wider animate-pulse">
-                        Boycott Active
-                      </span>
-                    )}
-                  </h2>
-                  <p className="text-xs text-gray-400">
-                    Standard Seats: {standardCapacity.toLocaleString()} (95% Allotment)
-                  </p>
-                </div>
-              </div>
-
-              {/* Fan Mood Tag */}
-              <div className="text-right">
-                <span
-                  className={`text-xs px-2.5 py-1 rounded-full font-bold inline-flex items-center gap-1.5 ${
-                    economy.isBoycotting
-                      ? "bg-red-600/20 text-red-400 border border-red-500/40"
-                      : teamForm >= 7
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                      : teamForm <= 3
-                      ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-                      : "bg-gray-800 text-gray-300"
-                  }`}
-                >
-                  <Flame className="w-3 h-3" />
-                  {economy.isBoycotting
-                    ? "مقاطعة شاملة"
-                    : teamForm >= 7
-                    ? "الفيراج شاعل (Euphoric)"
-                    : teamForm <= 3
-                    ? "غليان وتوتر (Tense)"
-                    : "حضور معتدل"}
-                </span>
-              </div>
-            </div>
-
-            {/* Card Body */}
-            <div className="p-6 space-y-6 flex-1 relative">
-              {/* ⚠️ THE BOYCOTT DRAMA OVERLAY */}
-              {economy.isBoycotting && (
-                <div className="absolute inset-0 z-20 bg-gradient-to-b from-black/95 via-black/90 to-red-950/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-300">
-                  <div className="w-16 h-16 rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center text-red-500 mb-4 shadow-[0_0_20px_rgba(239,68,68,0.5)]">
-                    <ShieldAlert className="w-9 h-9 animate-pulse" />
-                  </div>
-
-                  <span className="text-xs font-mono font-bold uppercase tracking-widest text-red-400 bg-red-950/80 px-3 py-1 rounded-full border border-red-800 mb-2">
-                    ⚠️ بيان الألتراس الرسمي • COMMUNIQUÉ
-                  </span>
-
-                  <h3 className="text-xl md:text-2xl font-black text-white max-w-md leading-snug dir-rtl font-serif">
-                    &ldquo;بيان الكورفا: نتائج كارثية، وإدارة جشعة.. نعلن مقاطعة
-                    المباراة!&rdquo;
-                  </h3>
-
-                  <p className="text-xs text-red-300/80 mt-3 max-w-sm">
-                    The Curva has boycotted matchday. Standard seat attendance has collapsed to{" "}
-                    <span className="font-bold text-white underline">0</span>. Lower ticket
-                    prices or restore winning form to reconcile.
-                  </p>
-
-                  <div className="mt-5 flex gap-2">
-                    <button
-                      onClick={() => setStandardPrice(20)}
-                      className="px-3 py-1.5 bg-gray-900 text-yellow-400 hover:bg-gray-800 border border-yellow-500/40 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                      Lower Price to €20
-                    </button>
-                    <button
-                      onClick={() => setTeamForm(5)}
-                      className="px-3 py-1.5 bg-red-950 text-red-200 hover:bg-red-900 border border-red-700 rounded-lg text-xs font-bold transition"
-                    >
-                      Restore Form (5)
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Slider for Standard Ticket Pricing */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
-                    <Ticket className="w-4 h-4 text-yellow-500" />
-                    Standard Ticket Price
-                  </label>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-yellow-500">
-                      €{standardPrice}
-                    </span>
-                    <span className="text-xs text-gray-400 font-mono">
-                      (~{standardPrice * 10} MAD)
-                    </span>
-                  </div>
-                </div>
-
-                <input
-                  type="range"
-                  min={5}
-                  max={50}
-                  step={1}
-                  value={standardPrice}
-                  onChange={(e) => setStandardPrice(Number(e.target.value))}
-                  className="w-full accent-yellow-500 cursor-pointer h-2.5 bg-gray-800 rounded-lg"
-                />
-
-                <div className="flex justify-between text-xs text-gray-500 font-mono">
-                  <span>€5 (Cheap)</span>
-                  <span className="text-gray-400">Benchmark: €12-€15</span>
-                  <span className="text-red-400">€30+ (Boycott Risk)</span>
-                </div>
-              </div>
-
-              {/* Attendance & Occupancy Readouts */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="p-4 bg-gray-950/80 rounded-xl border border-gray-800">
-                  <div className="text-xs text-gray-400 font-medium">Expected Fans</div>
-                  <div
-                    className={`text-2xl font-black mt-1 ${
-                      economy.isBoycotting
-                        ? "text-red-500 line-through"
-                        : "text-white"
-                    }`}
-                  >
-                    {economy.standardAttendance.toLocaleString()}
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    of {standardCapacity.toLocaleString()} seats
-                  </div>
-                </div>
-
-                <div className="p-4 bg-gray-950/80 rounded-xl border border-gray-800">
-                  <div className="text-xs text-gray-400 font-medium">Standard Revenue</div>
-                  <div
-                    className={`text-2xl font-black mt-1 ${
-                      economy.isBoycotting ? "text-red-500" : "text-yellow-500"
-                    }`}
-                  >
-                    €{economy.standardRevenue.toLocaleString()}
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    Elasticity: Sensitive (1.45)
-                  </div>
-                </div>
-              </div>
-
-              {/* Attendance Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Curva Fill Level</span>
-                  <span className="font-bold text-gray-200">
-                    {economy.isBoycotting
-                      ? "0%"
-                      : `${(
-                          (economy.standardAttendance / standardCapacity) *
-                          100
-                        ).toFixed(1)}%`}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      economy.isBoycotting
-                        ? "w-0"
-                        : "bg-gradient-to-r from-yellow-600 to-yellow-400"
-                    }`}
-                    style={{
-                      width: economy.isBoycotting
-                        ? "0%"
-                        : `${Math.min(
-                            100,
-                            (economy.standardAttendance / standardCapacity) * 100
-                          )}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Footer Note */}
-            <div className="p-4 bg-gray-950/50 border-t border-gray-800 text-xs text-gray-400 flex items-center justify-between">
-              <span>Ultras Reaction System</span>
-              <span className="text-gray-500 font-mono text-[11px]">
-                Trigger: Form &lt; 4 &amp; Price &gt; €30
-              </span>
-            </div>
-          </div>
-
-          {/* ═════════════════════════════════════════════════════════════════ */}
-          {/* RIGHT SIDE: THE VIP / PRESTIGE & GLORY SUITES (5% SEATS)          */}
-          {/* ═════════════════════════════════════════════════════════════════ */}
-          <div className="rounded-2xl border border-gray-800 bg-gray-900 shadow-xl overflow-hidden flex flex-col justify-between hover:border-gray-700 transition">
-            {/* Header Ribbon */}
-            <div className="p-5 border-b border-gray-800 bg-gray-900/90 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="p-2 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500">
-                  <Crown className="w-5 h-5" />
-                </span>
-                <div>
-                  <h2 className="text-lg font-black tracking-wide text-white flex items-center gap-2">
-                    المنصة ومقصورات الـ VIP
-                    <span className="text-xs bg-yellow-500/10 text-yellow-400 font-bold px-2 py-0.5 rounded border border-yellow-500/20">
-                      Corporate
-                    </span>
-                  </h2>
-                  <p className="text-xs text-gray-400">
-                    VIP Suites: {vipCapacity.toLocaleString()} (5% Allotment)
-                  </p>
-                </div>
-              </div>
-
-              {/* Glory Hype Meter */}
-              <div className="text-right">
-                <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 inline-flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3" />
-                  {teamForm >= 8
-                    ? "Glory Hunters Hype: MAX"
-                    : teamForm >= 5
-                    ? "Prestige: Stable"
-                    : "Low Prestige Slump"}
-                </span>
-              </div>
-            </div>
-
-            {/* Card Body */}
-            <div className="p-6 space-y-6 flex-1">
-              {/* Slider for VIP Ticket Pricing */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
-                    <Crown className="w-4 h-4 text-yellow-500" />
-                    VIP Suite Ticket Price
-                  </label>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-black text-yellow-500">
-                      €{vipPrice}
-                    </span>
-                    <span className="text-xs text-gray-400 font-mono">
-                      (~{vipPrice * 10} MAD)
-                    </span>
-                  </div>
-                </div>
-
-                <input
-                  type="range"
-                  min={50}
-                  max={400}
-                  step={10}
-                  value={vipPrice}
-                  onChange={(e) => setVipPrice(Number(e.target.value))}
-                  className="w-full accent-yellow-500 cursor-pointer h-2.5 bg-gray-800 rounded-lg"
-                />
-
-                <div className="flex justify-between text-xs text-gray-500 font-mono">
-                  <span>€50</span>
-                  <span className="text-gray-400">Benchmark: €120 - €160</span>
-                  <span className="text-yellow-500">€400 (Ultra Luxury)</span>
-                </div>
-              </div>
-
-              {/* Attendance & Occupancy Readouts */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="p-4 bg-gray-950/80 rounded-xl border border-gray-800">
-                  <div className="text-xs text-gray-400 font-medium">VIP Guests</div>
-                  <div className="text-2xl font-black text-white mt-1">
-                    {economy.vipAttendance.toLocaleString()}
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    of {vipCapacity.toLocaleString()} suites
-                  </div>
-                </div>
-
-                <div className="p-4 bg-gray-950/80 rounded-xl border border-gray-800">
-                  <div className="text-xs text-gray-400 font-medium">VIP Revenue</div>
-                  <div className="text-2xl font-black text-yellow-500 mt-1">
-                    €{economy.vipRevenue.toLocaleString()}
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    Inelastic: Driven by Hype
-                  </div>
-                </div>
-              </div>
-
-              {/* VIP Attendance Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">VIP Suites Occupancy</span>
-                  <span className="font-bold text-yellow-500">
-                    {((economy.vipAttendance / vipCapacity) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-yellow-500 to-amber-300 transition-all duration-300"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (economy.vipAttendance / vipCapacity) * 100
-                      )}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Footer Note */}
-            <div className="p-4 bg-gray-950/50 border-t border-gray-800 text-xs text-gray-400 flex items-center justify-between">
-              <span>Immune to Ultras Boycotts</span>
-              <span className="text-yellow-500/80 font-mono text-[11px]">
-                High Margin / High Status
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── BOTTOM SECTION: THE LEDGER & BIG STADIUM TRAP ────────────────── */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs uppercase tracking-widest font-mono text-gray-400 font-bold flex items-center gap-2">
-              <Coins className="w-4 h-4 text-yellow-500" />
-              Municipal Matchday Ledger &amp; Cashflow
-            </h3>
-            {economy.isBigStadiumTrap && (
-              <span className="text-xs font-bold text-red-400 bg-red-950/80 px-2.5 py-0.5 rounded-full border border-red-800/80 flex items-center gap-1.5 animate-pulse">
-                <AlertTriangle className="w-3 h-3 text-red-500" />
-                Warning: The Big Stadium Trap Active
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* 1. GROSS REVENUE */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400 font-bold tracking-wider uppercase">
-                  Gross Revenue
-                </span>
-                <span className="p-2 rounded-xl bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                  <Coins className="w-5 h-5" />
-                </span>
-              </div>
-
-              <div className="text-3xl font-black text-white mt-3">
-                €{economy.grossRevenue.toLocaleString()}
-              </div>
-
-              <div className="flex items-center justify-between mt-3 text-xs border-t border-gray-800/80 pt-2.5 text-gray-400 font-mono">
-                <span>Std: €{economy.standardRevenue.toLocaleString()}</span>
-                <span>VIP: €{economy.vipRevenue.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* 2. OPERATING COSTS (Fixed High Overhead) */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-red-400 font-bold tracking-wider uppercase flex items-center gap-1.5">
-                  Operating Overhead
-                </span>
-                <span className="p-2 rounded-xl bg-red-950/60 text-red-400 border border-red-800/40">
-                  <TrendingDown className="w-5 h-5" />
-                </span>
-              </div>
-
-              <div className="text-3xl font-black text-red-400 mt-3">
-                -€{economy.operatingCost.toLocaleString()}
-              </div>
-
-              <div className="mt-3 text-xs border-t border-gray-800/80 pt-2.5 text-gray-500">
-                Security, floodlights, municipal lease &amp; turf maintenance
-              </div>
-            </div>
-
-            {/* 3. NET PROFIT (THE BIG STADIUM TRAP GAUNTLET) */}
-            <div
-              className={`rounded-2xl p-5 shadow-2xl relative overflow-hidden transition-all duration-300 border ${
-                economy.isProfitable
-                  ? "bg-gradient-to-b from-gray-900 to-gray-900/90 border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]"
-                  : "bg-gradient-to-b from-red-950/40 via-gray-900 to-black border-red-500/80 shadow-[0_0_30px_rgba(239,68,68,0.3)]"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  className={`text-xs font-bold tracking-wider uppercase flex items-center gap-1 ${
-                    economy.isProfitable ? "text-green-400" : "text-red-400"
-                  }`}
-                >
-                  Net Matchday Profit
-                </span>
-                <span
-                  className={`p-2 rounded-xl border ${
-                    economy.isProfitable
-                      ? "bg-green-500/10 text-green-400 border-green-500/30"
-                      : "bg-red-600/20 text-red-500 border-red-500/50 animate-pulse"
-                  }`}
-                >
-                  {economy.isProfitable ? (
-                    <TrendingUp className="w-5 h-5" />
-                  ) : (
-                    <ShieldAlert className="w-5 h-5" />
-                  )}
-                </span>
-              </div>
-
-              <div
-                className={`text-3xl font-black mt-3 ${
-                  economy.isProfitable ? "text-green-400" : "text-red-500"
-                }`}
-              >
-                {economy.netProfit >= 0 ? "+" : ""}€
-                {economy.netProfit.toLocaleString()}
-              </div>
-
-              <div className="mt-3 text-xs border-t border-gray-800/80 pt-2.5 flex items-center justify-between">
-                {economy.isProfitable ? (
-                  <span className="text-green-400 font-semibold flex items-center gap-1">
-                    ✓ Profitable Matchday (+{economy.occupancyPercent}% Occupancy)
-                  </span>
-                ) : (
-                  <span className="text-red-400 font-bold flex items-center gap-1">
-                    ⚠️ Deficit! Break-Even requires {economy.breakEvenStandardAttendance.toLocaleString()} Fans
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className={`w-5 h-5 ${isBoycottActive ? "text-red-400" : "text-yellow-500"}`} />
+                <h2 className={`text-base font-bold uppercase tracking-wide ${isBoycottActive ? "text-red-300" : "text-white"}`}>
+                  Ticket Pricing
+                </h2>
+                {isBoycottActive && (
+                  <span className="ml-auto flex items-center gap-1 text-xs font-bold text-red-400 bg-red-900/60 border border-red-700 px-2 py-0.5 rounded-full animate-pulse">
+                    <AlertTriangle className="w-3 h-3" /> BOYCOTT ACTIVE
                   </span>
                 )}
               </div>
-            </div>
+
+              {/* Standard Price */}
+              <div className="space-y-2 mb-5">
+                <div className="flex justify-between items-center">
+                  <label htmlFor="standard-price-range" className="text-sm text-gray-300 font-medium">
+                    Standard Ticket
+                  </label>
+                  <span className={`text-lg font-extrabold ${isBoycottActive ? "text-red-400" : "text-yellow-500"}`}>
+                    €{standardPrice}
+                  </span>
+                </div>
+                <input
+                  id="standard-price-range"
+                  type="range"
+                  min={1}
+                  max={200}
+                  step={1}
+                  value={standardPrice}
+                  onChange={handleStandardPriceChange}
+                  className="w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>€1</span><span>€200</span>
+                </div>
+              </div>
+
+              {/* VIP Price */}
+              <div className={`space-y-2 transition-opacity duration-300 ${vipLocked ? "opacity-40 pointer-events-none" : ""}`}>
+                <div className="flex justify-between items-center">
+                  <label htmlFor="vip-price-range" className="text-sm font-medium flex items-center gap-1.5">
+                    <Star className="w-3.5 h-3.5 text-yellow-500" />
+                    <span className="text-yellow-400">VIP Suite Ticket</span>
+                  </label>
+                  <span className="text-lg font-extrabold text-yellow-500">
+                    {vipLocked ? "N/A" : `€${vipPrice}`}
+                  </span>
+                </div>
+                <input
+                  id="vip-price-range"
+                  type="range"
+                  min={50}
+                  max={500}
+                  step={10}
+                  value={vipPrice}
+                  disabled={vipLocked}
+                  onChange={handleVipPriceChange}
+                  className="w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>€50</span><span>€500</span>
+                </div>
+              </div>
+
+              {vipLocked && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-yellow-600 bg-yellow-900/20 border border-yellow-700/30 rounded-lg px-3 py-2">
+                  <Lock className="w-3.5 h-3.5 shrink-0" />
+                  <span>⚠️ Locked: Stadium capacity must be 25,000+ to unlock VIP Suites.</span>
+                </div>
+              )}
+            </section>
+
+            {/* ── STADIUM CAPACITY INFO ──────────────────────────────────── */}
+            <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Building2 className="w-5 h-5 text-yellow-500" />
+                <h2 className="text-base font-bold text-white uppercase tracking-wide">Stadium Overview</h2>
+              </div>
+              <div className="space-y-2">
+                {[
+                  { label: "Standard Seats",    value: club.capacity.toLocaleString(),                    color: "text-white" },
+                  { label: "VIP Suite Seats",   value: club.vipCapacity.toLocaleString(),                 color: "text-yellow-400" },
+                  { label: "Total Capacity",    value: (club.capacity + club.vipCapacity).toLocaleString(), color: "text-emerald-400" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="flex justify-between items-center py-2 border-b border-gray-800 last:border-0">
+                    <span className="text-sm text-gray-400">{label}</span>
+                    <span className={`text-sm font-bold ${color}`}>{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* VIP Access badge */}
+              <div className={`mt-4 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${
+                vipLocked
+                  ? "bg-red-900/30 border border-red-800 text-red-400"
+                  : "bg-yellow-900/30 border border-yellow-700/50 text-yellow-400"
+              }`}>
+                {vipLocked
+                  ? <><Lock className="w-3.5 h-3.5" /> VIP Locked — reach {VIP_CAPACITY_THRESHOLD.toLocaleString()} standard seats to unlock</>
+                  : <><Unlock className="w-3.5 h-3.5" /> VIP Suites Unlocked — stadium qualifies</>
+                }
+              </div>
+            </section>
+          </div>
+
+          {/* ── RIGHT COLUMN ────────────────────────────────────────────── */}
+          <div className="space-y-6">
+
+            {/* ── CONSTRUCTION STATUS ────────────────────────────────────── */}
+            <section className={`border rounded-2xl p-5 transition-all duration-300 ${
+              upgradeStatus.isUpgrading
+                ? "bg-amber-950/30 border-amber-700/60"
+                : "bg-gray-900 border-gray-800"
+            }`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Hammer className={`w-5 h-5 ${upgradeStatus.isUpgrading ? "text-amber-400 animate-bounce" : "text-gray-500"}`} />
+                <h2 className="text-base font-bold text-white uppercase tracking-wide">Construction</h2>
+              </div>
+
+              {upgradeStatus.isUpgrading ? (
+                <div className="space-y-3">
+                  <p className="text-amber-300 font-semibold text-sm">🏗️ {upgradeStatus.projectLabel}</p>
+                  <div className="flex items-center gap-2 text-sm text-gray-300">
+                    <Clock className="w-4 h-4 text-amber-400" />
+                    <span><strong className="text-amber-400">{upgradeStatus.roundsLeft}</strong> matchweek(s) remaining</span>
+                  </div>
+                  {upgradeStatus.pendingStandardCapacity > 0 && (
+                    <p className="text-xs text-gray-400">Pending: <span className="text-white font-bold">+{upgradeStatus.pendingStandardCapacity.toLocaleString()} standard seats</span></p>
+                  )}
+                  {upgradeStatus.pendingVipCapacity > 0 && (
+                    <p className="text-xs text-gray-400">Pending: <span className="text-yellow-400 font-bold">+{upgradeStatus.pendingVipCapacity.toLocaleString()} VIP seats</span></p>
+                  )}
+                  {/* Progress visual */}
+                  <div className="text-xs text-amber-500/70 bg-amber-900/20 border border-amber-800/30 rounded-lg px-3 py-2">
+                    ⚠️ Stadium partially closed. No new upgrades until completion.
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Stadium fully operational. No active projects.</span>
+                </div>
+              )}
+            </section>
+
+            {/* ── UPGRADE STORE — Standard ─────────────────────────────── */}
+            <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="w-5 h-5 text-yellow-500" />
+                <h2 className="text-base font-bold text-white uppercase tracking-wide">Upgrade Store</h2>
+                <span className="ml-auto text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded-full">Standard Seating</span>
+              </div>
+
+              <div className="space-y-3">
+                {UPGRADE_OPTIONS.filter((o) => o.type === "standard").map((option) => {
+                  const blockReason = getPurchaseBlockReason(option, budget, upgradeStatus.isUpgrading, club.capacity);
+                  const isDisabled = blockReason !== null;
+                  return (
+                    <div
+                      key={option.id}
+                      className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 border transition-all ${
+                        isDisabled
+                          ? "bg-gray-800/40 border-gray-700/50 opacity-60"
+                          : "bg-gray-800 border-gray-700 hover:border-yellow-600/50"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{option.label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          <span className="text-yellow-500 font-bold">{formatEuro(option.cost)}</span>
+                          {" · "}{option.rounds} matchweek(s)
+                        </p>
+                        {isDisabled && (
+                          <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> {blockReason}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => handlePurchaseUpgrade(option)}
+                        className={`shrink-0 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${
+                          isDisabled
+                            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                            : "bg-yellow-500 hover:bg-yellow-400 text-gray-950 cursor-pointer shadow-[0_0_12px_rgba(234,179,8,0.3)] hover:shadow-[0_0_20px_rgba(234,179,8,0.5)]"
+                        }`}
+                      >
+                        Purchase
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* ── UPGRADE STORE — VIP ─────────────────────────────────────── */}
+            <section className={`border rounded-2xl p-5 transition-all duration-300 ${
+              vipLocked
+                ? "bg-gray-900/50 border-gray-800 opacity-50"
+                : "bg-gradient-to-br from-yellow-950/40 to-gray-900 border-yellow-700/40"
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <Star className={`w-5 h-5 ${vipLocked ? "text-gray-500" : "text-yellow-500"}`} />
+                <h2 className={`text-base font-bold uppercase tracking-wide ${vipLocked ? "text-gray-500" : "text-yellow-400"}`}>
+                  VIP Suite Expansions
+                </h2>
+                {vipLocked
+                  ? <span className="ml-auto flex items-center gap-1 text-xs text-red-400"><Lock className="w-3 h-3" /> Locked</span>
+                  : <span className="ml-auto text-xs text-yellow-600 bg-yellow-900/40 px-2 py-1 rounded-full">Premium</span>
+                }
+              </div>
+
+              {vipLocked ? (
+                <div className="flex items-start gap-2 text-sm text-yellow-600 bg-yellow-900/20 border border-yellow-800/30 rounded-xl px-3 py-3">
+                  <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>
+                    VIP upgrades unlock at{" "}
+                    <strong className="text-yellow-500">{VIP_CAPACITY_THRESHOLD.toLocaleString()}</strong> standard seats.
+                    You have <strong className="text-white">{club.capacity.toLocaleString()}</strong>.
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {UPGRADE_OPTIONS.filter((o) => o.type === "vip").map((option) => {
+                    const blockReason = getPurchaseBlockReason(option, budget, upgradeStatus.isUpgrading, club.capacity);
+                    const isDisabled = blockReason !== null;
+                    return (
+                      <div
+                        key={option.id}
+                        className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 border transition-all ${
+                          isDisabled
+                            ? "bg-gray-800/40 border-gray-700/50 opacity-60"
+                            : "bg-yellow-900/20 border-yellow-700/30 hover:border-yellow-500/60"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-yellow-300 truncate">{option.label}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            <span className="text-yellow-500 font-bold">{formatEuro(option.cost)}</span>
+                            {" · "}{option.rounds} matchweek(s)
+                          </p>
+                          {isDisabled && (
+                            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> {blockReason}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => handlePurchaseUpgrade(option)}
+                          className={`shrink-0 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${
+                            isDisabled
+                              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                              : "bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 cursor-pointer shadow-[0_0_16px_rgba(234,179,8,0.4)]"
+                          }`}
+                        >
+                          Purchase
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </div>
         </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            RENTAL MARKET  — full-width, only when construction is active
+        ══════════════════════════════════════════════════════════════════ */}
+        {upgradeStatus.isUpgrading && (
+          <section className="bg-gray-900 border border-gray-700 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin className="w-5 h-5 text-blue-400" />
+              <h2 className="text-base font-bold text-white uppercase tracking-wide">Relocation &amp; Rental Market</h2>
+              <span className="ml-auto text-xs text-blue-400 bg-blue-900/40 border border-blue-700/30 px-2 py-1 rounded-full">
+                Temporary Venue Required
+              </span>
+            </div>
+
+            <p className="text-sm text-gray-400 mb-4">
+              Your stadium is under construction. Send rental offers to host home matches at another venue.
+            </p>
+
+            {lastOfferMessage && (
+              <div className="mb-4 flex items-center gap-2 bg-emerald-900/30 border border-emerald-700/50 rounded-xl px-4 py-3 text-sm text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{lastOfferMessage}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {RENTAL_STADIUMS.map((stadium) => (
+                <div
+                  key={stadium.id}
+                  className="bg-gray-800 border border-gray-700 hover:border-blue-600/40 rounded-xl px-4 py-4 transition-all"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="text-sm font-bold text-white">{stadium.name}</p>
+                      <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" /> {stadium.city}
+                      </p>
+                    </div>
+                    <span className="text-xs text-blue-300 bg-blue-900/30 border border-blue-700/30 px-2 py-1 rounded-full">
+                      {stadium.rentalCapacity.toLocaleString()} seats
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      id={`offer-${stadium.id}`}
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={rentalOffers[stadium.id]}
+                      onChange={(e) => handleRentalOfferChange(stadium.id, Number(e.target.value))}
+                      placeholder="Offer (€)"
+                      className="flex-1 min-w-0 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSendOffer(stadium)}
+                      className="shrink-0 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      Send
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+      </div>{/* /page container */}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          DEV TOOLBAR — Fixed at bottom, collapsed accordion
+      ══════════════════════════════════════════════════════════════════════ */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-800 bg-gray-950/95 backdrop-blur-sm shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
+        {/* Accordion header — always visible */}
+        <button
+          type="button"
+          onClick={() => setDevToolbarOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-6 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono">
+            <Zap className="w-3.5 h-3.5 text-yellow-600" />
+            DEV TOOLBAR — Logic Testing Controls
+          </span>
+          {devToolbarOpen
+            ? <ChevronDown className="w-4 h-4" />
+            : <ChevronUp className="w-4 h-4" />}
+        </button>
+
+        {/* Accordion body — collapsible */}
+        {devToolbarOpen && (
+          <div className="px-6 pb-4 pt-2 border-t border-gray-800/50">
+            <div className="flex flex-wrap gap-2">
+
+              {/* Time */}
+              <button type="button" onClick={simulateMatchweek}
+                className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-white px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                <Clock className="w-3.5 h-3.5 text-blue-400" />
+                Simulate Matchweek
+                {upgradeStatus.isUpgrading && (
+                  <span className="text-amber-400">({upgradeStatus.roundsLeft} left)</span>
+                )}
+              </button>
+
+              {upgradeStatus.isUpgrading && (
+                <button type="button" onClick={devCompleteConstruction}
+                  className="flex items-center gap-1.5 bg-amber-900/40 hover:bg-amber-800/60 border border-amber-700 text-xs text-amber-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                  <Zap className="w-3.5 h-3.5" /> Complete Construction
+                </button>
+              )}
+
+              <span className="w-px bg-gray-700 self-stretch mx-1" />
+
+              {/* Budget */}
+              <button type="button" onClick={devAddBudget}
+                className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-emerald-400 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                <Wallet className="w-3.5 h-3.5" /> +1M €
+              </button>
+
+              <span className="w-px bg-gray-700 self-stretch mx-1" />
+
+              {/* Capacity toggles */}
+              <button type="button" onClick={devUnlockVip}
+                className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-yellow-400 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                <Unlock className="w-3.5 h-3.5" /> 30k Capacity
+              </button>
+              <button type="button" onClick={devLockVip}
+                className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-red-400 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                <Lock className="w-3.5 h-3.5" /> 10k Capacity
+              </button>
+
+              <span className="w-px bg-gray-700 self-stretch mx-1" />
+
+              {/* Match results */}
+              <button type="button" onClick={devAddWin}
+                className="bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/50 text-xs text-emerald-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                +W
+              </button>
+              <button type="button" onClick={devAddDraw}
+                className="bg-yellow-900/40 hover:bg-yellow-800/60 border border-yellow-700/50 text-xs text-yellow-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                +D
+              </button>
+              <button type="button" onClick={devAddLoss}
+                className="bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 text-xs text-red-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                +L
+              </button>
+
+              <span className="w-px bg-gray-700 self-stretch mx-1" />
+
+              {/* Live state badge */}
+              <span className="text-xs text-gray-500 self-center font-mono">
+                form={teamForm} | cap={club.capacity.toLocaleString()} | budget={formatEuro(budget)} | boycott={String(isBoycottActive)}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
+
     </div>
   );
 }
