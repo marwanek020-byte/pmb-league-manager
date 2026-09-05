@@ -14,6 +14,8 @@ export default async function AdminDashboardPage() {
     transferWindowHistoryTotal,
     clubCount,
     managerCount,
+    liveAuctionCount,
+    aiScoutEnabledClubCount,
   ] = await Promise.all([
     prisma.league.findMany({
       orderBy: { name: "asc" },
@@ -58,7 +60,22 @@ export default async function AdminDashboardPage() {
         role: "CLUB_MANAGER",
       },
     }),
+
+    prisma.auction.count({
+      where: {
+        status: "ACTIVE",
+      },
+    }),
+
+    prisma.club.count({
+      where: {
+        aiScoutEnabled: true,
+      },
+    }),
   ]);
+
+  const activeAuctionCount = liveAuctionCount ?? 0;
+  const activeAiScoutClubCount = aiScoutEnabledClubCount ?? 0;
 
   const leagueData = leagues.map((league) => ({
     id: league.id,
@@ -86,7 +103,7 @@ export default async function AdminDashboardPage() {
       </section>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div className="pmb-card border-pmb-gold/30 p-6">
           <p className="text-3xl font-bold text-pmb-gold">
             {leagues.length}
@@ -109,6 +126,98 @@ export default async function AdminDashboardPage() {
           </p>
 
           <p className="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400">Club Managers</p>
+        </div>
+
+        <div className="pmb-card border-amber-500/40 p-6 bg-gradient-to-br from-amber-950/20 to-pmb-charcoal/80">
+          <p className="text-3xl font-bold text-amber-400 flex items-center justify-between">
+            <span>{activeAuctionCount}</span>
+            {activeAuctionCount > 0 && <span className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-ping" />}
+          </p>
+
+          <p className="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400">Active Auctions</p>
+        </div>
+
+        <div className="pmb-card border-cyan-500/40 p-6 bg-gradient-to-br from-cyan-950/20 to-pmb-charcoal/80 col-span-2 sm:col-span-1">
+          <p className="text-3xl font-bold text-cyan-400">
+            {activeAiScoutClubCount}
+          </p>
+
+          <p className="mt-1 text-xs font-bold uppercase tracking-wider text-gray-400">AI Scout Clubs</p>
+        </div>
+      </div>
+
+      {/* ═══ ADMIN FEATURES: AUCTIONS, AI SCOUT, DUGOUT ═══ */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Live Auctions Card */}
+        <div className="rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl">🔨</span>
+              {activeAuctionCount > 0 ? (
+                <span className="rounded-full bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-300 animate-pulse">
+                  {activeAuctionCount} Active
+                </span>
+              ) : (
+                <span className="rounded-full bg-gray-800 border border-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-gray-400">
+                  Ready
+                </span>
+              )}
+            </div>
+            <h3 className="mt-3 text-lg font-bold text-white">Live Player Auctions</h3>
+            <p className="mt-1.5 text-xs text-gray-400 leading-relaxed">
+              Launch real-time bidding wars for contested stars or free agents with automated countdown clocks and budget protection.
+            </p>
+          </div>
+          <Link
+            href="/admin/auctions"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
+          >
+            Open Auction Room →
+          </Link>
+        </div>
+
+        {/* AI Scout & Intelligence Card */}
+        <div className="rounded-xl border border-cyan-500/40 bg-gradient-to-br from-cyan-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl">🤖</span>
+              <span className="rounded-full bg-cyan-500/20 border border-cyan-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase text-cyan-300">
+                {activeAiScoutClubCount}/{clubCount} Active
+              </span>
+            </div>
+            <h3 className="mt-3 text-lg font-bold text-white">AI Scout Intelligence</h3>
+            <p className="mt-1.5 text-xs text-gray-400 leading-relaxed">
+              Configure club tier subscriptions (BASIC, PRO, ELITE) and empower managers with automated scout algorithms.
+            </p>
+          </div>
+          <Link
+            href="/admin/ai-scout"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
+          >
+            Manage AI Scout →
+          </Link>
+        </div>
+
+        {/* The Dugout Social Lounge Card */}
+        <div className="rounded-xl border border-pmb-gold/40 bg-gradient-to-br from-pmb-gold/15 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl">💬</span>
+              <span className="rounded-full bg-pmb-gold/20 border border-pmb-gold/40 px-2.5 py-0.5 text-[10px] font-bold uppercase text-pmb-gold">
+                HQ Lounge
+              </span>
+            </div>
+            <h3 className="mt-3 text-lg font-bold text-white">The Dugout · Social Hub</h3>
+            <p className="mt-1.5 text-xs text-gray-400 leading-relaxed">
+              Post official league communiqués, discuss transfer rumors, and interact directly with all club managers.
+            </p>
+          </div>
+          <Link
+            href="/admin/social"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-pmb-gold hover:bg-yellow-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
+          >
+            Enter The Dugout →
+          </Link>
         </div>
       </div>
 
