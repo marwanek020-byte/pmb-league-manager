@@ -276,6 +276,87 @@ function runVerificationSuite() {
     }
   );
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TEST 11: STEP 3 — THE FREE-MARKET RELOCATION ENGINE & EXILE PENALTY
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 1. Rental Agreement Upfront Deduction
+  const rentalAgreement = StadiumEconomyEngine.processRentalAgreement(2000000);
+  assert(
+    "Test 11.1: processRentalAgreement formats upfront lease fee deduction ledger entry",
+    rentalAgreement.fee === 2000000 &&
+    rentalAgreement.hostClubPrice === 2000000 &&
+    rentalAgreement.deductUpfront === true &&
+    rentalAgreement.type === "STADIUM_RENTAL_FEE",
+    rentalAgreement
+  );
+
+  // 2. The Exile Penalty: Relocated outside home city (isRelocated = true, isSameCity = false)
+  // Standard attendance should suffer an exact 20% drop compared to home / same-city venue
+  const sameCityRelocated = StadiumEconomyEngine.calculateMatchday({
+    clubIdentifier: "Raja Casablanca",
+    standardPrice: 15,
+    vipPrice: 90,
+    teamForm: 6,
+    matchImportance: "regular",
+    clubPrestige: 85,
+    isRelocated: true,
+    isSameCity: true, // Same city: e.g. Raja renting Stade Mohammed V or Moulay Hassan
+  });
+
+  const exiledRelocated = StadiumEconomyEngine.calculateMatchday({
+    clubIdentifier: "Raja Casablanca",
+    standardPrice: 15,
+    vipPrice: 90,
+    teamForm: 6,
+    matchImportance: "regular",
+    clubPrestige: 85,
+    isRelocated: true,
+    isSameCity: false, // Different city: e.g. playing in Agadir or Marrakech
+  });
+
+  const exileRatio = exiledRelocated.attendance.standard / sameCityRelocated.attendance.standard;
+  assert(
+    "Test 11.2: The Exile Penalty strictly applies 20% attendance penalty outside home city (exileRatio ~ 0.80)",
+    Math.abs(exileRatio - 0.80) < 0.02 && exiledRelocated.diagnostics.exilePenaltyApplied === true,
+    {
+      sameCityAttendance: sameCityRelocated.attendance.standard,
+      exiledAttendance: exiledRelocated.attendance.standard,
+      ratio: exileRatio.toFixed(3),
+      diagnostics: exiledRelocated.diagnostics,
+    }
+  );
+
+  assert(
+    "Test 11.3: Relocating within the same city applies NO penalty (isSameCity === true)",
+    sameCityRelocated.diagnostics.exilePenaltyApplied === false,
+    sameCityRelocated.diagnostics
+  );
+
+  assert(
+    "Test 11.4: VIP attendance is untouched by the Exile Penalty (glory hunters don't suffer standard transit friction)",
+    exiledRelocated.attendance.vip === sameCityRelocated.attendance.vip && exiledRelocated.attendance.vip > 0,
+    { exiledVip: exiledRelocated.attendance.vip, sameCityVip: sameCityRelocated.attendance.vip }
+  );
+
+  // 3. Exile Penalty applies before boycott check
+  const exiledAndBoycotted = StadiumEconomyEngine.calculateMatchday({
+    clubIdentifier: "Raja Casablanca",
+    standardPrice: 15,
+    vipPrice: 90,
+    teamForm: 6,
+    matchImportance: "regular",
+    clubPrestige: 85,
+    isRelocated: true,
+    isSameCity: false,
+    isBoycotting: true,
+  });
+
+  assert(
+    "Test 11.5: Boycott overrides exile penalty to force standard attendance to 0",
+    exiledAndBoycotted.attendance.standard === 0 && exiledAndBoycotted.diagnostics.exilePenaltyApplied === true,
+    exiledAndBoycotted.attendance
+  );
+
   console.log("\n===============================================================================");
   console.log(`  VERIFICATION RESULTS: ${passed} / ${total} TESTS PASSED`);
   console.log("===============================================================================\n");

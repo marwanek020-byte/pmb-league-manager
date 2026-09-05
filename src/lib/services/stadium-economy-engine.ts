@@ -19,6 +19,15 @@ export interface UltrasReactionResult {
   communiqueString: string | null;
 }
 
+export interface StadiumRentalAgreement {
+  hostClubPrice: number;
+  fee: number;
+  deductUpfront: boolean;
+  type: string;
+  description: string;
+  timestamp: string;
+}
+
 export interface MatchdayEconomyInput {
   clubIdentifier: string;
   standardPrice: number;
@@ -28,6 +37,8 @@ export interface MatchdayEconomyInput {
   clubPrestige: number; // 1 to 100
   isBoycotting?: boolean;
   isThroneCupMatch?: boolean;
+  isRelocated?: boolean;
+  isSameCity?: boolean;
 }
 
 export interface MatchdayEconomyResult {
@@ -68,6 +79,9 @@ export interface MatchdayEconomyResult {
     bigStadiumTrapRisk: boolean;
     breakEvenStandardAttendance: number;
     isBoycotting: boolean;
+    isRelocated: boolean;
+    isSameCity: boolean;
+    exilePenaltyApplied: boolean;
   };
 }
 
@@ -172,6 +186,8 @@ export class StadiumEconomyEngine {
    * @param matchImportance - Match context tier ('regular', 'derby', 'decider')
    * @param clubPrestige - Historical & fan base standing (1 to 100)
    * @param isBoycotting - Ultras boycott active: forces standard attendance to 0 (VIP unaffected)
+   * @param isRelocated - Whether the club has rented/relocated to another venue (default false)
+   * @param isSameCity - Whether the relocated venue is in the club's home city (default true)
    */
   static calculateMatchday(
     clubIdentifierOrOptions: string | MatchdayEconomyInput,
@@ -180,7 +196,9 @@ export class StadiumEconomyEngine {
     teamForm?: number,
     matchImportance?: MatchImportance,
     clubPrestige?: number,
-    isBoycotting: boolean = false
+    isBoycotting: boolean = false,
+    isRelocated: boolean = false,
+    isSameCity: boolean = true
   ): MatchdayEconomyResult {
     const input: MatchdayEconomyInput = typeof clubIdentifierOrOptions === "object" && clubIdentifierOrOptions !== null
       ? clubIdentifierOrOptions
@@ -192,6 +210,8 @@ export class StadiumEconomyEngine {
           matchImportance: matchImportance ?? "regular",
           clubPrestige: clubPrestige ?? 50,
           isBoycotting: isBoycotting ?? false,
+          isRelocated: isRelocated ?? false,
+          isSameCity: isSameCity ?? true,
         };
 
     const {
@@ -203,6 +223,8 @@ export class StadiumEconomyEngine {
       clubPrestige: rawPrestige = 50,
       isBoycotting: rawBoycotting = false,
       isThroneCupMatch = false,
+      isRelocated: rawRelocated = false,
+      isSameCity: rawSameCity = true,
     } = input;
 
     // ── 1. VALIDATE & RESOLVE CLUB VENUE ─────────────────────────────────────
@@ -244,12 +266,20 @@ export class StadiumEconomyEngine {
 
     // Baseline fan demand
     const baseStandardDemandRatio = 0.72;
-    const rawStandardDemand = standardCapacity *
+    let rawStandardDemand = standardCapacity *
       baseStandardDemandRatio *
       formMultiplier *
       prestigeFactor *
       importance.standardDemand *
       priceElasticityMultiplier;
+
+    // Step 3: The Exile Penalty (Relocated outside home city)
+    // If a club is relocated (isRelocated === true) AND outside home city (isSameCity === false),
+    // apply a strict 20% penalty to raw standard matchday attendance calculation (before boycott check).
+    const isExiled = Boolean(rawRelocated) && rawSameCity === false;
+    if (isExiled) {
+      rawStandardDemand *= 0.80;
+    }
 
     // Step 2: If Ultras boycott is active, force standard attendance to 0
     const activeBoycott = Boolean(rawBoycotting);
@@ -329,12 +359,36 @@ export class StadiumEconomyEngine {
         bigStadiumTrapRisk: totalCapacity >= 45000 && (form <= 3 || stdPrice > this.BENCHMARKS.STANDARD_PRICE_BASE * 1.5),
         breakEvenStandardAttendance: Math.max(0, Math.ceil((operatingCost - vipRevenue) / stdPrice)),
         isBoycotting: activeBoycott,
+        isRelocated: Boolean(rawRelocated),
+        isSameCity: Boolean(rawSameCity),
+        exilePenaltyApplied: isExiled,
       },
     };
   }
 
   /**
-   * 1. The Throne Cup Jackpot (كأس العرش).
+   * 1. Process Rental Agreement (The Free-Market Relocation Engine).
+   *
+   * When a manager rents a stadium, the host club owner sets a custom Flat Fee (e.g. 2,000,000 €).
+   * Generates a formatted ledger entry object detailing that this flat fee must be deducted
+   * entirely upfront from the renting manager's budget.
+   *
+   * @param hostClubPrice - Custom flat fee set by the host club owner (€ or MAD)
+   */
+  static processRentalAgreement(hostClubPrice: number): StadiumRentalAgreement {
+    const fee = Math.max(0, Number(hostClubPrice) || 0);
+    return {
+      hostClubPrice: fee,
+      fee,
+      deductUpfront: true,
+      type: "STADIUM_RENTAL_FEE",
+      description: `Flat stadium lease fee: €${fee.toLocaleString()} deducted entirely upfront from manager's budget.`,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * 2. The Throne Cup Jackpot (كأس العرش).
    * Fixed flat TV / Participation bonus completely separate from ticket sales.
    *
    * @param isThroneCupMatch - Boolean indicating whether the fixture is a Throne Cup clash
@@ -345,7 +399,7 @@ export class StadiumEconomyEngine {
   }
 
   /**
-   * 2. Ultras Boycott & "The Dugout" Social Feed.
+   * 3. Ultras Boycott & "The Dugout" Social Feed.
    *
    * Trigger: If teamForm is terrible (< 4) AND the manager sets standardPrice aggressively high (>= basePrice * 2.5).
    * Consequence: Returns an object with { isBoycotting: true, communiqueString: "..." }
