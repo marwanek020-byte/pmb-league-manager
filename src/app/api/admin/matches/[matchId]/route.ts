@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { applyMatchRewards, reverseMatchRewards } from "@/lib/services/match-reward-service";
 import { applyMatchdayRevenue, reverseMatchdayRevenue } from "@/lib/services/matchday-revenue-service";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
+import { recalculateMarketValuesForLeague } from "@/lib/services/player-valuation-service";
 import { MatchEventType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +112,7 @@ export async function PATCH(
     include: {
       season: { select: { status: true } },
       competitionSeason: { select: { status: true } },
+      league: { select: { id: true } },
     },
   });
 
@@ -209,6 +211,13 @@ export async function PATCH(
     console.error("[MatchdayAdmin] Failed to trigger Ultras post-match report:", err);
   });
 
+  // Recalculate all player market values for the league (fire-and-forget)
+  if (match.leagueId) {
+    recalculateMarketValuesForLeague(match.leagueId).catch((err) => {
+      console.error("[MarketValue] Failed to recalculate market values:", err);
+    });
+  }
+
   return NextResponse.json({ success: true, match: updated });
 }
 
@@ -227,6 +236,7 @@ export async function DELETE(
     where: { id: params.matchId },
     include: {
       competitionSeason: { select: { status: true } },
+      league: { select: { id: true } },
     },
   });
 
@@ -272,6 +282,13 @@ export async function DELETE(
 
     return updated;
   });
+
+  // Recalculate market values after match reset (fire-and-forget)
+  if (match.leagueId) {
+    recalculateMarketValuesForLeague(match.leagueId).catch((err) => {
+      console.error("[MarketValue] Failed to recalculate market values on reset:", err);
+    });
+  }
 
   return NextResponse.json({
     success: true,

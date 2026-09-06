@@ -315,6 +315,10 @@ export function PlayerListClient({
                     </th>
                   )}
 
+                  <th className="px-4 py-3 text-right">
+                    Market Value
+                  </th>
+
                   <th className="px-4 py-3">
                     Player ID
                   </th>
@@ -376,6 +380,16 @@ export function PlayerListClient({
                         </span>
                       </td>
                     )}
+
+                    <td className="px-4 py-3 text-right">
+                      {player.marketValue ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-400 font-mono">
+                          €{(player.marketValue / 1_000_000).toFixed(1)}M
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
+                      )}
+                    </td>
 
                     <td className="px-4 py-3 font-mono text-gray-400">
                       #{player.playerId}
