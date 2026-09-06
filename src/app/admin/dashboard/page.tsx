@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { LeagueOverview } from "@/components/admin/LeagueOverview";
 import { TransferWindowControls } from "@/components/admin/TransferWindowControls";
 import { RegistrationLockToggle } from "@/components/admin/RegistrationLockToggle";
+import { AdminStadiumRentalsWidget } from "@/components/admin/AdminStadiumRentalsWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function AdminDashboardPage() {
     liveAuctionCount,
     aiScoutEnabledClubCount,
     freeAgentCount,
+    pendingRentalCount,
   ] = await Promise.all([
     prisma.league.findMany({
       orderBy: { name: "asc" },
@@ -79,6 +81,12 @@ export default async function AdminDashboardPage() {
         isFreeAgentMarket: true,
       },
     }),
+
+    prisma.stadiumRentalOffer.count({
+      where: {
+        status: "PENDING_ADMIN_APPROVAL",
+      },
+    }),
   ]);
 
   const activeAuctionCount = liveAuctionCount ?? 0;
@@ -100,6 +108,9 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Pending Stadium Rental Approvals Widget */}
+      <AdminStadiumRentalsWidget />
+
       <section className="admin-hero relative overflow-hidden rounded-2xl border border-pmb-gold/35 p-7 sm:p-10">
         <img src="/branding/pmb-lion.jpg" alt="PMB lion" className="absolute -right-8 top-7 h-40 w-40 rounded-full object-cover opacity-35 sm:right-12 sm:h-52 sm:w-52" />
         <div className="relative max-w-xl">
@@ -162,8 +173,8 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ═══ ADMIN FEATURES: AUCTIONS, FREE AGENTS, AI SCOUT, DUGOUT ═══ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ═══ ADMIN FEATURES: AUCTIONS, FREE AGENTS, AI SCOUT, DUGOUT, STADIUMS ═══ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Live Auctions Card */}
         <div className="rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
           <div>
@@ -255,6 +266,34 @@ export default async function AdminDashboardPage() {
             className="mt-5 inline-flex items-center justify-center rounded-lg bg-pmb-gold hover:bg-yellow-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
           >
             Enter The Dugout →
+          </Link>
+        </div>
+
+        {/* Stadium & Competition Card */}
+        <div className="rounded-xl border border-blue-500/40 bg-gradient-to-br from-blue-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl">🏟️</span>
+              {pendingRentalCount > 0 ? (
+                <span className="rounded-full bg-blue-500/20 border border-blue-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase text-blue-300 animate-pulse">
+                  {pendingRentalCount} Pending
+                </span>
+              ) : (
+                <span className="rounded-full bg-gray-800 border border-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-gray-400">
+                  Ready
+                </span>
+              )}
+            </div>
+            <h3 className="mt-3 text-lg font-bold text-white">Competition & Stadiums</h3>
+            <p className="mt-1.5 text-xs text-gray-400 leading-relaxed">
+              Review matchdays, enter match scores, and manage stadium venue relocations & rental agreements.
+            </p>
+          </div>
+          <Link
+            href="/admin/competition"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
+          >
+            Manage Competition →
           </Link>
         </div>
       </div>
