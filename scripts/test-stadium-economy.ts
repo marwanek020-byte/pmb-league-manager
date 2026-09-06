@@ -218,28 +218,28 @@ function runVerificationSuite() {
   // ─────────────────────────────────────────────────────────────────────────────
   // TEST 9: ULTRAS BOYCOTT & THE DUGOUT SOCIAL FEED (evaluateUltrasReaction)
   // ─────────────────────────────────────────────────────────────────────────────
-  // Trigger condition: teamForm < 4 AND standardPrice >= basePrice * 2.5 (e.g. form 2, price 30 >= 12 * 2.5)
-  const boycottReaction = StadiumEconomyEngine.evaluateUltrasReaction(2, 30, 12);
+  // Trigger condition: teamForm < 3 AND standardPrice >= 90
+  const boycottReaction = StadiumEconomyEngine.evaluateUltrasReaction(2, 95);
   const expectedCommunique = "بيان الكورفا: نتائج كارثية، هزائم متتالية، وإدارة جشعة ترفع أثمنة التذاكر! نعلن مقاطعة المباراة القادمة، التيرّان غيبقى خاوي.";
 
   assert(
-    "Test 9.1: Ultras Boycott triggers on terrible form (< 4) and aggressive pricing (>= 2.5x base)",
+    "Test 9.1: Ultras Boycott triggers on terrible form (< 3) and aggressive pricing (>= €90)",
     boycottReaction.isBoycotting === true && boycottReaction.communiqueString === expectedCommunique,
     boycottReaction
   );
 
   // Non-trigger 1: High price but great team form (fans tolerate price hike when winning)
-  const winningReaction = StadiumEconomyEngine.evaluateUltrasReaction(8, 30, 12);
+  const winningReaction = StadiumEconomyEngine.evaluateUltrasReaction(8, 95);
   assert(
-    "Test 9.2: Ultras do NOT boycott if team form is good (form 8 >= 4)",
+    "Test 9.2: Ultras do NOT boycott if team form is good (form 8 >= 3)",
     winningReaction.isBoycotting === false && winningReaction.communiqueString === null,
     winningReaction
   );
 
-  // Non-trigger 2: Terrible form but loyal fan-friendly ticket price (e.g. 10 €)
-  const cheapReaction = StadiumEconomyEngine.evaluateUltrasReaction(2, 10, 12);
+  // Non-trigger 2: Terrible form but loyal fan-friendly ticket price (e.g. 50 €)
+  const cheapReaction = StadiumEconomyEngine.evaluateUltrasReaction(2, 50);
   assert(
-    "Test 9.3: Ultras do NOT boycott if manager keeps prices affordable (< 2.5x base)",
+    "Test 9.3: Ultras do NOT boycott if manager keeps prices affordable (< €90)",
     cheapReaction.isBoycotting === false && cheapReaction.communiqueString === null,
     cheapReaction
   );

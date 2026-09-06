@@ -441,10 +441,9 @@ export class StadiumEconomyEngine {
   ): UltrasReactionResult {
     const formNum = Number(teamForm);
     const priceNum = Number(standardPrice);
-    const baseNum = Number(basePrice) || this.BENCHMARKS.STANDARD_PRICE_BASE;
 
-    const isFormTerrible = formNum < 4;
-    const isPriceAggressive = priceNum >= baseNum * 2.5;
+    const isFormTerrible = formNum < 3;
+    const isPriceAggressive = priceNum >= 90;
 
     if (isFormTerrible && isPriceAggressive) {
       return {

@@ -194,6 +194,7 @@ export async function applyMatchdayRevenue(
   const hasVip = vipCapacity > 0;
 
   const isRelocated = Boolean(match.overrideStadiumName);
+  const isBoycotting = form < 3 && standardPrice >= 90;
 
   const result = StadiumEconomyEngine.calculateMatchday({
     clubIdentifier:  clubName,
@@ -202,7 +203,7 @@ export async function applyMatchdayRevenue(
     teamForm:        Math.max(1, Math.min(10, form)),
     matchImportance,
     clubPrestige:    prestige,
-    isBoycotting:    false,
+    isBoycotting,
     isThroneCupMatch: false,
     isRelocated,
     isSameCity:      false,
