@@ -163,58 +163,56 @@ export async function recalculateMarketValuesForLeague(
       assistsMap.get(p.id) ?? 0,
       motmMap.get(p.id) ?? 0,
       totwMap.get(p.id) ?? 0,
-      0, // clean-sheet tracking requires lineup data — approximated as 0
+      0,
     );
     return { id: p.id, type, score, rawPrice: 0 };
   });
 
-  // ── STEP 2: Find the actual highest score per position type ───────────────
-  //    Fully dynamic — no hardcoded baselines.
-  //    The top scorer in each type will always reach exactly the ceiling price.
-  const maxScores: Record<PositionType, number> = {
-    attacker: 0, midfielder: 0, defender: 0, goalkeeper: 0,
-  };
+  // ── STEP 2: Find the highest score among ATTACKERS only ───────────────────
+  //    Midfielders, defenders and GKs stay at the €4M floor until their
+  //    formulas are finalised.
+  let maxAttackerScore = 0;
   for (const e of entries) {
-    if (e.score > maxScores[e.type]) maxScores[e.type] = e.score;
+    if (e.type === "attacker" && e.score > maxAttackerScore) {
+      maxAttackerScore = e.score;
+    }
   }
 
-  // ── STEP 3: Compute raw (unrounded) price for each player ─────────────────
+  // ── STEP 3: Raw price — attackers scaled, everyone else at floor ──────────
   for (const e of entries) {
-    const ceiling = CEILINGS[e.type];
-    const maxScore = maxScores[e.type];
-    e.rawPrice = (e.score > 0 && maxScore > 0)
-      ? BASE_FLOOR + (e.score / maxScore) * (ceiling - BASE_FLOOR)
-      : BASE_FLOOR;
+    if (e.type !== "attacker") {
+      e.rawPrice = BASE_FLOOR;
+    } else {
+      e.rawPrice = (e.score > 0 && maxAttackerScore > 0)
+        ? BASE_FLOOR + (e.score / maxAttackerScore) * (CEILINGS.attacker - BASE_FLOOR)
+        : BASE_FLOOR;
+    }
   }
 
-  // ── STEP 4: Enforce strict unique ranking within each position type ────────
-  //    After rounding, if two players share the same price the lower-ranked one
-  //    drops by €500k. The #1 scorer always gets exactly the ceiling (€100M etc.).
+  // ── STEP 4: Enforce strict unique ranking for ATTACKERS only ──────────────
+  //    #1 attacker always gets exactly €100M. No two attackers share a price.
+  //    All other positions get €4M flat.
   const finalPrices = new Map<string, number>();
 
-  for (const type of (["attacker", "midfielder", "defender", "goalkeeper"] as PositionType[])) {
-    const group = entries
-      .filter((e) => e.type === type)
-      .sort((a, b) => b.score - a.score || b.rawPrice - a.rawPrice);
-
-    if (group.length === 0) continue;
-
-    const ceiling = CEILINGS[type];
-    // Sentinel: one step above ceiling so rank-1 resolves to exactly ceiling
-    let prevPrice = ceiling + 500_000;
-
-    for (const e of group) {
-      let price = Math.max(BASE_FLOOR, roundToHalfMillion(e.rawPrice));
-
-      // Must be strictly less than the player ranked immediately above
-      if (price >= prevPrice) {
-        price = prevPrice - 500_000;
-      }
-      price = Math.max(BASE_FLOOR, price);
-
-      finalPrices.set(e.id, price);
-      prevPrice = price;
+  // Non-attackers → flat floor
+  for (const e of entries) {
+    if (e.type !== "attacker") {
+      finalPrices.set(e.id, BASE_FLOOR);
     }
+  }
+
+  // Attackers → strict ranking
+  const attackerGroup = entries
+    .filter((e) => e.type === "attacker")
+    .sort((a, b) => b.score - a.score || b.rawPrice - a.rawPrice);
+
+  let prevPrice = CEILINGS.attacker + 500_000; // sentinel
+  for (const e of attackerGroup) {
+    let price = Math.max(BASE_FLOOR, roundToHalfMillion(e.rawPrice));
+    if (price >= prevPrice) price = prevPrice - 500_000;
+    price = Math.max(BASE_FLOOR, price);
+    finalPrices.set(e.id, price);
+    prevPrice = price;
   }
 
   // ── STEP 5: Write to DB in chunks of 50 ───────────────────────────────────
