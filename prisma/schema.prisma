@@ -97,6 +97,9 @@ model Club {
   throneCupAwayMatches                   ThroneCupMatch[]        @relation("ThroneCupAwayMatches")
   throneCupWinnerMatches                 ThroneCupMatch[]        @relation("ThroneCupWinnerMatches")
   throneCupTitles                        ThroneCup[]             @relation("ThroneCupChampion")
+  stadiumUpgrade                         StadiumUpgrade?
+  rentalOffersFrom                       StadiumRentalOffer[]    @relation("RentalOffersFrom")
+  rentalOffersTo                         StadiumRentalOffer[]    @relation("RentalOffersTo")
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -344,20 +347,27 @@ model PlayerLoan {
   @@index([toClubId])
 }
 model Match {
-  id                  String      @id @default(cuid())
-  competitionSeasonId String
-  seasonId            String
-  leagueId            String
-  matchday            Int
-  homeClubId          String
-  awayClubId          String
-  homeGoals           Int?
-  awayGoals           Int?
-  status              MatchStatus @default(UPCOMING)
-  playedAt            DateTime?
-  manOfTheMatchId     String?
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  id                   String      @id @default(cuid())
+  competitionSeasonId  String
+  seasonId             String
+  leagueId             String
+  matchday             Int
+  homeClubId           String
+  awayClubId           String
+  homeGoals            Int?
+  awayGoals            Int?
+  status               MatchStatus @default(UPCOMING)
+  playedAt             DateTime?
+  manOfTheMatchId      String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  // ── Ticket Pricing ────────────────────────────────────────────────────
+  standardTicketPrice  Decimal?    @db.Decimal(8, 2)  // confirmed by manager (or auto-default)
+  vipTicketPrice       Decimal?    @db.Decimal(8, 2)
+  ticketPriceConfirmed Boolean     @default(false)    // true = manager explicitly confirmed
+  // ── Stadium Rental Override ───────────────────────────────────────────
+  overrideHostClubId   String?     // if rental active: renting club gets the revenue
+  overrideStadiumName  String?     // display name of the rental venue
 
   competitionSeason   CompetitionSeason      @relation(fields: [competitionSeasonId], references: [id])
   season              Season                 @relation(fields: [seasonId], references: [id])
@@ -434,6 +444,9 @@ enum NotificationType {
   TRANSFER_WINDOW_CLOSED
   POST_COMMENT
   POST_REACTION
+  STADIUM_RENTAL_OFFER_RECEIVED
+  STADIUM_RENTAL_OFFER_ACCEPTED
+  STADIUM_RENTAL_OFFER_REJECTED
 }
 
 enum BudgetTransactionType {
@@ -448,6 +461,11 @@ enum BudgetTransactionType {
   SEASON_SALARY_PAYOUT
   RELEASE_CLAUSE_PAYOUT
   CONTRACT_TERMINATION_PAYOUT
+  STADIUM_UPGRADE
+  STADIUM_RENTAL_FEE
+  STADIUM_RENTAL_INCOME
+  MATCHDAY_REVENUE
+  MATCHDAY_COST
 }
 
 enum AuctionStatus {
@@ -844,6 +862,48 @@ model ThroneCupMatch {
   @@unique([cupId, stage, matchOrder])
   @@index([cupId])
   @@index([stage])
+  @@index([status])
+}
+
+model StadiumUpgrade {
+  id                     String   @id @default(cuid())
+  clubId                 String   @unique
+  upgradeOptionId        String   // e.g. "std-sm", "vip-lg"
+  label                  String
+  seatsAdded             Int
+  vipSeatsAdded          Int      @default(0)
+  cost                   Decimal  @db.Decimal(14, 2)
+  totalRounds            Int
+  roundsLeft             Int
+  status                 String   @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  club                   Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@index([status])
+}
+
+model StadiumRentalOffer {
+  id              String   @id @default(cuid())
+  fromClubId      String
+  toClubId        String
+  matchday        Int
+  seasonId        String?
+  linkedMatchId   String?  // set when admin approves — the actual match being relocated
+  offerAmount     Decimal  @db.Decimal(14, 2)
+  status          String   @default("PENDING") // PENDING | PENDING_ADMIN_APPROVAL | ACCEPTED | REJECTED | WITHDRAWN
+  adminApproved   Boolean  @default(false)
+  messageNote     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fromClub        Club     @relation("RentalOffersFrom", fields: [fromClubId], references: [id], onDelete: Cascade)
+  toClub          Club     @relation("RentalOffersTo",   fields: [toClubId],   references: [id], onDelete: Cascade)
+
+  @@index([fromClubId])
+  @@index([toClubId])
   @@index([status])
 }
 

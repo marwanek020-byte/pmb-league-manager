@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { applyMatchRewards, reverseMatchRewards } from "@/lib/services/match-reward-service";
+import { applyMatchdayRevenue, reverseMatchdayRevenue } from "@/lib/services/matchday-revenue-service";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 import { MatchEventType } from "@prisma/client";
 
@@ -180,6 +181,26 @@ export async function PATCH(
       awayGoals,
     );
 
+    // Apply stadium matchday ticket revenue (confirmed prices > last match > smart default)
+    await applyMatchdayRevenue(tx, params.matchId);
+
+    // If first time completing this match, advance active stadium upgrade for the host club
+    if (match.status === "UPCOMING") {
+      const upgrade = await tx.stadiumUpgrade.findUnique({
+        where: { clubId: match.homeClubId },
+      });
+      if (upgrade && upgrade.status === "IN_PROGRESS") {
+        const nextRounds = upgrade.roundsLeft - 1;
+        await tx.stadiumUpgrade.update({
+          where: { clubId: match.homeClubId },
+          data: {
+            roundsLeft: Math.max(0, nextRounds),
+            status: nextRounds <= 0 ? "COMPLETED" : "IN_PROGRESS",
+          },
+        });
+      }
+    }
+
     return updatedMatch;
   });
 
@@ -224,6 +245,9 @@ export async function DELETE(
   const resetMatch = await prisma.$transaction(async (tx) => {
     // 1. Reverse all budget rewards for this match
     await reverseMatchRewards(tx, params.matchId);
+
+    // 1b. Reverse matchday ticket revenue
+    await reverseMatchdayRevenue(tx, params.matchId);
 
     // 2. Delete all match events (goals, assists, cards, etc.)
     await tx.matchEvent.deleteMany({

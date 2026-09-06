@@ -43,6 +43,10 @@ type Match = {
   manOfTheMatchId?: string | null;
   manOfTheMatch?: PlayerSummary | null;
   events?: MatchEvent[];
+  overrideStadiumName?: string | null;
+  ticketPriceConfirmed?: boolean;
+  standardTicketPrice?: number | null;
+  vipTicketPrice?: number | null;
 };
 
 type Props = {
@@ -90,6 +94,61 @@ export function MatchdayAdmin({
   const [homePenalties, setHomePenalties] = useState("");
   const [awayPenalties, setAwayPenalties] = useState("");
   const [isShootout, setIsShootout] = useState(false);
+
+  // ── Stadium Rental Approvals ──────────────────────────────────────────
+  const [pendingRentals, setPendingRentals] = useState<{
+    id: string;
+    matchday: number;
+    fromClub: { id: string; name: string; logo: string | null };
+    toClub: { id: string; name: string; logo: string | null };
+    offerAmount: number;
+    messageNote?: string | null;
+  }[]>([]);
+  const [rentalActionLoading, setRentalActionLoading] = useState<string | null>(null);
+  const [rentalActionMsg, setRentalActionMsg] = useState<string | null>(null);
+
+  const fetchPendingRentals = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/stadium-rentals");
+      if (res.ok) {
+        const data = await res.json();
+        setPendingRentals(data.pending || []);
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingRentals();
+  }, [fetchPendingRentals]);
+
+  async function handleRentalAction(offerId: string, action: "APPROVE" | "REJECT") {
+    setRentalActionLoading(offerId + action);
+    setRentalActionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/stadium-rentals/${offerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRentalActionMsg(
+          action === "APPROVE"
+            ? `✓ Rental approved! Matchday venue relocated and Dugout announcement posted.`
+            : `✓ Rental request rejected.`
+        );
+        await fetchPendingRentals();
+      } else {
+        alert(data.error ?? "Failed to perform action");
+      }
+    } catch {
+      alert("Network error processing rental action");
+    } finally {
+      setRentalActionLoading(null);
+    }
+  }
 
   const fetchCupData = useCallback(async () => {
     setLoadingCup(true);
@@ -475,6 +534,71 @@ export function MatchdayAdmin({
 
   return (
     <div className="space-y-5">
+      {/* ── STADIUM RENTAL APPROVALS BANNER (ADMIN) ── */}
+      {pendingRentals.length > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-950/60 to-gray-900 border border-blue-600/50 shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🏟️</span>
+              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
+                Pending Stadium Rental Approvals ({pendingRentals.length})
+              </h3>
+            </div>
+            <span className="text-xs bg-blue-900/60 border border-blue-700/60 text-blue-300 px-2.5 py-0.5 rounded-full font-bold">
+              Action Required
+            </span>
+          </div>
+
+          {rentalActionMsg && (
+            <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-600/50 text-xs text-emerald-300 font-semibold">
+              {rentalActionMsg}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {pendingRentals.map((r) => (
+              <div
+                key={r.id}
+                className="bg-black/40 border border-gray-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-bold text-white">
+                    <span>{r.fromClub.name}</span>
+                    <span className="text-gray-500 font-normal">wants to rent</span>
+                    <span className="text-blue-400">{r.toClub.name}&apos;s Stadium</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Matchday <strong className="text-white">{r.matchday}</strong> · Agreed Fee: <strong className="text-yellow-400">€{r.offerAmount.toLocaleString()}</strong>
+                  </p>
+                  {r.messageNote && (
+                    <p className="text-xs text-gray-500 italic mt-0.5">&ldquo;{r.messageNote}&rdquo;</p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleRentalAction(r.id, "APPROVE")}
+                    disabled={rentalActionLoading !== null}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer disabled:opacity-50"
+                  >
+                    {rentalActionLoading === r.id + "APPROVE" ? "Approving…" : "✓ Approve & Relocate"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRentalAction(r.id, "REJECT")}
+                    disabled={rentalActionLoading !== null}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-800 hover:bg-red-700 text-white transition cursor-pointer disabled:opacity-50"
+                  >
+                    {rentalActionLoading === r.id + "REJECT" ? "Rejecting…" : "✕ Reject"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Matchday selector */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
@@ -1008,6 +1132,16 @@ export function MatchdayAdmin({
                   <span className="font-semibold text-white">
                     {match.homeClub.name}
                   </span>
+                  {match.overrideStadiumName && (
+                    <span className="text-[11px] text-blue-400 bg-blue-950/60 border border-blue-700/50 rounded-md px-2 py-0.5 font-medium flex items-center gap-1">
+                      <span>📍</span> {match.overrideStadiumName}
+                    </span>
+                  )}
+                  {match.ticketPriceConfirmed && match.standardTicketPrice && (
+                    <span className="text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-700/50 rounded-md px-2 py-0.5 font-medium">
+                      🎟️ €{Number(match.standardTicketPrice)}
+                    </span>
+                  )}
                 </div>
 
                 {/* Score / VS */}
