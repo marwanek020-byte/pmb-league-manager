@@ -145,14 +145,88 @@ export async function GET() {
       standings.map((s) => ({ clubName: s.clubName, position: s.position }))
     );
 
-    // ── 6. RESPOND ────────────────────────────────────────────────────────────
+    // ── 6. CHECK FOR ACTIVE / APPROVED STADIUM RENTAL ─────────────────────────
+    let overrideStadiumName: string | null = nextHomeMatch.overrideStadiumName ?? null;
+    let rentedFromClubName: string | null = null;
+    let venueCapacity: number | null = null;
+
+    const BOTOLA_STADIUMS: Record<string, { stadium: string; capacity: number }> = {
+      "Raja Casablanca":       { stadium: "Stade Mohammed V",            capacity: 45_891 },
+      "Wydad AC":              { stadium: "Stade Mohammed V",            capacity: 45_891 },
+      "FAR Rabat":             { stadium: "Complexe Sportif Prince Moulay Abdellah", capacity: 53_000 },
+      "FUS Rabat":             { stadium: "Stade Moulay Hassan",         capacity: 22_000 },
+      "Maghreb Fez":           { stadium: "Grand Stade de Fès",          capacity: 45_000 },
+      "Berkane":               { stadium: "Stade Municipal de Berkane",  capacity: 15_000 },
+      "IR Tanger":             { stadium: "Grand Stade de Tanger",       capacity: 65_000 },
+      "Hassania Agadir":       { stadium: "Grand Stade d'Agadir",        capacity: 45_480 },
+      "Olympique Safi":        { stadium: "Stade El Massira",            capacity: 15_000 },
+      "Difaa El Jadidi":       { stadium: "Stade El Abdi",               capacity: 15_000 },
+      "Kawkab Marrakech":      { stadium: "Grand Stade de Marrakech",    capacity: 45_240 },
+      "COD Meknes":            { stadium: "Stade d'Honneur de Meknès",   capacity: 20_000 },
+      "Renaissance Zemamra":   { stadium: "Stade Ahmed Choukri",         capacity: 12_000 },
+      "Union Touarga":         { stadium: "Stade Moulay Hassan",         capacity: 22_000 },
+      "Dcheira":               { stadium: "Stade Ahmed Fana",            capacity: 12_000 },
+      "Yacoub El Mansour":     { stadium: "Stade Municipal de rabat",    capacity: 18_000 },
+    };
+
+    // Check if there is an accepted & admin-approved rental offer for this club & matchday
+    const approvedRental = await prisma.stadiumRentalOffer.findFirst({
+      where: {
+        fromClubId: club.id,
+        matchday: nextHomeMatch.matchday,
+        status: "ACCEPTED",
+        adminApproved: true,
+      },
+      include: {
+        toClub: { select: { id: true, name: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (approvedRental) {
+      rentedFromClubName = approvedRental.toClub.name;
+      const reg = BOTOLA_STADIUMS[approvedRental.toClub.name];
+      const resolvedVenue = reg?.stadium ?? `Stade de ${approvedRental.toClub.name}`;
+      overrideStadiumName = overrideStadiumName || resolvedVenue;
+      venueCapacity = reg?.capacity ?? 45_000;
+
+      // Ensure match in DB has overrideStadiumName populated
+      if (!nextHomeMatch.overrideStadiumName) {
+        await prisma.match.update({
+          where: { id: nextHomeMatch.id },
+          data: {
+            overrideStadiumName: resolvedVenue,
+            overrideHostClubId: approvedRental.toClubId,
+          },
+        }).catch(() => {});
+      }
+    } else if (overrideStadiumName) {
+      if (nextHomeMatch.overrideHostClubId) {
+        const hostClub = await prisma.club.findUnique({
+          where: { id: nextHomeMatch.overrideHostClubId },
+          select: { name: true },
+        });
+        if (hostClub) {
+          rentedFromClubName = hostClub.name;
+          const reg = BOTOLA_STADIUMS[hostClub.name];
+          if (reg) venueCapacity = reg.capacity;
+        }
+      }
+    }
+
+    // ── 7. RESPOND ────────────────────────────────────────────────────────────
     return NextResponse.json({
       fixture: {
-        matchday:  nextHomeMatch.matchday,
-        homeClub:  { id: nextHomeMatch.homeClub.id,  name: nextHomeMatch.homeClub.name,  logo: nextHomeMatch.homeClub.logo },
-        awayClub:  { id: nextHomeMatch.awayClub.id,  name: nextHomeMatch.awayClub.name,  logo: nextHomeMatch.awayClub.logo },
+        id:                  nextHomeMatch.id,
+        matchday:            nextHomeMatch.matchday,
+        homeClub:            { id: nextHomeMatch.homeClub.id,  name: nextHomeMatch.homeClub.name,  logo: nextHomeMatch.homeClub.logo },
+        awayClub:            { id: nextHomeMatch.awayClub.id,  name: nextHomeMatch.awayClub.name,  logo: nextHomeMatch.awayClub.logo },
         tier,
-        seasonName: latestSeason.name,
+        seasonName:          latestSeason.name,
+        overrideStadiumName: overrideStadiumName ?? null,
+        isRelocated:         Boolean(overrideStadiumName),
+        rentedFromClubName:  rentedFromClubName ?? null,
+        venueCapacity:       venueCapacity ?? null,
       },
     });
   } catch (err) {

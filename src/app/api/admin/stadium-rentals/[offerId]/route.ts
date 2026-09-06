@@ -123,7 +123,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       });
 
       // 2. Relocate upcoming match venue
-      const match = await tx.match.findFirst({
+      let match = await tx.match.findFirst({
         where: {
           homeClubId: offer.fromClubId,
           matchday: offer.matchday,
@@ -131,12 +131,23 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
         },
       });
 
+      if (!match) {
+        match = await tx.match.findFirst({
+          where: {
+            homeClubId: offer.fromClubId,
+            matchday: offer.matchday,
+          },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+
       if (match) {
         linkedMatchId = match.id;
         await tx.match.update({
           where: { id: match.id },
           data: {
             overrideStadiumName: venueName,
+            overrideHostClubId: offer.toClubId,
           },
         });
       }

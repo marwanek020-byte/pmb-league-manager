@@ -39,6 +39,8 @@ export interface MatchdayEconomyInput {
   isThroneCupMatch?: boolean;
   isRelocated?: boolean;
   isSameCity?: boolean;
+  venueCapacityOverride?: number;
+  overrideStadiumName?: string;
 }
 
 export interface MatchdayEconomyResult {
@@ -233,7 +235,10 @@ export class StadiumEconomyEngine {
       throw new Error(`[StadiumEconomyEngine] Unknown club identifier: "${clubIdentifier}".`);
     }
 
-    const totalCapacity = venue.capacity;
+    const totalCapacity = (input.venueCapacityOverride && input.venueCapacityOverride > 0)
+      ? input.venueCapacityOverride
+      : venue.capacity;
+    const venueStadium = input.overrideStadiumName || venue.stadium;
     const vipCapacity = Math.floor(totalCapacity * this.VIP_CAPACITY_PERCENTAGE);
     const standardCapacity = totalCapacity - vipCapacity;
 
@@ -323,7 +328,7 @@ export class StadiumEconomyEngine {
 
     return {
       club: venue.clubName,
-      stadium: venue.stadium,
+      stadium: venueStadium,
       capacities: {
         total: totalCapacity,
         standard: standardCapacity,

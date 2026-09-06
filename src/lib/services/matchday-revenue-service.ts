@@ -177,12 +177,10 @@ export async function applyMatchdayRevenue(
   // We use "regular" as default — admin can override via tier in the future
   const matchImportance: "regular" | "decider" | "derby" = "regular";
 
-  // ── 5. Determine revenue recipient: rental override or home club ──────────
-  const revenueClubId   = match.overrideHostClubId ?? match.homeClubId;
-  const revenueClubName = revenueClubId === match.homeClubId
-    ? match.homeClub.name
-    : (await tx.club.findUnique({ where: { id: revenueClubId }, select: { name: true } }))?.name
-      ?? match.homeClub.name;
+  // ── 5. Determine revenue recipient ─────────────────────────────────────────
+  // The host playing club (match.homeClubId) sells the tickets and receives matchday revenue
+  const revenueClubId   = match.homeClubId;
+  const revenueClubName = match.homeClub.name;
 
   // ── 6. Run economy engine ─────────────────────────────────────────────────
   const clubName  = match.homeClub.name;
@@ -195,6 +193,8 @@ export async function applyMatchdayRevenue(
     : 0;
   const hasVip = vipCapacity > 0;
 
+  const isRelocated = Boolean(match.overrideStadiumName);
+
   const result = StadiumEconomyEngine.calculateMatchday({
     clubIdentifier:  clubName,
     standardPrice,
@@ -204,8 +204,9 @@ export async function applyMatchdayRevenue(
     clubPrestige:    prestige,
     isBoycotting:    false,
     isThroneCupMatch: false,
-    isRelocated:     !!match.overrideHostClubId,
-    isSameCity:      true,
+    isRelocated,
+    isSameCity:      false,
+    overrideStadiumName: match.overrideStadiumName ?? undefined,
   });
 
   const netProfit     = result.finances.netProfit;

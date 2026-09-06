@@ -84,6 +84,10 @@ interface NextFixture {
   tier: MatchTier;
   matchday: number;
   isHome: boolean;
+  overrideStadiumName?: string | null;
+  isRelocated?: boolean;
+  rentedFromClubName?: string | null;
+  venueCapacity?: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -792,10 +796,14 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
         if (cancelled) return;
         if (data.fixture) {
           setNextFixture({
-            opponent: data.fixture.awayClub.name,
-            tier:     data.fixture.tier as MatchTier,
-            matchday: data.fixture.matchday,
-            isHome:   true,
+            opponent:            data.fixture.awayClub.name,
+            tier:                data.fixture.tier as MatchTier,
+            matchday:            data.fixture.matchday,
+            isHome:              true,
+            overrideStadiumName: data.fixture.overrideStadiumName ?? null,
+            isRelocated:         Boolean(data.fixture.isRelocated),
+            rentedFromClubName:  data.fixture.rentedFromClubName ?? null,
+            venueCapacity:       data.fixture.venueCapacity ?? null,
           });
         } else {
           setNextFixture({ opponent: "No upcoming home match", tier: "regular", matchday: 0, isHome: true });
@@ -873,7 +881,10 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
   // DERIVED VALUES
   // ─────────────────────────────────────────────────────────────────────────
   const teamForm  = useMemo(() => calculateTeamForm(past10Matches), [past10Matches]);
-  const vipLocked = useMemo(() => isVipLocked(club.capacity),       [club.capacity]);
+  const effectiveCapacityForVip = nextFixture.overrideStadiumName && nextFixture.venueCapacity
+    ? nextFixture.venueCapacity
+    : club.capacity;
+  const vipLocked = useMemo(() => isVipLocked(effectiveCapacityForVip), [effectiveCapacityForVip]);
   const breakdown = useMemo(() => getMatchBreakdown(past10Matches),  [past10Matches]);
 
   const isBoycottActive = teamForm < BOYCOTT_FORM_THRESHOLD && standardPrice >= BOYCOTT_PRICE_THRESHOLD;
@@ -933,20 +944,23 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
       const { matchImportance, isThroneCupMatch } = tierToEngineFlags(nextFixture.tier);
       const engineForm = Math.max(1, Math.min(10, teamForm || 5));
       const prestige   = CLUB_PRESTIGE[currentClub] ?? 55;
+      const isRelocated = Boolean(nextFixture.isRelocated || nextFixture.overrideStadiumName);
       return StadiumEconomyEngine.calculateMatchday({
-        clubIdentifier:  currentClub,
+        clubIdentifier:        currentClub,
         standardPrice,
-        vipPrice:        vipLocked ? 0 : vipPrice,
-        teamForm:        engineForm,
+        vipPrice:              vipLocked ? 0 : vipPrice,
+        teamForm:              engineForm,
         matchImportance,
-        clubPrestige:    prestige,
-        isBoycotting:    isBoycottActive,
+        clubPrestige:          prestige,
+        isBoycotting:          isBoycottActive,
         isThroneCupMatch,
-        isRelocated:     false,
-        isSameCity:      true,
+        isRelocated,
+        isSameCity:            false,
+        venueCapacityOverride: nextFixture.venueCapacity ?? undefined,
+        overrideStadiumName:   nextFixture.overrideStadiumName ?? undefined,
       });
     } catch { return null; }
-  }, [currentClub, standardPrice, vipPrice, teamForm, nextFixture.tier, isBoycottActive, vipLocked]);
+  }, [currentClub, standardPrice, vipPrice, teamForm, nextFixture, isBoycottActive, vipLocked]);
 
   const tierMeta = TIER_META[nextFixture.tier];
 
@@ -1117,13 +1131,25 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
               <span>Stadium Command Centre</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">{club.name}</h1>
-            <p className="text-gray-400 text-sm mt-1">{club.stadiumName} · Botola Pro</p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="text-gray-400 text-sm">{club.stadiumName} · Botola Pro</span>
+              {nextFixture.overrideStadiumName && (
+                <span className="text-xs text-blue-400 bg-blue-950/60 border border-blue-700/50 px-2 py-0.5 rounded-md inline-flex items-center gap-1 font-semibold">
+                  <MapPin className="w-3 h-3 text-blue-400" />
+                  MD{nextFixture.matchday} playing at {nextFixture.overrideStadiumName}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 flex items-center gap-2">
               <Users className="w-4 h-4 text-yellow-500" />
-              <span className="text-xs text-gray-400">Total Capacity</span>
-              <span className="text-sm font-bold text-white">{(club.capacity + club.vipCapacity).toLocaleString()}</span>
+              <span className="text-xs text-gray-400">
+                {nextFixture.overrideStadiumName ? "Next Match Cap." : "Total Capacity"}
+              </span>
+              <span className="text-sm font-bold text-white">
+                {(nextFixture.venueCapacity ?? (club.capacity + club.vipCapacity)).toLocaleString()}
+              </span>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 flex items-center gap-2">
               <Wallet className="w-4 h-4 text-emerald-400" />
@@ -1166,7 +1192,22 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
                   <span className="text-gray-500 font-bold">vs</span>
                   <span className="text-xl font-extrabold text-white">{nextFixture.opponent}</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">{club.stadiumName} · Home</p>
+                {nextFixture.overrideStadiumName ? (
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                    <span className="text-sm font-bold text-blue-400 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
+                      {nextFixture.overrideStadiumName}
+                      {nextFixture.rentedFromClubName && (
+                        <span className="text-gray-300 font-normal">({nextFixture.rentedFromClubName})</span>
+                      )}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-950/80 border border-blue-600/70 text-blue-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                      📍 Relocated Venue · Approved Rental
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-0.5">{club.stadiumName} · Home</p>
+                )}
               </div>
             </div>
 
@@ -1577,10 +1618,26 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
               </div>
               <div className="space-y-2">
                 {[
-                  { label: "Stadium",          value: club.stadiumName,                                    color: "text-gray-300" },
-                  { label: "Standard Seats",   value: club.capacity.toLocaleString(),                      color: "text-white" },
-                  { label: "VIP Suite Seats",  value: club.vipCapacity.toLocaleString(),                   color: "text-yellow-400" },
-                  { label: "Total Capacity",   value: (club.capacity + club.vipCapacity).toLocaleString(), color: "text-emerald-400" },
+                  { label: "Permanent Stadium", value: club.stadiumName, color: "text-gray-300" },
+                  ...(nextFixture.overrideStadiumName
+                    ? [
+                        {
+                          label: `Matchday ${nextFixture.matchday} Venue (Rental)`,
+                          value: `${nextFixture.overrideStadiumName}${nextFixture.rentedFromClubName ? ` (${nextFixture.rentedFromClubName})` : ""}`,
+                          color: "text-blue-400 font-bold",
+                        },
+                        {
+                          label: "Rental Venue Capacity",
+                          value: (nextFixture.venueCapacity ?? 53000).toLocaleString(),
+                          color: "text-emerald-400 font-bold",
+                        },
+                      ]
+                    : [
+                        { label: "Standard Seats",   value: club.capacity.toLocaleString(),                      color: "text-white" },
+                        { label: "VIP Suite Seats",  value: club.vipCapacity.toLocaleString(),                   color: "text-yellow-400" },
+                        { label: "Total Capacity",   value: (club.capacity + club.vipCapacity).toLocaleString(), color: "text-emerald-400" },
+                      ]
+                  ),
                 ].map(({ label, value, color }) => (
                   <div key={label} className="flex justify-between items-center py-2 border-b border-gray-800 last:border-0">
                     <span className="text-sm text-gray-400">{label}</span>
