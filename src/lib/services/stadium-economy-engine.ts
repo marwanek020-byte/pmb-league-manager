@@ -162,12 +162,12 @@ export class StadiumEconomyEngine {
   // VIP allotment across all venues (5%)
   static readonly VIP_CAPACITY_PERCENTAGE = 0.05;
 
-  // Benchmark reference points for elasticity modeling
+  // Benchmark reference points for elasticity modeling (aligned with €50–€120 standard and €200–€500 VIP)
   static readonly BENCHMARKS = {
-    STANDARD_PRICE_BASE: 12.0, // €12 baseline standard ticket
-    VIP_PRICE_BASE: 80.0,      // €80 baseline VIP suite ticket
-    STANDARD_ELASTICITY: 1.45,  // Sensitive to ticket price surges
-    VIP_ELASTICITY: 0.55,       // Inelastic: VIPs care about status, not €10-€20 deltas
+    STANDARD_PRICE_BASE: 75.0, // €75 baseline standard ticket in PMB League (range €50–€120)
+    VIP_PRICE_BASE: 300.0,     // €300 baseline VIP suite ticket in PMB League (range €200–€500)
+    STANDARD_ELASTICITY: 1.20, // Sensitive to ticket price surges above optimal
+    VIP_ELASTICITY: 0.50,      // Inelastic: VIPs care about status, not €10-€20 deltas
   };
 
   // Match importance multipliers
@@ -256,21 +256,33 @@ export class StadiumEconomyEngine {
     const vipPrc = Math.max(1.0, Number(rawVipPrice) || this.BENCHMARKS.VIP_PRICE_BASE);
 
     // ── 2. STANDARD SEAT ATTENDANCE (Price Elasticity + Fan Passion) ─────────
-    // Team form scalar: losing streak (form 1) causes fan boycotts/slump (~0.20),
-    // average form (form 5) is baseline (1.00), winning streak (form 10) surges to 1.55
-    const formMultiplier = form <= 5
-      ? 0.20 + ((form - 1) / 4) * 0.80
-      : 1.00 + ((form - 5) / 5) * 0.55;
+    // Dynamic Optimal Price: scales with team form (€50 at form 1 up to €115 at form 10)
+    // plus prestige bonus (+€10-€15 for top clubs like Wydad & Raja).
+    // If manager sets price at or below optimal, fans flood the stadium!
+    const formRatio = Math.max(0, Math.min(1, (form - 1) / 9)); // 0 to 1
+    const prestigeRatio = Math.max(0, Math.min(1, (prestige - 1) / 99)); // 0 to 1
+    const optimalStandardPrice = 50 + formRatio * 55 + prestigeRatio * 15; // €50 (form 1) to €120 (form 10 & 100 prestige)
 
-    // Club prestige provides a solid attendance floor
-    const prestigeFactor = 0.35 + (prestige / 100) * 0.75;
+    // Form multiplier: losing slump (form 1) ~0.40, baseline (form 5) ~0.95, peak streak (form 10) ~1.35
+    const formMultiplier = 0.40 + formRatio * 0.95;
 
-    // Price elasticity: relative to standard benchmark price
-    const priceRatio = this.BENCHMARKS.STANDARD_PRICE_BASE / stdPrice;
-    const priceElasticityMultiplier = Math.pow(priceRatio, this.BENCHMARKS.STANDARD_ELASTICITY);
+    // Prestige factor: historical fanbase loyal base (0.75 for small clubs to 1.15 for giants)
+    const prestigeFactor = 0.75 + prestigeRatio * 0.40;
 
-    // Baseline fan demand
-    const baseStandardDemandRatio = 0.72;
+    // Price elasticity: relative to the fair optimal price for this club's current form
+    let priceElasticityMultiplier = 1.0;
+    if (stdPrice <= optimalStandardPrice) {
+      // Bargain / fair price for fans: surges attendance up to 1.25x
+      const bargainRatio = optimalStandardPrice / Math.max(1, stdPrice);
+      priceElasticityMultiplier = Math.min(1.25, Math.pow(bargainRatio, 0.35));
+    } else {
+      // Overpriced relative to current form: demand drops with elasticity
+      const overpriceRatio = optimalStandardPrice / stdPrice;
+      priceElasticityMultiplier = Math.pow(overpriceRatio, this.BENCHMARKS.STANDARD_ELASTICITY);
+    }
+
+    // Baseline fan demand ratio
+    const baseStandardDemandRatio = 0.88;
     let rawStandardDemand = standardCapacity *
       baseStandardDemandRatio *
       formMultiplier *
@@ -280,10 +292,10 @@ export class StadiumEconomyEngine {
 
     // Step 3: The Exile Penalty (Relocated outside home city)
     // If a club is relocated (isRelocated === true) AND outside home city (isSameCity === false),
-    // apply a strict 20% penalty to raw standard matchday attendance calculation (before boycott check).
+    // apply a 15% travel friction penalty to standard attendance (faithful fans still travel in large numbers).
     const isExiled = Boolean(rawRelocated) && rawSameCity === false;
     if (isExiled) {
-      rawStandardDemand *= 0.80;
+      rawStandardDemand *= 0.85;
     }
 
     // Step 2: If Ultras boycott is active, force standard attendance to 0
@@ -293,19 +305,26 @@ export class StadiumEconomyEngine {
 
     // ── 3. VIP ATTENDANCE ("Glory Hunters" Dynamics) ─────────────────────────
     // VIPs care overwhelmingly about prestige and current hype, with low price elasticity.
-    // VIP attendance remains completely unaffected by Ultras boycotts.
-    const vipPrestigeWeight = Math.pow(prestige / 100, 1.8);
-    const vipFormWeight = Math.pow(form / 10, 2.0);
-    const gloryFactor = (vipPrestigeWeight * 0.60) + (vipFormWeight * 0.40);
+    // Optimal VIP price scales from €200 to €500.
+    const optimalVipPrice = 200 + formRatio * 220 + prestigeRatio * 80;
 
-    const vipPriceRatio = this.BENCHMARKS.VIP_PRICE_BASE / vipPrc;
-    const vipPriceMultiplier = Math.pow(vipPriceRatio, this.BENCHMARKS.VIP_ELASTICITY);
+    let vipPriceMultiplier = 1.0;
+    if (vipPrc <= optimalVipPrice) {
+      const bargainRatio = optimalVipPrice / Math.max(1, vipPrc);
+      vipPriceMultiplier = Math.min(1.20, Math.pow(bargainRatio, 0.25));
+    } else {
+      const overpriceRatio = optimalVipPrice / vipPrc;
+      vipPriceMultiplier = Math.pow(overpriceRatio, this.BENCHMARKS.VIP_ELASTICITY);
+    }
+
+    const vipPrestigeWeight = Math.pow(prestige / 100, 1.2);
+    const vipFormWeight = Math.pow(form / 10, 1.5);
+    const gloryFactor = 0.50 + (vipPrestigeWeight * 0.30) + (vipFormWeight * 0.30);
 
     const rawVipDemand = vipCapacity *
       gloryFactor *
       importance.vipDemand *
-      vipPriceMultiplier *
-      1.15;
+      vipPriceMultiplier;
 
     const vipAttendance = Math.min(vipCapacity, Math.max(0, Math.round(rawVipDemand)));
 

@@ -338,10 +338,13 @@ export function generatePricingAdvice(snap: MatchdayRevenueSnapshot): {
 
   if (occ < 50) {
     const decrease = Math.round(standardPrice * 0.15);
+    const formNote = teamForm >= 7
+      ? `Even with strong team form (${teamForm}/10), ticket pricing was above the fan sweet-spot. Adjust standard price towards €${Math.max(STANDARD_MIN, standardPrice - decrease)} to pack the stands.`
+      : `Team form of ${teamForm}/10 dampened fan willingness to pay. Lower standard price to €${Math.max(STANDARD_MIN, standardPrice - decrease)} to attract more supporters.`;
     return {
       type: "danger",
-      headline: "📉 Low Attendance — Consider Price Cut",
-      advice: `Only ${occ}% occupancy. Lower standard price to €${Math.max(STANDARD_MIN, standardPrice - decrease)} to attract more fans. Team form of ${teamForm}/10 is limiting natural demand.`,
+      headline: "📉 Low Attendance — Consider Price Adjustment",
+      advice: `Only ${occ}% occupancy. ${formNote}`,
     };
   }
 
