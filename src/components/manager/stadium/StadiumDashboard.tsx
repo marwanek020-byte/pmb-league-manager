@@ -992,15 +992,15 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
   }
 
   function handleStandardPriceChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (priceConfirmStatus !== null) return;
     setStandardPrice(Math.max(20, Math.min(150, Number(e.target.value))));
-    setPriceConfirmStatus(null); setConfirmedPrices(null);
   }
   function handleVipPriceChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (vipLocked) return;
+    if (priceConfirmStatus !== null || vipLocked) return;
     setVipPrice(Math.max(100, Math.min(600, Number(e.target.value))));
-    setPriceConfirmStatus(null); setConfirmedPrices(null);
   }
   async function handleConfirmPrices() {
+    if (priceConfirmStatus !== null) return;
     setConfirmingPrices(true);
     try {
       const res = await fetch("/api/manager/stadium/confirm-prices", {
@@ -1511,38 +1511,54 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
               </div>
 
               {priceConfirmStatus === "confirmed" && (
-                <div className="mb-4 flex items-start gap-2 bg-emerald-900/30 border border-emerald-700/50 rounded-xl px-4 py-3 text-sm text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
-                  <div>
-                    <p className="font-bold">✅ Ticket prices confirmed for the upcoming match!</p>
-                    <p className="text-xs text-emerald-400/80 mt-0.5">
-                      Standard: €{confirmedPrices?.standard} · VIP: {confirmedPrices?.vip ? `€${confirmedPrices.vip}` : "N/A"}
-                    </p>
+                <div className="mb-4 flex items-start justify-between gap-3 bg-emerald-900/30 border border-emerald-700/50 rounded-xl px-4 py-3 text-sm text-emerald-300">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+                    <div>
+                      <p className="font-bold">✅ Ticket prices confirmed & locked for Matchday {nextFixture.matchday}!</p>
+                      <p className="text-xs text-emerald-400/80 mt-0.5">
+                        Standard: €{confirmedPrices?.standard} · VIP: {confirmedPrices?.vip ? `€${confirmedPrices.vip}` : "N/A"}
+                      </p>
+                    </div>
                   </div>
+                  <span className="flex items-center gap-1 text-[11px] font-bold bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                    <Lock className="w-3 h-3 text-emerald-400" /> Locked
+                  </span>
                 </div>
               )}
               {priceConfirmStatus === "boycott" && (
-                <div className="mb-4 flex items-start gap-2 bg-red-900/40 border border-red-600 rounded-xl px-4 py-3 text-sm text-red-300">
-                  <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0 text-red-400 animate-pulse" />
-                  <div>
-                    <p className="font-bold text-red-200">⚠️ Warning: Prices confirmed under active Ultras boycott.</p>
-                    <p className="text-xs text-red-400 mt-0.5">Expect empty stands! Standard attendance will be forced to 0.</p>
+                <div className="mb-4 flex items-start justify-between gap-3 bg-red-900/40 border border-red-600 rounded-xl px-4 py-3 text-sm text-red-300">
+                  <div className="flex items-start gap-2.5">
+                    <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0 text-red-400 animate-pulse" />
+                    <div>
+                      <p className="font-bold text-red-200">⚠️ Warning: Prices confirmed under active Ultras boycott.</p>
+                      <p className="text-xs text-red-400 mt-0.5">Expect empty stands! Standard attendance will be forced to 0.</p>
+                    </div>
                   </div>
+                  <span className="flex items-center gap-1 text-[11px] font-bold bg-red-950/70 border border-red-700/60 text-red-300 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                    <Lock className="w-3 h-3 text-red-400" /> Locked
+                  </span>
                 </div>
               )}
 
               {/* Standard */}
-              <div className="space-y-2 mb-5">
+              <div className={`space-y-2 mb-5 transition-opacity duration-300 ${priceConfirmStatus !== null ? "opacity-60" : ""}`}>
                 <div className="flex justify-between items-center">
                   <div>
-                    <label htmlFor="standard-price-range" className="text-sm text-gray-300 font-medium">Standard Ticket</label>
-                    <p className="text-[11px] text-gray-500">Suggested by form: €50–€120</p>
+                    <label htmlFor="standard-price-range" className="text-sm text-gray-300 font-medium flex items-center gap-1.5">
+                      {priceConfirmStatus !== null && <Lock className="w-3 h-3 text-gray-400" />}
+                      Standard Ticket
+                    </label>
+                    <p className="text-[11px] text-gray-500">
+                      {priceConfirmStatus !== null ? "Confirmed & locked for this match" : "Suggested by form: €50–€120"}
+                    </p>
                   </div>
                   <span className={`text-lg font-extrabold ${isBoycottActive ? "text-red-400" : "text-yellow-500"}`}>€{standardPrice}</span>
                 </div>
                 <input id="standard-price-range" type="range" min={20} max={150} step={1} value={standardPrice}
+                  disabled={priceConfirmStatus !== null}
                   onChange={handleStandardPriceChange}
-                  className="w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 cursor-pointer" />
+                  className={`w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 ${priceConfirmStatus !== null ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`} />
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>€20</span>
                   <span className="text-yellow-500/80 font-medium">Target €50–€120</span>
@@ -1551,20 +1567,23 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
               </div>
 
               {/* VIP */}
-              <div className={`space-y-2 transition-opacity duration-300 ${vipLocked ? "opacity-40 pointer-events-none" : ""}`}>
+              <div className={`space-y-2 transition-opacity duration-300 ${vipLocked || priceConfirmStatus !== null ? "opacity-50" : ""}`}>
                 <div className="flex justify-between items-center">
                   <div>
                     <label htmlFor="vip-price-range" className="text-sm font-medium flex items-center gap-1.5">
-                      <Star className="w-3.5 h-3.5 text-yellow-500" />
+                      {priceConfirmStatus !== null ? <Lock className="w-3 h-3 text-gray-400" /> : <Star className="w-3.5 h-3.5 text-yellow-500" />}
                       <span className="text-yellow-400">VIP Suite Ticket</span>
                     </label>
-                    <p className="text-[11px] text-gray-500">Suggested by form: €200–€500</p>
+                    <p className="text-[11px] text-gray-500">
+                      {priceConfirmStatus !== null ? "Confirmed & locked for this match" : "Suggested by form: €200–€500"}
+                    </p>
                   </div>
                   <span className="text-lg font-extrabold text-yellow-500">{vipLocked ? "N/A" : `€${vipPrice}`}</span>
                 </div>
                 <input id="vip-price-range" type="range" min={100} max={600} step={10} value={vipPrice}
-                  disabled={vipLocked} onChange={handleVipPriceChange}
-                  className="w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 cursor-pointer" />
+                  disabled={vipLocked || priceConfirmStatus !== null}
+                  onChange={handleVipPriceChange}
+                  className={`w-full h-2 appearance-none rounded-full bg-gray-700 accent-yellow-500 ${(vipLocked || priceConfirmStatus !== null) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`} />
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>€100</span>
                   <span className="text-yellow-500/80 font-medium">Target €200–€500</span>
@@ -1583,26 +1602,36 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
                 <button
                   type="button"
                   onClick={handleConfirmPrices}
-                  disabled={confirmingPrices}
-                  className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
-                    isBoycottActive
-                      ? "bg-red-700 hover:bg-red-600 text-white border border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.35)]"
+                  disabled={confirmingPrices || priceConfirmStatus !== null}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all ${
+                    confirmingPrices
+                      ? "opacity-60 cursor-wait bg-gray-800 text-gray-400"
                       : priceConfirmStatus === "confirmed"
-                      ? "bg-emerald-700/60 border border-emerald-600 text-emerald-200"
-                      : "bg-yellow-500 hover:bg-yellow-400 text-gray-950 shadow-[0_0_16px_rgba(234,179,8,0.35)]"
+                      ? "bg-emerald-950/50 border border-emerald-700/60 text-emerald-400 cursor-not-allowed opacity-80"
+                      : priceConfirmStatus === "boycott"
+                      ? "bg-red-950/50 border border-red-700/60 text-red-400 cursor-not-allowed opacity-80"
+                      : isBoycottActive
+                      ? "bg-red-700 hover:bg-red-600 text-white border border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.35)] cursor-pointer"
+                      : "bg-yellow-500 hover:bg-yellow-400 text-gray-950 shadow-[0_0_16px_rgba(234,179,8,0.35)] cursor-pointer"
                   }`}
                 >
                   {confirmingPrices ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Saving Prices to Match…</>
+                  ) : priceConfirmStatus === "confirmed" ? (
+                    <><Lock className="w-4 h-4 text-emerald-400" /> Ticket Prices Confirmed & Locked</>
+                  ) : priceConfirmStatus === "boycott" ? (
+                    <><Lock className="w-4 h-4 text-red-400" /> Ticket Prices Locked (Boycott Active)</>
                   ) : isBoycottActive ? (
                     <><ShieldAlert className="w-4 h-4" /> Confirm Prices (Boycott Active)</>
-                  ) : priceConfirmStatus === "confirmed" ? (
-                    <><CheckCircle2 className="w-4 h-4" /> Prices Confirmed in DB — Re-confirm to Update</>
                   ) : (
                     <><CheckCircle2 className="w-4 h-4" /> Confirm Ticket Prices</>
                   )}
                 </button>
-                {priceConfirmStatus === null && (
+                {priceConfirmStatus !== null ? (
+                  <p className="text-xs text-gray-500 text-center mt-2 flex items-center justify-center gap-1">
+                    <Lock className="w-3 h-3 text-gray-500" /> Prices locked for Matchday {nextFixture.matchday > 0 ? nextFixture.matchday : "—"}. You can set new prices for the next home match.
+                  </p>
+                ) : (
                   <p className="text-xs text-gray-500 text-center mt-2">
                     Lock in your pricing strategy for Matchday {nextFixture.matchday > 0 ? nextFixture.matchday : "—"} (defaults apply automatically if skipped)
                   </p>

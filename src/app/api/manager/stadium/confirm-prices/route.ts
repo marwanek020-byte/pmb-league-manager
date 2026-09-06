@@ -51,6 +51,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No upcoming home match found" }, { status: 404 });
     }
 
+    if (nextMatch.ticketPriceConfirmed) {
+      return NextResponse.json(
+        { error: `Ticket prices for Matchday ${nextMatch.matchday} have already been confirmed and cannot be modified.` },
+        { status: 403 }
+      );
+    }
+
     const updated = await prisma.match.update({
       where: { id: nextMatch.id },
       data: {
