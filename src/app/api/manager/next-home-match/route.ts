@@ -164,7 +164,7 @@ export async function GET() {
       "Kawkab Marrakech":      { stadium: "Grand Stade de Marrakech",    capacity: 45_240 },
       "COD Meknes":            { stadium: "Stade d'Honneur de Meknès",   capacity: 20_000 },
       "Renaissance Zemamra":   { stadium: "Stade Ahmed Choukri",         capacity: 12_000 },
-      "Union Touarga":         { stadium: "Stade Moulay Hassan",         capacity: 22_000 },
+      "Union Touarga":         { stadium: "Stade Al Madina",            capacity: 18_500 },
       "Dcheira":               { stadium: "Stade Ahmed Fana",            capacity: 12_000 },
       "Yacoub El Mansour":     { stadium: "Stade Municipal de rabat",    capacity: 18_000 },
     };

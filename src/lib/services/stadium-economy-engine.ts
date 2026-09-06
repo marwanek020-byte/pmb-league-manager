@@ -146,8 +146,8 @@ export class StadiumEconomyEngine {
       capacity: 12000,
     },
     "Union Touarga": {
-      stadium: "Stade Moulay Hassan",
-      capacity: 22000,
+      stadium: "Stade Al Madina",
+      capacity: 18500,
     },
     "Dcheira": {
       stadium: "Stade Ahmed Fana",

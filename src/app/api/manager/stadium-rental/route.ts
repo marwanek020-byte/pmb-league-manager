@@ -94,7 +94,7 @@ export async function GET() {
         "Difaa El Jadidi":       { stadium: "Stade El Abdi",               capacity: 12_000 },
         "Berkane":               { stadium: "Stade Municipal de Berkane",  capacity: 12_000 },
         "Renaissance Zemamra":   { stadium: "Stade Sidi Ali",              capacity: 8_000  },
-        "Union Touarga":         { stadium: "Stade Ben Slimane",           capacity: 10_000 },
+        "Union Touarga":         { stadium: "Stade Al Madina",            capacity: 18_500 },
         "Dcheira":               { stadium: "Stade de Dcheira",            capacity: 8_000  },
         "Yacoub El Mansour":     { stadium: "Complexe Moulay Ismail",      capacity: 7_000  },
       };

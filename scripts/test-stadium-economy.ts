@@ -41,7 +41,7 @@ function runVerificationSuite() {
     "Kawkab Marrakech": { stadium: "Grand Stade de Marrakech", capacity: 45240 },
     "COD Meknes": { stadium: "Stade d'Honneur de Meknès", capacity: 20000 },
     "Renaissance Zemamra": { stadium: "Stade Ahmed Choukri", capacity: 5000 },
-    "Union Touarga": { stadium: "Stade Moulay Hassan", capacity: 12000 },
+    "Union Touarga": { stadium: "Stade Al Madina", capacity: 18500 },
     "Dcheira": { stadium: "Stade Ahmed Fana", capacity: 5000 },
     "Yacoub El Mansour": { stadium: "Stade Municipal de Yacoub El Mansour", capacity: 5000 },
   };
