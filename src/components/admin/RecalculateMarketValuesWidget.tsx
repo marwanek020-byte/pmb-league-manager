@@ -99,7 +99,7 @@ export function RecalculateMarketValuesWidget() {
           </h2>
           <p className="mt-1 max-w-2xl text-xs text-gray-400 leading-relaxed">
             • <strong>Strikers (CF/SS):</strong> Goals×12 + Assists×8 + MOTM×10 + TOTW×8 (Ceiling €100M)<br />
-            • <strong>Wingers (RWF/LWF):</strong> Goals×10 + Assists×10 + MOTM×10 + TOTW×8 (Ceiling €100M)
+            • <strong>Wingers (RWF/LWF):</strong> Goals×10 + Assists×10 + MOTM×10 + TOTW×8 (Ceiling €80M)
           </p>
         </div>
 
@@ -173,7 +173,7 @@ export function RecalculateMarketValuesWidget() {
             </div>
 
             <span className="text-[10px] text-pmb-gold font-bold">
-              Top {activeTab === "strikers" ? "Striker" : "Winger"} Score: {currentMaxScore} pts = €100.0M
+              Top {activeTab === "strikers" ? "Striker" : "Winger"} Score: {currentMaxScore} pts = €{activeTab === "strikers" ? "100.0" : "80.0"}M
             </span>
           </div>
 

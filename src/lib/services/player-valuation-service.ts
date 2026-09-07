@@ -21,7 +21,7 @@ const BASE_FLOOR = 4_000_000;
 
 const CEILINGS = {
   attacker:   100_000_000,
-  winger:     100_000_000,
+  winger:      80_000_000,
   midfielder:  70_000_000,
   defender:    50_000_000,
   goalkeeper:  40_000_000,
