@@ -80,7 +80,7 @@ function computeScore(
     case "winger":
       return goals * 10 + assists * 10 + motms * 10 + totws * 8;
     case "midfielder":
-      return assists * 5 + goals * 7 + motms * 10 + totws * 8;
+      return assists * 15 + goals * 7 + motms * 10 + totws * 8;
     case "defender":
       return cleanSheets * 8 + goals * 15 + motms * 10 + totws * 10;
     case "goalkeeper":

@@ -117,7 +117,7 @@ export function RecalculateMarketValuesWidget() {
           <p className="mt-1 max-w-2xl text-xs text-gray-400 leading-relaxed">
             • <strong>Strikers (CF/SS):</strong> Goals×12 + Assists×8 + MOTM×10 + TOTW×8 (Ceiling €100M)<br />
             • <strong>Wingers (RWF/LWF):</strong> Goals×10 + Assists×10 + MOTM×10 + TOTW×8 (Ceiling €80M)<br />
-            • <strong>Midfielders (AMF/CMF):</strong> Assists×5 + Goals×7 + MOTM×10 + TOTW×8 (Ceiling €70M)
+            • <strong>Midfielders (AMF/CMF):</strong> Assists×15 + Goals×7 + MOTM×10 + TOTW×8 (Ceiling €70M)
           </p>
         </div>
 
@@ -217,7 +217,7 @@ export function RecalculateMarketValuesWidget() {
                     G {activeTab === "strikers" ? "(×12)" : activeTab === "wingers" ? "(×10)" : "(×7)"}
                   </th>
                   <th className="px-3 py-2 text-center">
-                    A {activeTab === "strikers" ? "(×8)" : activeTab === "wingers" ? "(×10)" : "(×5)"}
+                    A {activeTab === "strikers" ? "(×8)" : activeTab === "wingers" ? "(×10)" : "(×15)"}
                   </th>
                   <th className="px-3 py-2 text-center">MOTM (×10)</th>
                   <th className="px-3 py-2 text-center">TOTW (×8)</th>
