@@ -21,6 +21,7 @@ const BASE_FLOOR = 4_000_000;
 
 const CEILINGS = {
   attacker:   100_000_000,
+  winger:     100_000_000,
   midfielder:  70_000_000,
   defender:    50_000_000,
   goalkeeper:  40_000_000,
@@ -46,7 +47,13 @@ function classifyPosition(rawPos: string | null): PositionType {
     pos === "MID" || pos.endsWith("MF")
   ) return "midfielder";
 
-  // Default everything else to attacker
+  if (
+    pos === "LWF" || pos === "RWF" || pos === "LW" || pos === "RW" ||
+    pos.includes("LWF") || pos.includes("RWF") ||
+    pos.startsWith("LW") || pos.startsWith("RW")
+  ) return "winger";
+
+  // Default everything else to attacker (CF, ST, SS, FW)
   return "attacker";
 }
 
@@ -62,6 +69,8 @@ function computeScore(
   switch (type) {
     case "attacker":
       return goals * 12 + assists * 8 + motms * 10 + totws * 8;
+    case "winger":
+      return goals * 10 + assists * 10 + motms * 10 + totws * 8;
     case "midfielder":
       return assists * 12 + goals * 10 + motms * 12 + totws * 10;
     case "defender":
@@ -94,9 +103,12 @@ export interface ValuationAttackerEntry {
 export interface ValuationRecalcResult {
   leagueId: string;
   maxAttackerScore: number;
+  maxWingerScore: number;
   totalPlayers: number;
   totalAttackers: number;
+  totalWingers: number;
   attackers: ValuationAttackerEntry[];
+  wingers: ValuationAttackerEntry[];
 }
 
 // ── Main recalculation function ────────────────────────────────────────────
@@ -210,46 +222,60 @@ export async function recalculateMarketValuesForLeague(
     };
   });
 
-  // ── STEP 2: Find the highest score among ATTACKERS only ───────────────────
+  // ── STEP 2: Find the highest score among ATTACKERS and WINGERS ────────────
   let maxAttackerScore = 0;
+  let maxWingerScore = 0;
   for (const e of entries) {
     if (e.type === "attacker" && e.score > maxAttackerScore) {
       maxAttackerScore = e.score;
     }
-  }
-
-  // ── STEP 3: Raw price — attackers scaled, everyone else at floor ──────────
-  for (const e of entries) {
-    if (e.type !== "attacker") {
-      e.rawPrice = BASE_FLOOR;
-    } else {
-      e.rawPrice = (e.score > 0 && maxAttackerScore > 0)
-        ? BASE_FLOOR + (e.score / maxAttackerScore) * (CEILINGS.attacker - BASE_FLOOR)
-        : BASE_FLOOR;
+    if (e.type === "winger" && e.score > maxWingerScore) {
+      maxWingerScore = e.score;
     }
   }
 
-  // ── STEP 4: Enforce strict unique ranking for ATTACKERS only ──────────────
+  // ── STEP 3: Raw price — attackers & wingers scaled, everyone else at floor ─
+  for (const e of entries) {
+    if (e.type === "attacker") {
+      e.rawPrice = (e.score > 0 && maxAttackerScore > 0)
+        ? BASE_FLOOR + (e.score / maxAttackerScore) * (CEILINGS.attacker - BASE_FLOOR)
+        : BASE_FLOOR;
+    } else if (e.type === "winger") {
+      e.rawPrice = (e.score > 0 && maxWingerScore > 0)
+        ? BASE_FLOOR + (e.score / maxWingerScore) * (CEILINGS.winger - BASE_FLOOR)
+        : BASE_FLOOR;
+    } else {
+      e.rawPrice = BASE_FLOOR;
+    }
+  }
+
+  // ── STEP 4: Enforce strict unique ranking for ATTACKERS and WINGERS ───────
   const finalPrices = new Map<string, number>();
 
   for (const e of entries) {
-    if (e.type !== "attacker") {
+    if (e.type !== "attacker" && e.type !== "winger") {
       finalPrices.set(e.id, BASE_FLOOR);
     }
   }
 
-  const attackerGroup = entries
-    .filter((e) => e.type === "attacker")
-    .sort((a, b) => b.score - a.score || b.rawPrice - a.rawPrice);
+  const rankPositionGroup = (type: "attacker" | "winger") => {
+    const group = entries
+      .filter((e) => e.type === type)
+      .sort((a, b) => b.score - a.score || b.rawPrice - a.rawPrice);
 
-  let prevPrice = CEILINGS.attacker + 500_000; // sentinel
-  for (const e of attackerGroup) {
-    let price = Math.max(BASE_FLOOR, roundToHalfMillion(e.rawPrice));
-    if (price >= prevPrice) price = prevPrice - 500_000;
-    price = Math.max(BASE_FLOOR, price);
-    finalPrices.set(e.id, price);
-    prevPrice = price;
-  }
+    let prevPrice = CEILINGS[type] + 500_000; // sentinel
+    for (const e of group) {
+      let price = Math.max(BASE_FLOOR, roundToHalfMillion(e.rawPrice));
+      if (price >= prevPrice) price = prevPrice - 500_000;
+      price = Math.max(BASE_FLOOR, price);
+      finalPrices.set(e.id, price);
+      prevPrice = price;
+    }
+    return group;
+  };
+
+  const attackerGroup = rankPositionGroup("attacker");
+  const wingerGroup = rankPositionGroup("winger");
 
   // ── STEP 5: Write to DB in chunks of 50 ───────────────────────────────────
   const CHUNK = 50;
@@ -266,29 +292,33 @@ export async function recalculateMarketValuesForLeague(
   }
 
   console.log(
-    `[MarketValue] Recalculated ${players.length} players in league ${leagueId}`
+    `[MarketValue] Recalculated ${players.length} players in league ${leagueId} (Attackers: ${attackerGroup.length}, Wingers: ${wingerGroup.length})`
   );
 
-  const attackersSummary: ValuationAttackerEntry[] = attackerGroup.map((e, idx) => ({
-    rank: idx + 1,
-    id: e.id,
-    name: e.name,
-    club: e.club,
-    position: e.position,
-    goals: e.goals,
-    assists: e.assists,
-    motm: e.motms,
-    totw: e.totws,
-    score: e.score,
-    rawPrice: e.rawPrice,
-    marketValue: finalPrices.get(e.id) ?? BASE_FLOOR,
-  }));
+  const mapToSummary = (group: typeof attackerGroup): ValuationAttackerEntry[] =>
+    group.map((e, idx) => ({
+      rank: idx + 1,
+      id: e.id,
+      name: e.name,
+      club: e.club,
+      position: e.position,
+      goals: e.goals,
+      assists: e.assists,
+      motm: e.motms,
+      totw: e.totws,
+      score: e.score,
+      rawPrice: e.rawPrice,
+      marketValue: finalPrices.get(e.id) ?? BASE_FLOOR,
+    }));
 
   return {
     leagueId,
     maxAttackerScore,
+    maxWingerScore,
     totalPlayers: players.length,
     totalAttackers: attackerGroup.length,
-    attackers: attackersSummary.slice(0, 30),
+    totalWingers: wingerGroup.length,
+    attackers: mapToSummary(attackerGroup).slice(0, 25),
+    wingers: mapToSummary(wingerGroup).slice(0, 25),
   };
 }

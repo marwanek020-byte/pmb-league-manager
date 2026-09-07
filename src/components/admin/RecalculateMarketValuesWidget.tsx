@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-interface AttackerRow {
+interface PlayerRow {
   rank: number;
   id: string;
   name: string;
@@ -19,13 +19,17 @@ interface AttackerRow {
 interface RecalcResult {
   leagueId: string;
   maxAttackerScore: number;
+  maxWingerScore: number;
   totalPlayers: number;
   totalAttackers: number;
-  attackers: AttackerRow[];
+  totalWingers: number;
+  attackers: PlayerRow[];
+  wingers: PlayerRow[];
 }
 
 export function RecalculateMarketValuesWidget() {
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"strikers" | "wingers">("strikers");
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -75,6 +79,9 @@ export function RecalculateMarketValuesWidget() {
     }
   }
 
+  const currentList = activeTab === "strikers" ? recalcResult?.attackers : recalcResult?.wingers;
+  const currentMaxScore = activeTab === "strikers" ? recalcResult?.maxAttackerScore : recalcResult?.maxWingerScore;
+
   return (
     <div className="rounded-2xl border border-pmb-gold/30 bg-gradient-to-br from-amber-950/25 via-pmb-charcoal/90 to-pmb-black p-6 shadow-xl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -91,7 +98,8 @@ export function RecalculateMarketValuesWidget() {
             Live Player Market Values
           </h2>
           <p className="mt-1 max-w-2xl text-xs text-gray-400 leading-relaxed">
-            Formula: <strong>(Goals × 12) + (Assists × 8) + (MOTM × 10) + (TOTW × 8)</strong>. Scaled relative to the league's top attacker (€100M ceiling, €4M floor).
+            • <strong>Strikers (CF/SS):</strong> Goals×12 + Assists×8 + MOTM×10 + TOTW×8 (Ceiling €100M)<br />
+            • <strong>Wingers (RWF/LWF):</strong> Goals×10 + Assists×10 + MOTM×10 + TOTW×8 (Ceiling €100M)
           </p>
         </div>
 
@@ -137,15 +145,35 @@ export function RecalculateMarketValuesWidget() {
         </div>
       )}
 
-      {/* Breakdown Table */}
-      {recalcResult && recalcResult.attackers.length > 0 && (
+      {/* Breakdown Table with Tabs */}
+      {recalcResult && (
         <div className="mt-5 space-y-3">
-          <div className="flex items-center justify-between border-t border-white/10 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-pmb-gold">
-              Top Attackers Performance Breakdown (Top Score: {recalcResult.maxAttackerScore} pts = €100.0M)
-            </h3>
-            <span className="text-[10px] text-gray-400">
-              {recalcResult.totalAttackers} attackers evaluated
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-white/10 pt-4 gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActiveTab("strikers")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  activeTab === "strikers"
+                    ? "bg-pmb-gold text-black shadow-md"
+                    : "bg-white/5 text-gray-400 hover:text-white"
+                }`}
+              >
+                🎯 Strikers (CF & SS) ({recalcResult.totalAttackers})
+              </button>
+              <button
+                onClick={() => setActiveTab("wingers")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  activeTab === "wingers"
+                    ? "bg-pmb-gold text-black shadow-md"
+                    : "bg-white/5 text-gray-400 hover:text-white"
+                }`}
+              >
+                ⚡ Wingers (RWF & LWF) ({recalcResult.totalWingers})
+              </button>
+            </div>
+
+            <span className="text-[10px] text-pmb-gold font-bold">
+              Top {activeTab === "strikers" ? "Striker" : "Winger"} Score: {currentMaxScore} pts = €100.0M
             </span>
           </div>
 
@@ -157,8 +185,12 @@ export function RecalculateMarketValuesWidget() {
                   <th className="px-3 py-2">Player</th>
                   <th className="px-3 py-2">Club</th>
                   <th className="px-3 py-2">Pos</th>
-                  <th className="px-3 py-2 text-center">G (×12)</th>
-                  <th className="px-3 py-2 text-center">A (×8)</th>
+                  <th className="px-3 py-2 text-center">
+                    G {activeTab === "strikers" ? "(×12)" : "(×10)"}
+                  </th>
+                  <th className="px-3 py-2 text-center">
+                    A {activeTab === "strikers" ? "(×8)" : "(×10)"}
+                  </th>
                   <th className="px-3 py-2 text-center">MOTM (×10)</th>
                   <th className="px-3 py-2 text-center">TOTW (×8)</th>
                   <th className="px-3 py-2 text-center font-bold text-pmb-gold">Score</th>
@@ -166,29 +198,40 @@ export function RecalculateMarketValuesWidget() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {recalcResult.attackers.slice(0, 15).map((a) => (
-                  <tr
-                    key={a.id}
-                    className={`hover:bg-white/5 transition ${
-                      a.name.toLowerCase().includes("fahli") || a.name.toLowerCase().includes("benjdida")
-                        ? "bg-amber-500/10 font-bold text-white"
-                        : ""
-                    }`}
-                  >
-                    <td className="px-3 py-2 font-mono text-pmb-gold font-bold">#{a.rank}</td>
-                    <td className="px-3 py-2 font-semibold text-white">{a.name}</td>
-                    <td className="px-3 py-2 text-gray-400">{a.club}</td>
-                    <td className="px-3 py-2 uppercase">{a.position}</td>
-                    <td className="px-3 py-2 text-center">{a.goals}</td>
-                    <td className="px-3 py-2 text-center">{a.assists}</td>
-                    <td className="px-3 py-2 text-center">{a.motm}</td>
-                    <td className="px-3 py-2 text-center">{a.totw}</td>
-                    <td className="px-3 py-2 text-center font-bold text-pmb-gold">{a.score}</td>
-                    <td className="px-3 py-2 text-right font-bold text-emerald-400">
-                      €{(a.marketValue / 1_000_000).toFixed(1)}M
+                {currentList && currentList.length > 0 ? (
+                  currentList.slice(0, 20).map((a) => (
+                    <tr
+                      key={a.id}
+                      className={`hover:bg-white/5 transition ${
+                        a.name.toLowerCase().includes("fahli") ||
+                        a.name.toLowerCase().includes("benjdida") ||
+                        a.name.toLowerCase().includes("ziyech") ||
+                        a.name.toLowerCase().includes("chouiar")
+                          ? "bg-amber-500/10 font-bold text-white"
+                          : ""
+                      }`}
+                    >
+                      <td className="px-3 py-2 font-mono text-pmb-gold font-bold">#{a.rank}</td>
+                      <td className="px-3 py-2 font-semibold text-white">{a.name}</td>
+                      <td className="px-3 py-2 text-gray-400">{a.club}</td>
+                      <td className="px-3 py-2 uppercase">{a.position}</td>
+                      <td className="px-3 py-2 text-center">{a.goals}</td>
+                      <td className="px-3 py-2 text-center">{a.assists}</td>
+                      <td className="px-3 py-2 text-center">{a.motm}</td>
+                      <td className="px-3 py-2 text-center">{a.totw}</td>
+                      <td className="px-3 py-2 text-center font-bold text-pmb-gold">{a.score}</td>
+                      <td className="px-3 py-2 text-right font-bold text-emerald-400">
+                        €{(a.marketValue / 1_000_000).toFixed(1)}M
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-6 text-center text-gray-500">
+                      No players evaluated in this category.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
