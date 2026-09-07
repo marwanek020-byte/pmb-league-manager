@@ -24,22 +24,25 @@ interface RecalcResult {
   maxMidfielderScore: number;
   maxDmfScore: number;
   maxFullbackScore: number;
+  maxDefenderScore: number;
   totalPlayers: number;
   totalAttackers: number;
   totalWingers: number;
   totalMidfielders: number;
   totalDmfs: number;
   totalFullbacks: number;
+  totalDefenders: number;
   attackers: PlayerRow[];
   wingers: PlayerRow[];
   midfielders: PlayerRow[];
   dmfs: PlayerRow[];
   fullbacks: PlayerRow[];
+  defenders: PlayerRow[];
 }
 
 export function RecalculateMarketValuesWidget() {
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"strikers" | "wingers" | "midfielders" | "dmf" | "fullbacks">("strikers");
+  const [activeTab, setActiveTab] = useState<"strikers" | "wingers" | "midfielders" | "dmf" | "fullbacks" | "cbs">("strikers");
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -98,7 +101,9 @@ export function RecalculateMarketValuesWidget() {
       ? recalcResult?.midfielders
       : activeTab === "dmf"
       ? recalcResult?.dmfs
-      : recalcResult?.fullbacks;
+      : activeTab === "fullbacks"
+      ? recalcResult?.fullbacks
+      : recalcResult?.defenders;
 
   const currentMaxScore =
     activeTab === "strikers"
@@ -109,7 +114,9 @@ export function RecalculateMarketValuesWidget() {
       ? recalcResult?.maxMidfielderScore
       : activeTab === "dmf"
       ? recalcResult?.maxDmfScore
-      : recalcResult?.maxFullbackScore;
+      : activeTab === "fullbacks"
+      ? recalcResult?.maxFullbackScore
+      : recalcResult?.maxDefenderScore;
 
   const currentCeiling =
     activeTab === "strikers"
@@ -120,7 +127,9 @@ export function RecalculateMarketValuesWidget() {
       ? "70.0"
       : activeTab === "dmf"
       ? "60.0"
-      : "50.0";
+      : activeTab === "fullbacks"
+      ? "50.0"
+      : "70.0";
 
   return (
     <div className="rounded-2xl border border-pmb-gold/30 bg-gradient-to-br from-amber-950/25 via-pmb-charcoal/90 to-pmb-black p-6 shadow-xl">
@@ -142,7 +151,8 @@ export function RecalculateMarketValuesWidget() {
             • <strong>Wingers (RWF/LWF):</strong> Goals×10 + Assists×10 + MOTM×10 + TOTW×8 (Ceiling €80M)<br />
             • <strong>Midfielders (AMF/CMF):</strong> Assists×15 + Goals×7 + MOTM×10 + TOTW×8 (Ceiling €70M)<br />
             • <strong>Defensive Midfielders (DMF):</strong> CleanSheets×10 + TOTW×10 + MOTM×10 + Goals×8 + Assists×6 (Ceiling €60M)<br />
-            • <strong>Fullbacks (RB/LB):</strong> CleanSheets×10 + Assists×10 + TOTW×8 + MOTM×10 + Goals×10 (Ceiling €50M)
+            • <strong>Fullbacks (RB/LB):</strong> CleanSheets×10 + Assists×10 + TOTW×8 + MOTM×10 + Goals×10 (Ceiling €50M)<br />
+            • <strong>Center Backs (CB):</strong> CleanSheets×15 + TOTW×10 + MOTM×10 + Goals×10 + Assists×5 (Ceiling €70M)
           </p>
         </div>
 
@@ -243,10 +253,20 @@ export function RecalculateMarketValuesWidget() {
               >
                 🏃 Fullbacks (RB & LB) ({recalcResult.totalFullbacks})
               </button>
+              <button
+                onClick={() => setActiveTab("cbs")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  activeTab === "cbs"
+                    ? "bg-pmb-gold text-black shadow-md"
+                    : "bg-white/5 text-gray-400 hover:text-white"
+                }`}
+              >
+                🧱 Center Backs (CB) ({recalcResult.totalDefenders})
+              </button>
             </div>
 
             <span className="text-[10px] text-pmb-gold font-bold">
-              Top {activeTab === "strikers" ? "Striker" : activeTab === "wingers" ? "Winger" : activeTab === "midfielders" ? "Midfielder" : activeTab === "dmf" ? "DMF" : "Fullback"} Score: {currentMaxScore} pts = €{currentCeiling}M
+              Top {activeTab === "strikers" ? "Striker" : activeTab === "wingers" ? "Winger" : activeTab === "midfielders" ? "Midfielder" : activeTab === "dmf" ? "DMF" : activeTab === "fullbacks" ? "Fullback" : "Center Back"} Score: {currentMaxScore} pts = €{currentCeiling}M
             </span>
           </div>
 
@@ -258,18 +278,20 @@ export function RecalculateMarketValuesWidget() {
                   <th className="px-3 py-2">Player</th>
                   <th className="px-3 py-2">Club</th>
                   <th className="px-3 py-2">Pos</th>
-                  {(activeTab === "dmf" || activeTab === "fullbacks") && (
-                    <th className="px-3 py-2 text-center text-sky-400">CS (×10)</th>
+                  {(activeTab === "dmf" || activeTab === "fullbacks" || activeTab === "cbs") && (
+                    <th className="px-3 py-2 text-center text-sky-400">
+                      CS {activeTab === "cbs" ? "(×15)" : "(×10)"}
+                    </th>
                   )}
                   <th className="px-3 py-2 text-center">
                     G {activeTab === "strikers" ? "(×12)" : activeTab === "wingers" ? "(×10)" : activeTab === "midfielders" ? "(×7)" : activeTab === "dmf" ? "(×8)" : "(×10)"}
                   </th>
                   <th className="px-3 py-2 text-center">
-                    A {activeTab === "strikers" ? "(×8)" : activeTab === "wingers" ? "(×10)" : activeTab === "midfielders" ? "(×15)" : activeTab === "dmf" ? "(×6)" : "(×10)"}
+                    A {activeTab === "strikers" ? "(×8)" : activeTab === "wingers" ? "(×10)" : activeTab === "midfielders" ? "(×15)" : activeTab === "dmf" ? "(×6)" : activeTab === "cbs" ? "(×5)" : "(×10)"}
                   </th>
                   <th className="px-3 py-2 text-center">MOTM (×10)</th>
                   <th className="px-3 py-2 text-center">
-                    TOTW {activeTab === "dmf" ? "(×10)" : "(×8)"}
+                    TOTW {activeTab === "dmf" || activeTab === "cbs" ? "(×10)" : "(×8)"}
                   </th>
                   <th className="px-3 py-2 text-center font-bold text-pmb-gold">Score</th>
                   <th className="px-3 py-2 text-right font-bold text-white">Market Value</th>
@@ -286,7 +308,9 @@ export function RecalculateMarketValuesWidget() {
                         a.name.toLowerCase().includes("ziyech") ||
                         a.name.toLowerCase().includes("chouiar") ||
                         a.name.toLowerCase().includes("hrimat") ||
-                        a.name.toLowerCase().includes("bach")
+                        a.name.toLowerCase().includes("bach") ||
+                        a.name.toLowerCase().includes("mendy") ||
+                        a.name.toLowerCase().includes("louadni")
                           ? "bg-amber-500/10 font-bold text-white"
                           : ""
                       }`}
@@ -295,7 +319,7 @@ export function RecalculateMarketValuesWidget() {
                       <td className="px-3 py-2 font-semibold text-white">{a.name}</td>
                       <td className="px-3 py-2 text-gray-400">{a.club}</td>
                       <td className="px-3 py-2 uppercase">{a.position}</td>
-                      {(activeTab === "dmf" || activeTab === "fullbacks") && (
+                      {(activeTab === "dmf" || activeTab === "fullbacks" || activeTab === "cbs") && (
                         <td className="px-3 py-2 text-center font-bold text-sky-400">
                           {a.cleanSheets ?? 0}
                         </td>
@@ -312,7 +336,7 @@ export function RecalculateMarketValuesWidget() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={(activeTab === "dmf" || activeTab === "fullbacks") ? 11 : 10} className="px-4 py-6 text-center text-gray-500">
+                    <td colSpan={(activeTab === "dmf" || activeTab === "fullbacks" || activeTab === "cbs") ? 11 : 10} className="px-4 py-6 text-center text-gray-500">
                       No players evaluated in this category.
                     </td>
                   </tr>
