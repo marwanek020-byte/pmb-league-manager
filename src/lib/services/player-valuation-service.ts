@@ -76,23 +76,47 @@ function roundToHalfMillion(value: number): number {
   return Math.round(value / 500_000) * 500_000;
 }
 
+export interface ValuationAttackerEntry {
+  rank: number;
+  id: string;
+  name: string;
+  club: string;
+  position: string;
+  goals: number;
+  assists: number;
+  motm: number;
+  totw: number;
+  score: number;
+  rawPrice: number;
+  marketValue: number;
+}
+
+export interface ValuationRecalcResult {
+  leagueId: string;
+  maxAttackerScore: number;
+  totalPlayers: number;
+  totalAttackers: number;
+  attackers: ValuationAttackerEntry[];
+}
+
 // ── Main recalculation function ────────────────────────────────────────────
 export async function recalculateMarketValuesForLeague(
   leagueId: string
-): Promise<void> {
+): Promise<ValuationRecalcResult | null> {
   // 1. Get all clubs in the league
   const clubs = await prisma.club.findMany({
     where: { leagueId },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   const clubIds = clubs.map((c) => c.id);
+  const clubNameMap = new Map(clubs.map((c) => [c.id, c.name]));
 
-  if (clubIds.length === 0) return;
+  if (clubIds.length === 0) return null;
 
   // 2. Get all players
   const players = await prisma.player.findMany({
     where: { pmbClubId: { in: clubIds } },
-    select: { id: true, position: true },
+    select: { id: true, fullName: true, position: true, pmbClubId: true },
   });
 
   // 3. Goals from MatchEvent
@@ -113,7 +137,6 @@ export async function recalculateMarketValuesForLeague(
   });
 
   // 6. Clean sheets — count matches where a player's team kept a clean sheet
-  //    We check completed matches where the opposing team scored 0 goals.
   const completedMatches = await prisma.match.findMany({
     where: { status: "COMPLETED" },
     select: {
@@ -124,8 +147,6 @@ export async function recalculateMarketValuesForLeague(
     },
   });
 
-  // Build a set of clubs that kept a clean sheet in each match
-  // (club kept clean sheet when opponent scored 0)
   const cleanSheetClubs = new Set<string>();
   for (const m of completedMatches) {
     if (m.awayGoals === 0 && m.homeClubId) cleanSheetClubs.add(m.homeClubId);
@@ -154,23 +175,42 @@ export async function recalculateMarketValuesForLeague(
   }
 
   // ── STEP 1: Compute every player's raw performance score ──────────────────
-  type PlayerEntry = { id: string; type: PositionType; score: number; rawPrice: number };
+  type PlayerEntry = {
+    id: string;
+    name: string;
+    club: string;
+    position: string;
+    type: PositionType;
+    goals: number;
+    assists: number;
+    motms: number;
+    totws: number;
+    score: number;
+    rawPrice: number;
+  };
   const entries: PlayerEntry[] = players.map((p) => {
     const type = classifyPosition(p.position);
-    const score = computeScore(
+    const g = goalsMap.get(p.id) ?? 0;
+    const a = assistsMap.get(p.id) ?? 0;
+    const m = motmMap.get(p.id) ?? 0;
+    const t = totwMap.get(p.id) ?? 0;
+    const score = computeScore(type, g, a, m, t, 0);
+    return {
+      id: p.id,
+      name: p.fullName,
+      club: clubNameMap.get(p.pmbClubId ?? "") ?? "",
+      position: p.position ?? "",
       type,
-      goalsMap.get(p.id) ?? 0,
-      assistsMap.get(p.id) ?? 0,
-      motmMap.get(p.id) ?? 0,
-      totwMap.get(p.id) ?? 0,
-      0,
-    );
-    return { id: p.id, type, score, rawPrice: 0 };
+      goals: g,
+      assists: a,
+      motms: m,
+      totws: t,
+      score,
+      rawPrice: 0,
+    };
   });
 
   // ── STEP 2: Find the highest score among ATTACKERS only ───────────────────
-  //    Midfielders, defenders and GKs stay at the €4M floor until their
-  //    formulas are finalised.
   let maxAttackerScore = 0;
   for (const e of entries) {
     if (e.type === "attacker" && e.score > maxAttackerScore) {
@@ -190,18 +230,14 @@ export async function recalculateMarketValuesForLeague(
   }
 
   // ── STEP 4: Enforce strict unique ranking for ATTACKERS only ──────────────
-  //    #1 attacker always gets exactly €100M. No two attackers share a price.
-  //    All other positions get €4M flat.
   const finalPrices = new Map<string, number>();
 
-  // Non-attackers → flat floor
   for (const e of entries) {
     if (e.type !== "attacker") {
       finalPrices.set(e.id, BASE_FLOOR);
     }
   }
 
-  // Attackers → strict ranking
   const attackerGroup = entries
     .filter((e) => e.type === "attacker")
     .sort((a, b) => b.score - a.score || b.rawPrice - a.rawPrice);
@@ -232,4 +268,27 @@ export async function recalculateMarketValuesForLeague(
   console.log(
     `[MarketValue] Recalculated ${players.length} players in league ${leagueId}`
   );
+
+  const attackersSummary: ValuationAttackerEntry[] = attackerGroup.map((e, idx) => ({
+    rank: idx + 1,
+    id: e.id,
+    name: e.name,
+    club: e.club,
+    position: e.position,
+    goals: e.goals,
+    assists: e.assists,
+    motm: e.motms,
+    totw: e.totws,
+    score: e.score,
+    rawPrice: e.rawPrice,
+    marketValue: finalPrices.get(e.id) ?? BASE_FLOOR,
+  }));
+
+  return {
+    leagueId,
+    maxAttackerScore,
+    totalPlayers: players.length,
+    totalAttackers: attackerGroup.length,
+    attackers: attackersSummary.slice(0, 30),
+  };
 }

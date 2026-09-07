@@ -54,10 +54,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Botola Pro league not found." }, { status: 404 });
   }
 
-  await recalculateMarketValuesForLeague(league.id);
+  const result = await recalculateMarketValuesForLeague(league.id);
 
   return NextResponse.json({
     success: true,
     message: `Market values recalculated for ${league.name}.`,
+    result,
   });
 }

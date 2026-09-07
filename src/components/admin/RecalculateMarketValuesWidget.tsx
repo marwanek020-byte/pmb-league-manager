@@ -2,12 +2,35 @@
 
 import { useState } from "react";
 
+interface AttackerRow {
+  rank: number;
+  id: string;
+  name: string;
+  club: string;
+  position: string;
+  goals: number;
+  assists: number;
+  motm: number;
+  totw: number;
+  score: number;
+  marketValue: number;
+}
+
+interface RecalcResult {
+  leagueId: string;
+  maxAttackerScore: number;
+  totalPlayers: number;
+  totalAttackers: number;
+  attackers: AttackerRow[];
+}
+
 export function RecalculateMarketValuesWidget() {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [recalcResult, setRecalcResult] = useState<RecalcResult | null>(null);
 
   async function handleRecalculate(target: "BOTOLA" | "ALL") {
     const isAll = target === "ALL";
@@ -33,6 +56,9 @@ export function RecalculateMarketValuesWidget() {
           type: "success",
           text: data.message || "Player market values recalculated successfully!",
         });
+        if (data.result) {
+          setRecalcResult(data.result);
+        }
       } else {
         setStatusMessage({
           type: "error",
@@ -65,8 +91,7 @@ export function RecalculateMarketValuesWidget() {
             Live Player Market Values
           </h2>
           <p className="mt-1 max-w-2xl text-xs text-gray-400 leading-relaxed">
-            Recalculate real-time market values from match performances (Goals, Assists, MOTM, TOTW)
-            using official position formulas, ceilings, and unique rank hierarchy.
+            Formula: <strong>(Goals × 12) + (Assists × 8) + (MOTM × 10) + (TOTW × 8)</strong>. Scaled relative to the league's top attacker (€100M ceiling, €4M floor).
           </p>
         </div>
 
@@ -109,6 +134,64 @@ export function RecalculateMarketValuesWidget() {
         >
           {statusMessage.type === "success" ? "✓ " : "⚠ "}
           {statusMessage.text}
+        </div>
+      )}
+
+      {/* Breakdown Table */}
+      {recalcResult && recalcResult.attackers.length > 0 && (
+        <div className="mt-5 space-y-3">
+          <div className="flex items-center justify-between border-t border-white/10 pt-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-pmb-gold">
+              Top Attackers Performance Breakdown (Top Score: {recalcResult.maxAttackerScore} pts = €100.0M)
+            </h3>
+            <span className="text-[10px] text-gray-400">
+              {recalcResult.totalAttackers} attackers evaluated
+            </span>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/40">
+            <table className="w-full text-left text-xs text-gray-300">
+              <thead className="border-b border-white/10 bg-white/5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <tr>
+                  <th className="px-3 py-2">Rank</th>
+                  <th className="px-3 py-2">Player</th>
+                  <th className="px-3 py-2">Club</th>
+                  <th className="px-3 py-2">Pos</th>
+                  <th className="px-3 py-2 text-center">G (×12)</th>
+                  <th className="px-3 py-2 text-center">A (×8)</th>
+                  <th className="px-3 py-2 text-center">MOTM (×10)</th>
+                  <th className="px-3 py-2 text-center">TOTW (×8)</th>
+                  <th className="px-3 py-2 text-center font-bold text-pmb-gold">Score</th>
+                  <th className="px-3 py-2 text-right font-bold text-white">Market Value</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {recalcResult.attackers.slice(0, 15).map((a) => (
+                  <tr
+                    key={a.id}
+                    className={`hover:bg-white/5 transition ${
+                      a.name.toLowerCase().includes("fahli") || a.name.toLowerCase().includes("benjdida")
+                        ? "bg-amber-500/10 font-bold text-white"
+                        : ""
+                    }`}
+                  >
+                    <td className="px-3 py-2 font-mono text-pmb-gold font-bold">#{a.rank}</td>
+                    <td className="px-3 py-2 font-semibold text-white">{a.name}</td>
+                    <td className="px-3 py-2 text-gray-400">{a.club}</td>
+                    <td className="px-3 py-2 uppercase">{a.position}</td>
+                    <td className="px-3 py-2 text-center">{a.goals}</td>
+                    <td className="px-3 py-2 text-center">{a.assists}</td>
+                    <td className="px-3 py-2 text-center">{a.motm}</td>
+                    <td className="px-3 py-2 text-center">{a.totw}</td>
+                    <td className="px-3 py-2 text-center font-bold text-pmb-gold">{a.score}</td>
+                    <td className="px-3 py-2 text-right font-bold text-emerald-400">
+                      €{(a.marketValue / 1_000_000).toFixed(1)}M
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
