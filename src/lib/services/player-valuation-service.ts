@@ -26,7 +26,7 @@ const CEILINGS = {
   dmf:         60_000_000,
   fullback:    50_000_000,
   defender:    70_000_000,
-  goalkeeper:  40_000_000,
+  goalkeeper:  45_000_000,
 } as const;
 
 type PositionType = keyof typeof CEILINGS;
@@ -103,7 +103,7 @@ function computeScore(
     case "defender":
       return cleanSheets * 15 + totws * 10 + motms * 10 + goals * 10 + assists * 5;
     case "goalkeeper":
-      return cleanSheets * 10 + motms * 10 + totws * 10;
+      return cleanSheets * 15 + totws * 10 + motms * 10;
   }
 }
 
@@ -136,6 +136,7 @@ export interface ValuationRecalcResult {
   maxDmfScore: number;
   maxFullbackScore: number;
   maxDefenderScore: number;
+  maxGoalkeeperScore: number;
   totalPlayers: number;
   totalAttackers: number;
   totalWingers: number;
@@ -143,12 +144,14 @@ export interface ValuationRecalcResult {
   totalDmfs: number;
   totalFullbacks: number;
   totalDefenders: number;
+  totalGoalkeepers: number;
   attackers: ValuationAttackerEntry[];
   wingers: ValuationAttackerEntry[];
   midfielders: ValuationAttackerEntry[];
   dmfs: ValuationAttackerEntry[];
   fullbacks: ValuationAttackerEntry[];
   defenders: ValuationAttackerEntry[];
+  goalkeepers: ValuationAttackerEntry[];
 }
 
 // ── Main recalculation function ────────────────────────────────────────────
@@ -276,6 +279,7 @@ export async function recalculateMarketValuesForLeague(
   let maxDmfScore = 0;
   let maxFullbackScore = 0;
   let maxDefenderScore = 0;
+  let maxGoalkeeperScore = 0;
   for (const e of entries) {
     if (e.type === "attacker" && e.score > maxAttackerScore) {
       maxAttackerScore = e.score;
@@ -294,6 +298,9 @@ export async function recalculateMarketValuesForLeague(
     }
     if (e.type === "defender" && e.score > maxDefenderScore) {
       maxDefenderScore = e.score;
+    }
+    if (e.type === "goalkeeper" && e.score > maxGoalkeeperScore) {
+      maxGoalkeeperScore = e.score;
     }
   }
 
@@ -323,6 +330,10 @@ export async function recalculateMarketValuesForLeague(
       e.rawPrice = (e.score > 0 && maxDefenderScore > 0)
         ? BASE_FLOOR + (e.score / maxDefenderScore) * (CEILINGS.defender - BASE_FLOOR)
         : BASE_FLOOR;
+    } else if (e.type === "goalkeeper") {
+      e.rawPrice = (e.score > 0 && maxGoalkeeperScore > 0)
+        ? BASE_FLOOR + (e.score / maxGoalkeeperScore) * (CEILINGS.goalkeeper - BASE_FLOOR)
+        : BASE_FLOOR;
     } else {
       e.rawPrice = BASE_FLOOR;
     }
@@ -331,20 +342,7 @@ export async function recalculateMarketValuesForLeague(
   // ── STEP 4: Enforce strict unique ranking per position category ──────────
   const finalPrices = new Map<string, number>();
 
-  for (const e of entries) {
-    if (
-      e.type !== "attacker" &&
-      e.type !== "winger" &&
-      e.type !== "midfielder" &&
-      e.type !== "dmf" &&
-      e.type !== "fullback" &&
-      e.type !== "defender"
-    ) {
-      finalPrices.set(e.id, BASE_FLOOR);
-    }
-  }
-
-  const rankPositionGroup = (type: "attacker" | "winger" | "midfielder" | "dmf" | "fullback" | "defender") => {
+  const rankPositionGroup = (type: PositionType) => {
     const group = entries
       .filter((e) => e.type === type)
       .sort((a, b) => b.score - a.score || b.rawPrice - a.rawPrice);
@@ -366,6 +364,7 @@ export async function recalculateMarketValuesForLeague(
   const dmfGroup = rankPositionGroup("dmf");
   const fullbackGroup = rankPositionGroup("fullback");
   const defenderGroup = rankPositionGroup("defender");
+  const goalkeeperGroup = rankPositionGroup("goalkeeper");
 
   // ── STEP 5: Write to DB in chunks of 50 ───────────────────────────────────
   const CHUNK = 50;
@@ -382,7 +381,7 @@ export async function recalculateMarketValuesForLeague(
   }
 
   console.log(
-    `[MarketValue] Recalculated ${players.length} players in league ${leagueId} (Attackers: ${attackerGroup.length}, Wingers: ${wingerGroup.length}, Midfielders: ${midfielderGroup.length}, DMF: ${dmfGroup.length}, Fullbacks: ${fullbackGroup.length}, CB: ${defenderGroup.length})`
+    `[MarketValue] Recalculated ${players.length} players in league ${leagueId} (Attackers: ${attackerGroup.length}, Wingers: ${wingerGroup.length}, Midfielders: ${midfielderGroup.length}, DMF: ${dmfGroup.length}, Fullbacks: ${fullbackGroup.length}, CB: ${defenderGroup.length}, GK: ${goalkeeperGroup.length})`
   );
 
   const mapToSummary = (group: typeof attackerGroup): ValuationAttackerEntry[] =>
@@ -410,6 +409,7 @@ export async function recalculateMarketValuesForLeague(
     maxDmfScore,
     maxFullbackScore,
     maxDefenderScore,
+    maxGoalkeeperScore,
     totalPlayers: players.length,
     totalAttackers: attackerGroup.length,
     totalWingers: wingerGroup.length,
@@ -417,11 +417,13 @@ export async function recalculateMarketValuesForLeague(
     totalDmfs: dmfGroup.length,
     totalFullbacks: fullbackGroup.length,
     totalDefenders: defenderGroup.length,
+    totalGoalkeepers: goalkeeperGroup.length,
     attackers: mapToSummary(attackerGroup).slice(0, 25),
     wingers: mapToSummary(wingerGroup).slice(0, 25),
     midfielders: mapToSummary(midfielderGroup).slice(0, 25),
     dmfs: mapToSummary(dmfGroup).slice(0, 25),
     fullbacks: mapToSummary(fullbackGroup).slice(0, 25),
     defenders: mapToSummary(defenderGroup).slice(0, 25),
+    goalkeepers: mapToSummary(goalkeeperGroup).slice(0, 25),
   };
 }
