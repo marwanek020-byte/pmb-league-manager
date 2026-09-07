@@ -6,11 +6,43 @@ import { recalculateMarketValuesForLeague } from "@/lib/services/player-valuatio
 export const dynamic = "force-dynamic";
 
 // POST /api/admin/recalculate-market-values
-// Triggers a full market value recalculation for all Botola Pro players.
-export async function POST() {
+// Triggers market value recalculation for Botola Pro or any/all leagues.
+export async function POST(req: Request) {
   const session = await auth();
   if (!session || session.user.role !== "ADMINISTRATOR") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let leagueId: string | undefined;
+  try {
+    const body = await req.json();
+    leagueId = body?.leagueId;
+  } catch {}
+
+  if (leagueId === "ALL") {
+    const leagues = await prisma.league.findMany({ select: { id: true, name: true } });
+    for (const l of leagues) {
+      await recalculateMarketValuesForLeague(l.id);
+    }
+    return NextResponse.json({
+      success: true,
+      message: `Market values recalculated for all ${leagues.length} leagues.`,
+    });
+  }
+
+  if (leagueId) {
+    const league = await prisma.league.findUnique({
+      where: { id: leagueId },
+      select: { id: true, name: true },
+    });
+    if (!league) {
+      return NextResponse.json({ error: "League not found." }, { status: 404 });
+    }
+    await recalculateMarketValuesForLeague(league.id);
+    return NextResponse.json({
+      success: true,
+      message: `Market values recalculated for ${league.name}.`,
+    });
   }
 
   const league = await prisma.league.findFirst({

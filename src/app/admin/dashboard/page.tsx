@@ -4,6 +4,7 @@ import { LeagueOverview } from "@/components/admin/LeagueOverview";
 import { TransferWindowControls } from "@/components/admin/TransferWindowControls";
 import { RegistrationLockToggle } from "@/components/admin/RegistrationLockToggle";
 import { AdminStadiumRentalsWidget } from "@/components/admin/AdminStadiumRentalsWidget";
+import { RecalculateMarketValuesWidget } from "@/components/admin/RecalculateMarketValuesWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,9 @@ export default async function AdminDashboardPage() {
     <div className="space-y-8">
       {/* Pending Stadium Rental Approvals Widget */}
       <AdminStadiumRentalsWidget />
+
+      {/* Live Market Valuation Engine Recalculation Widget */}
+      <RecalculateMarketValuesWidget />
 
       <section className="admin-hero relative overflow-hidden rounded-2xl border border-pmb-gold/35 p-7 sm:p-10">
         <img src="/branding/pmb-lion.jpg" alt="PMB lion" className="absolute -right-8 top-7 h-40 w-40 rounded-full object-cover opacity-35 sm:right-12 sm:h-52 sm:w-52" />
