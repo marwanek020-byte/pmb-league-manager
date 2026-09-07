@@ -20,16 +20,19 @@ interface RecalcResult {
   leagueId: string;
   maxAttackerScore: number;
   maxWingerScore: number;
+  maxMidfielderScore: number;
   totalPlayers: number;
   totalAttackers: number;
   totalWingers: number;
+  totalMidfielders: number;
   attackers: PlayerRow[];
   wingers: PlayerRow[];
+  midfielders: PlayerRow[];
 }
 
 export function RecalculateMarketValuesWidget() {
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"strikers" | "wingers">("strikers");
+  const [activeTab, setActiveTab] = useState<"strikers" | "wingers" | "midfielders">("strikers");
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -79,8 +82,22 @@ export function RecalculateMarketValuesWidget() {
     }
   }
 
-  const currentList = activeTab === "strikers" ? recalcResult?.attackers : recalcResult?.wingers;
-  const currentMaxScore = activeTab === "strikers" ? recalcResult?.maxAttackerScore : recalcResult?.maxWingerScore;
+  const currentList =
+    activeTab === "strikers"
+      ? recalcResult?.attackers
+      : activeTab === "wingers"
+      ? recalcResult?.wingers
+      : recalcResult?.midfielders;
+
+  const currentMaxScore =
+    activeTab === "strikers"
+      ? recalcResult?.maxAttackerScore
+      : activeTab === "wingers"
+      ? recalcResult?.maxWingerScore
+      : recalcResult?.maxMidfielderScore;
+
+  const currentCeiling =
+    activeTab === "strikers" ? "100.0" : activeTab === "wingers" ? "80.0" : "70.0";
 
   return (
     <div className="rounded-2xl border border-pmb-gold/30 bg-gradient-to-br from-amber-950/25 via-pmb-charcoal/90 to-pmb-black p-6 shadow-xl">
@@ -99,7 +116,8 @@ export function RecalculateMarketValuesWidget() {
           </h2>
           <p className="mt-1 max-w-2xl text-xs text-gray-400 leading-relaxed">
             • <strong>Strikers (CF/SS):</strong> Goals×12 + Assists×8 + MOTM×10 + TOTW×8 (Ceiling €100M)<br />
-            • <strong>Wingers (RWF/LWF):</strong> Goals×10 + Assists×10 + MOTM×10 + TOTW×8 (Ceiling €80M)
+            • <strong>Wingers (RWF/LWF):</strong> Goals×10 + Assists×10 + MOTM×10 + TOTW×8 (Ceiling €80M)<br />
+            • <strong>Midfielders (AMF/CMF):</strong> Assists×5 + Goals×7 + MOTM×10 + TOTW×8 (Ceiling €70M)
           </p>
         </div>
 
@@ -149,7 +167,7 @@ export function RecalculateMarketValuesWidget() {
       {recalcResult && (
         <div className="mt-5 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-white/10 pt-4 gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setActiveTab("strikers")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
@@ -170,10 +188,20 @@ export function RecalculateMarketValuesWidget() {
               >
                 ⚡ Wingers (RWF & LWF) ({recalcResult.totalWingers})
               </button>
+              <button
+                onClick={() => setActiveTab("midfielders")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  activeTab === "midfielders"
+                    ? "bg-pmb-gold text-black shadow-md"
+                    : "bg-white/5 text-gray-400 hover:text-white"
+                }`}
+              >
+                🎨 Midfielders (AMF & CMF) ({recalcResult.totalMidfielders})
+              </button>
             </div>
 
             <span className="text-[10px] text-pmb-gold font-bold">
-              Top {activeTab === "strikers" ? "Striker" : "Winger"} Score: {currentMaxScore} pts = €{activeTab === "strikers" ? "100.0" : "80.0"}M
+              Top {activeTab === "strikers" ? "Striker" : activeTab === "wingers" ? "Winger" : "Midfielder"} Score: {currentMaxScore} pts = €{currentCeiling}M
             </span>
           </div>
 
@@ -186,10 +214,10 @@ export function RecalculateMarketValuesWidget() {
                   <th className="px-3 py-2">Club</th>
                   <th className="px-3 py-2">Pos</th>
                   <th className="px-3 py-2 text-center">
-                    G {activeTab === "strikers" ? "(×12)" : "(×10)"}
+                    G {activeTab === "strikers" ? "(×12)" : activeTab === "wingers" ? "(×10)" : "(×7)"}
                   </th>
                   <th className="px-3 py-2 text-center">
-                    A {activeTab === "strikers" ? "(×8)" : "(×10)"}
+                    A {activeTab === "strikers" ? "(×8)" : activeTab === "wingers" ? "(×10)" : "(×5)"}
                   </th>
                   <th className="px-3 py-2 text-center">MOTM (×10)</th>
                   <th className="px-3 py-2 text-center">TOTW (×8)</th>

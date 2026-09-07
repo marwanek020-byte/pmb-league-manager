@@ -38,10 +38,11 @@ export async function POST(req: Request) {
     if (!league) {
       return NextResponse.json({ error: "League not found." }, { status: 404 });
     }
-    await recalculateMarketValuesForLeague(league.id);
+    const result = await recalculateMarketValuesForLeague(league.id);
     return NextResponse.json({
       success: true,
       message: `Market values recalculated for ${league.name}.`,
+      result,
     });
   }
 
