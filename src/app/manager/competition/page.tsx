@@ -81,6 +81,17 @@ export default async function ManagerCompetitionPage() {
     include: {
       homeClub: { select: { id: true, name: true, logo: true } },
       awayClub: { select: { id: true, name: true, logo: true } },
+      submissions: {
+        select: {
+          id: true,
+          status: true,
+          homeGoals: true,
+          awayGoals: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   });
 
@@ -112,6 +123,7 @@ export default async function ManagerCompetitionPage() {
     homeGoals: m.homeGoals,
     awayGoals: m.awayGoals,
     status: m.status as "UPCOMING" | "COMPLETED",
+    latestSubmission: m.submissions[0] || null,
   }));
 
   return (

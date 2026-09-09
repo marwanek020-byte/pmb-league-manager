@@ -23,6 +23,12 @@ type Match = {
   homeGoals: number | null;
   awayGoals: number | null;
   status: "UPCOMING" | "COMPLETED";
+  latestSubmission?: {
+    id: string;
+    status: string;
+    homeGoals: number;
+    awayGoals: number;
+  } | null;
 };
 
 type StandingRow = {
@@ -208,6 +214,21 @@ export function CompetitionHub({
                       Full Time
                     </span>
                   </>
+                ) : headlineMatch.latestSubmission?.status === "PENDING_ADMIN_REVIEW" ? (
+                  <>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <span className="text-2xl font-black text-amber-300 sm:text-6xl tracking-tight">
+                        {headlineMatch.latestSubmission.homeGoals}
+                      </span>
+                      <span className="text-lg sm:text-2xl font-bold text-amber-500/70">—</span>
+                      <span className="text-2xl font-black text-amber-300 sm:text-6xl tracking-tight">
+                        {headlineMatch.latestSubmission.awayGoals}
+                      </span>
+                    </div>
+                    <span className="mt-0.5 block text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-400 animate-pulse">
+                      ⏳ Pending Admin Verification
+                    </span>
+                  </>
                 ) : (
                   <>
                     <span className="text-2xl font-black tracking-tighter text-pmb-gold sm:text-6xl drop-shadow-[0_0_20px_rgba(212,175,55,0.4)]">
@@ -257,14 +278,21 @@ export function CompetitionHub({
                 <span>View Match Lineups</span>
               </button>
               {headlineMatch.status === "UPCOMING" && (headlineMatch.homeClub.id === myClubId || headlineMatch.awayClub.id === myClubId) && (
-                <button
-                  type="button"
-                  onClick={() => setSubmittingMatch(headlineMatch)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-400 bg-emerald-500 hover:bg-emerald-400 px-4 py-2 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/20 transition cursor-pointer"
-                >
-                  <span>📤</span>
-                  <span>Submit Result (AI Scan)</span>
-                </button>
+                headlineMatch.latestSubmission?.status === "PENDING_ADMIN_REVIEW" ? (
+                  <span className="inline-flex items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-950/70 px-4 py-2 text-xs font-black uppercase tracking-wider text-amber-300 shadow-lg backdrop-blur-md">
+                    <span>⏳</span>
+                    <span>Result Submitted (Pending Admin)</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSubmittingMatch(headlineMatch)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-400 bg-emerald-500 hover:bg-emerald-400 px-4 py-2 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+                  >
+                    <span>📤</span>
+                    <span>Submit Result (AI Scan)</span>
+                  </button>
+                )
               )}
             </div>
             <p className="text-[10px] font-black uppercase tracking-[.35em] text-pmb-gold/80">
@@ -479,21 +507,36 @@ export function CompetitionHub({
                               {match.awayGoals}
                             </span>
                           </div>
+                        ) : match.latestSubmission?.status === "PENDING_ADMIN_REVIEW" ? (
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl font-black text-amber-300">
+                                {match.latestSubmission.homeGoals}
+                              </span>
+                              <span className="text-xs font-bold text-amber-500/70">—</span>
+                              <span className="text-xl font-black text-amber-300">
+                                {match.latestSubmission.awayGoals}
+                              </span>
+                            </div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-amber-400 animate-pulse mt-0.5">
+                              ⏳ PENDING
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-xs font-black uppercase tracking-widest text-pmb-gold">
                             VS
                           </span>
                         )}
-                        <span
-                          className={[
-                            "text-[8px] font-black uppercase tracking-widest mt-0.5",
-                            match.status === "COMPLETED"
-                              ? "text-emerald-400"
-                              : "text-amber-400",
-                          ].join(" ")}
-                        >
-                          {match.status === "COMPLETED" ? "FULL TIME" : "UPCOMING"}
-                        </span>
+                        {match.status === "COMPLETED" && (
+                          <span className="text-[8px] font-black uppercase tracking-widest mt-0.5 text-emerald-400">
+                            FULL TIME
+                          </span>
+                        )}
+                        {match.status !== "COMPLETED" && !match.latestSubmission && (
+                          <span className="text-[8px] font-black uppercase tracking-widest mt-0.5 text-amber-400">
+                            UPCOMING
+                          </span>
+                        )}
                       </div>
 
                       {/* Away Club */}
@@ -533,14 +576,21 @@ export function CompetitionHub({
                       )}
                       <div className="flex items-center gap-2">
                         {isMyMatch && match.status === "UPCOMING" && (
-                          <button
-                            type="button"
-                            onClick={() => setSubmittingMatch(match)}
-                            className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-black bg-emerald-500 hover:bg-emerald-400 px-2.5 py-1 rounded-md shadow transition cursor-pointer"
-                          >
-                            <span>📤</span>
-                            <span>Submit Result</span>
-                          </button>
+                          match.latestSubmission?.status === "PENDING_ADMIN_REVIEW" ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/60 border border-amber-500/40 px-2.5 py-1 rounded-md shadow">
+                              <span>⏳</span>
+                              <span>Pending Admin</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setSubmittingMatch(match)}
+                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-black bg-emerald-500 hover:bg-emerald-400 px-2.5 py-1 rounded-md shadow transition cursor-pointer"
+                            >
+                              <span>📤</span>
+                              <span>Submit Result</span>
+                            </button>
+                          )
                         )}
                         <button
                           type="button"
