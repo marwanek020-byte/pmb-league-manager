@@ -80,7 +80,7 @@ export async function GET(
       events: {
         include: {
           player: { select: { id: true, fullName: true, position: true } },
-          assistPlayer: { select: { id: true, fullName: true } },
+          assistPlayer: { select: { id: true, fullName: true, position: true } },
           club: { select: { id: true, name: true } },
         },
         orderBy: { minute: "asc" },
@@ -187,6 +187,19 @@ export async function PATCH(
           type: ev.type ?? MatchEventType.GOAL,
           minute: typeof ev.minute === "number" ? ev.minute : null,
         }));
+
+        // Enforce max 5 substitutions per club
+        const homeSubs = eventsData.filter(
+          (e: { clubId: string; type: MatchEventType }) =>
+            e.clubId === match.homeClubId && e.type === MatchEventType.SUBSTITUTION
+        );
+        const awaySubs = eventsData.filter(
+          (e: { clubId: string; type: MatchEventType }) =>
+            e.clubId === match.awayClubId && e.type === MatchEventType.SUBSTITUTION
+        );
+        if (homeSubs.length > 5 || awaySubs.length > 5) {
+          throw new Error("A club cannot make more than 5 substitutions in a match.");
+        }
 
         await tx.matchEvent.createMany({
           data: eventsData,

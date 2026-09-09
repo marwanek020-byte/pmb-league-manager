@@ -49,7 +49,7 @@ type MatchEvent = {
   clubId: string;
   playerId: string;
   assistPlayerId?: string | null;
-  type: "GOAL" | "ASSIST" | "YELLOW_CARD" | "RED_CARD" | "OWN_GOAL";
+  type: "GOAL" | "ASSIST" | "YELLOW_CARD" | "RED_CARD" | "OWN_GOAL" | "SUBSTITUTION";
   minute?: number | null;
   player?: PlayerSummary;
   assistPlayer?: PlayerSummary;
@@ -348,6 +348,26 @@ export function MatchdayAdmin({
     ]);
   }
 
+  function addSubstitutionEvent(clubId: string) {
+    const clubSubs = matchEvents.filter(
+      (e) => e.clubId === clubId && e.type === "SUBSTITUTION"
+    );
+    if (clubSubs.length >= 5) {
+      alert("A team can make a maximum of 5 substitutions per match (FIFA regulations).");
+      return;
+    }
+    setMatchEvents((prev) => [
+      ...prev,
+      {
+        clubId,
+        playerId: "", // Sub IN (from bench)
+        assistPlayerId: "", // Sub OUT (from pitch)
+        type: "SUBSTITUTION",
+        minute: null,
+      },
+    ]);
+  }
+
   function removeGoalEvent(index: number) {
     setMatchEvents((prev) => prev.filter((_, i) => i !== index));
   }
@@ -370,8 +390,13 @@ export function MatchdayAdmin({
       return;
     }
 
-    // Filter out incomplete events
-    const validEvents = matchEvents.filter((ev) => ev.playerId && ev.clubId);
+    // Filter out incomplete events (Goals require playerId; Subs require both playerId and assistPlayerId)
+    const validEvents = matchEvents.filter(
+      (ev) =>
+        ev.clubId &&
+        ev.playerId &&
+        (ev.type !== "SUBSTITUTION" || (ev.playerId && ev.assistPlayerId))
+    );
 
     setSaving(true);
     setMatchErrors((prev) => ({ ...prev, [matchId]: "" }));
@@ -1544,13 +1569,13 @@ export function MatchdayAdmin({
                         );
                       })()}
 
-                      {/* ⚽ Goals & Assists Section */}
+                      {/* ⚽ Match Events & In-Game Substitutions Section */}
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                            <span>⚽</span> Goals & Assists
+                            <span>⚽</span> Goals & <span>🔄</span> Substitutions
                           </span>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <button
                               type="button"
                               onClick={() => addGoalEvent(match.homeClubId)}
@@ -1565,12 +1590,34 @@ export function MatchdayAdmin({
                             >
                               + Goal ({match.awayClub.name})
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => addSubstitutionEvent(match.homeClubId)}
+                              className="text-[10px] font-bold px-2 py-1 bg-emerald-950/40 text-emerald-300 border border-emerald-600/40 rounded-lg hover:bg-emerald-900/40 transition flex items-center gap-1"
+                            >
+                              <span>+ 🔄 Sub</span>
+                              <span>({match.homeClub.name.slice(0, 10)})</span>
+                              <span className="text-[9px] text-emerald-400 font-extrabold">
+                                {matchEvents.filter((e) => e.clubId === match.homeClubId && e.type === "SUBSTITUTION").length}/5
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => addSubstitutionEvent(match.awayClubId)}
+                              className="text-[10px] font-bold px-2 py-1 bg-emerald-950/40 text-emerald-300 border border-emerald-600/40 rounded-lg hover:bg-emerald-900/40 transition flex items-center gap-1"
+                            >
+                              <span>+ 🔄 Sub</span>
+                              <span>({match.awayClub.name.slice(0, 10)})</span>
+                              <span className="text-[9px] text-emerald-400 font-extrabold">
+                                {matchEvents.filter((e) => e.clubId === match.awayClubId && e.type === "SUBSTITUTION").length}/5
+                              </span>
+                            </button>
                           </div>
                         </div>
 
                         {matchEvents.length === 0 ? (
                           <div className="text-center py-3 text-xs text-gray-600 bg-pmb-dark/30 rounded-lg border border-dashed border-pmb-border/40">
-                            No goal events added yet. Tap a button above to record scorers and assists.
+                            No match events recorded yet. Tap buttons above to record goals or in-game substitutions.
                           </div>
                         ) : (
                           <div className="space-y-2">
@@ -1582,9 +1629,81 @@ export function MatchdayAdmin({
                                 ? match.homeClub.name
                                 : match.awayClub.name;
 
+                              const isSub = ev.type === "SUBSTITUTION";
                               const xiPlayers = currentCategorized.filter((p) => p.category === "XI");
                               const benchPlayers = currentCategorized.filter((p) => p.category === "BENCH");
                               const reservePlayers = currentCategorized.filter((p) => p.category === "RESERVE");
+
+                              if (isSub) {
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-2.5 bg-emerald-950/20 rounded-lg border border-emerald-500/30 text-xs"
+                                  >
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 whitespace-nowrap flex items-center gap-1">
+                                      <span>🔄</span> Sub · {clubName}
+                                    </span>
+
+                                    {/* Player IN (from Bench) */}
+                                    <select
+                                      value={ev.playerId}
+                                      onChange={(e) =>
+                                        updateEvent(index, "playerId", e.target.value)
+                                      }
+                                      className="pmb-input flex-1 text-xs py-1 text-emerald-300 font-medium"
+                                    >
+                                      <option value="">-- Player IN (🟢 from Bench) --</option>
+                                      {benchPlayers.map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                          🟢 IN: {p.label}
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    {/* Player OUT (from Starting XI) */}
+                                    <select
+                                      value={ev.assistPlayerId || ""}
+                                      onChange={(e) =>
+                                        updateEvent(index, "assistPlayerId", e.target.value || null)
+                                      }
+                                      className="pmb-input flex-1 text-xs py-1 text-red-300 font-medium"
+                                    >
+                                      <option value="">-- Player OUT (🔴 from Starters) --</option>
+                                      {xiPlayers.map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                          🔴 OUT: {p.label}
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    {/* Minute */}
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={120}
+                                      placeholder="Min '"
+                                      value={ev.minute || ""}
+                                      onChange={(e) =>
+                                        updateEvent(
+                                          index,
+                                          "minute",
+                                          e.target.value ? parseInt(e.target.value, 10) : null
+                                        )
+                                      }
+                                      className="pmb-input w-16 text-center text-xs py-1 font-bold"
+                                    />
+
+                                    <button
+                                      type="button"
+                                      onClick={() => removeGoalEvent(index)}
+                                      className="text-red-400 hover:text-red-300 p-1 text-sm font-bold"
+                                      title="Delete Substitution"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <div
@@ -1749,8 +1868,11 @@ export function MatchdayAdmin({
                   )}
 
                   {match.events && match.events.length > 0 && (
-                    <span className="text-[10px] text-gray-500">
-                      ⚽ {match.events.length} goals recorded
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1.5">
+                      <span>⚽ {match.events.filter((e) => e.type !== "SUBSTITUTION").length} goals</span>
+                      {match.events.some((e) => e.type === "SUBSTITUTION") && (
+                        <span>· 🔄 {match.events.filter((e) => e.type === "SUBSTITUTION").length} subs</span>
+                      )}
                     </span>
                   )}
                 </div>

@@ -639,6 +639,7 @@ enum MatchEventType {
   YELLOW_CARD
   RED_CARD
   OWN_GOAL
+  SUBSTITUTION
 }
 
 model MatchEvent {

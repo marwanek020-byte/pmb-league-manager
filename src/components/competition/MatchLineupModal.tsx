@@ -36,6 +36,18 @@ type SetPiece = {
   player: Player;
 };
 
+type MatchEvent = {
+  id: string;
+  clubId: string;
+  playerId: string;
+  assistPlayerId?: string | null;
+  type: "GOAL" | "ASSIST" | "SUBSTITUTION";
+  minute?: number | null;
+  player?: Player;
+  assistPlayer?: Player;
+  club?: { id: string; name: string; logo?: string | null };
+};
+
 type TeamLineup = {
   id?: string;
   formation: string;
@@ -57,6 +69,7 @@ type MatchLineupData = {
   awayGoals: number | null;
   homeLineup: TeamLineup | null;
   awayLineup: TeamLineup | null;
+  events?: MatchEvent[];
 };
 
 type Props = {
@@ -243,6 +256,13 @@ export function MatchLineupModal({ matchId, isOpen, onClose }: Props) {
                 </div>
               </div>
 
+              {/* Match Timeline (Goals & In-Game Substitutions) */}
+              <MatchTimelineSection
+                events={data.events || []}
+                homeClub={data.homeClub}
+                awayClub={data.awayClub}
+              />
+
               {/* Mobile Team Switcher (on screens < lg) */}
               <div className="flex lg:hidden rounded-xl border border-white/10 bg-black/40 p-1">
                 <button
@@ -276,20 +296,24 @@ export function MatchLineupModal({ matchId, isOpen, onClose }: Props) {
                 {/* Home Team Panel */}
                 <div className={activeTeamTab === "home" ? "block" : "hidden lg:block"}>
                   <TeamLineupCard
+                    clubId={data.homeClub.id}
                     teamName={data.homeClub.name}
                     badgeLogo={data.homeClub.logo}
                     lineup={data.homeLineup}
                     isHome={true}
+                    events={data.events}
                   />
                 </div>
 
                 {/* Away Team Panel */}
                 <div className={activeTeamTab === "away" ? "block" : "hidden lg:block"}>
                   <TeamLineupCard
+                    clubId={data.awayClub.id}
                     teamName={data.awayClub.name}
                     badgeLogo={data.awayClub.logo}
                     lineup={data.awayLineup}
                     isHome={false}
+                    events={data.events}
                   />
                 </div>
               </div>
@@ -315,16 +339,204 @@ export function MatchLineupModal({ matchId, isOpen, onClose }: Props) {
   );
 }
 
+// ── Chronological Match Timeline Section ─────────────────────────────────────
+function MatchTimelineSection({
+  events,
+  homeClub,
+  awayClub,
+}: {
+  events: MatchEvent[];
+  homeClub: { id: string; name: string; logo: string | null };
+  awayClub: { id: string; name: string; logo: string | null };
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Strictly GOAL and SUBSTITUTION events — NO yellow or red cards
+  const timelineEvents = events
+    .filter((e) => e.type === "GOAL" || e.type === "SUBSTITUTION")
+    .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
+
+  const goalCount = timelineEvents.filter((e) => e.type === "GOAL").length;
+  const subCount = timelineEvents.filter((e) => e.type === "SUBSTITUTION").length;
+
+  if (timelineEvents.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden shadow-lg">
+      {/* Header / Toggle */}
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="w-full p-3.5 sm:p-4 flex items-center justify-between gap-3 bg-white/[0.03] hover:bg-white/[0.06] transition text-left cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-pmb-gold/15 text-pmb-gold text-sm border border-pmb-gold/30">
+            ⏱️
+          </span>
+          <div>
+            <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
+              <span>Match Timeline & Substitutions</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
+                {timelineEvents.length} events
+              </span>
+            </h4>
+            <p className="text-[10px] text-gray-400">
+              ⚽ {goalCount} {goalCount === 1 ? "goal" : "goals"} · 🔄 {subCount}{" "}
+              {subCount === 1 ? "substitution" : "substitutions"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 font-bold">{isCollapsed ? "Show" : "Hide"}</span>
+          <span className="text-gray-400 text-xs">{isCollapsed ? "▼" : "▲"}</span>
+        </div>
+      </button>
+
+      {/* Timeline Content */}
+      {!isCollapsed && (
+        <div className="p-4 sm:p-6 border-t border-white/10">
+          <div className="relative max-w-2xl mx-auto py-2">
+            {/* Central vertical track */}
+            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-gradient-to-b from-white/10 via-pmb-gold/30 to-white/10 hidden sm:block" />
+
+            <div className="space-y-4">
+              {timelineEvents.map((ev, idx) => {
+                const isHome = ev.clubId === homeClub.id;
+                const isGoal = ev.type === "GOAL";
+                const minute = ev.minute != null ? `${ev.minute}'` : "--'";
+
+                return (
+                  <div
+                    key={ev.id || idx}
+                    className="relative flex flex-col sm:flex-row items-center sm:justify-between gap-2 sm:gap-4"
+                  >
+                    {/* Home side event */}
+                    <div className="w-full sm:w-[calc(50%-2rem)] flex justify-start sm:justify-end">
+                      {isHome ? (
+                        <div
+                          className={[
+                            "p-2.5 rounded-xl border max-w-full text-xs transition shadow-sm",
+                            isGoal
+                              ? "bg-amber-950/30 border-pmb-gold/50 text-white"
+                              : "bg-emerald-950/25 border-emerald-500/40 text-white",
+                          ].join(" ")}
+                        >
+                          {isGoal ? (
+                            <div className="flex items-center sm:flex-row-reverse gap-2 text-left sm:text-right">
+                              <span className="text-base shrink-0">⚽</span>
+                              <div className="min-w-0">
+                                <p className="font-extrabold text-pmb-gold truncate">
+                                  {ev.player?.fullName || "Goal"}
+                                </p>
+                                {ev.assistPlayer && (
+                                  <p className="text-[10px] text-gray-300">
+                                    👟 Assist: {ev.assistPlayer.fullName}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center sm:flex-row-reverse gap-2 text-left sm:text-right">
+                              <span className="text-base shrink-0">🔄</span>
+                              <div className="min-w-0 text-[11px]">
+                                <p className="font-bold text-emerald-300 truncate flex items-center sm:justify-end gap-1">
+                                  <span>🟢 IN:</span>
+                                  <span>{ev.player?.fullName || "Bench Player"}</span>
+                                </p>
+                                <p className="text-[10px] text-red-300 truncate flex items-center sm:justify-end gap-1">
+                                  <span>🔴 OUT:</span>
+                                  <span>{ev.assistPlayer?.fullName || "Starter"}</span>
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="hidden sm:block" />
+                      )}
+                    </div>
+
+                    {/* Center minute badge */}
+                    <div className="relative z-10 shrink-0">
+                      <span className="flex h-7 px-2.5 items-center justify-center rounded-full bg-pmb-black border border-pmb-gold/60 text-[11px] font-black text-pmb-gold shadow-md">
+                        {minute}
+                      </span>
+                    </div>
+
+                    {/* Away side event */}
+                    <div className="w-full sm:w-[calc(50%-2rem)] flex justify-start">
+                      {!isHome ? (
+                        <div
+                          className={[
+                            "p-2.5 rounded-xl border max-w-full text-xs transition shadow-sm",
+                            isGoal
+                              ? "bg-amber-950/30 border-pmb-gold/50 text-white"
+                              : "bg-emerald-950/25 border-emerald-500/40 text-white",
+                          ].join(" ")}
+                        >
+                          {isGoal ? (
+                            <div className="flex items-center gap-2 text-left">
+                              <span className="text-base shrink-0">⚽</span>
+                              <div className="min-w-0">
+                                <p className="font-extrabold text-pmb-gold truncate">
+                                  {ev.player?.fullName || "Goal"}
+                                </p>
+                                {ev.assistPlayer && (
+                                  <p className="text-[10px] text-gray-300">
+                                    👟 Assist: {ev.assistPlayer.fullName}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-left">
+                              <span className="text-base shrink-0">🔄</span>
+                              <div className="min-w-0 text-[11px]">
+                                <p className="font-bold text-emerald-300 truncate flex items-center gap-1">
+                                  <span>🟢 IN:</span>
+                                  <span>{ev.player?.fullName || "Bench Player"}</span>
+                                </p>
+                                <p className="text-[10px] text-red-300 truncate flex items-center gap-1">
+                                  <span>🔴 OUT:</span>
+                                  <span>{ev.assistPlayer?.fullName || "Starter"}</span>
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="hidden sm:block" />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Team Lineup Card with Visual Pitch & Bench ────────────────────────────────
 function TeamLineupCard({
+  clubId,
   teamName,
   badgeLogo,
   lineup,
   isHome,
+  events,
 }: {
+  clubId: string;
   teamName: string;
   badgeLogo: string | null;
   lineup: TeamLineup | null;
   isHome: boolean;
+  events?: MatchEvent[];
 }) {
   if (!lineup || !lineup.starters || lineup.starters.length === 0) {
     return (
@@ -343,6 +555,40 @@ function TeamLineupCard({
   const captainId = lineup.captainId;
   const viceCaptainId = lineup.viceCaptainId;
   const formationLabel = lineup.formation.replace(/^F_/, "").replace(/_/g, "-");
+
+  // Calculate in-game stats & substitutions for this club
+  const clubEvents = (events || []).filter((e) => e.clubId === clubId);
+
+  const playerGoals = new Map<string, number[]>();
+  clubEvents
+    .filter((e) => e.type === "GOAL" && e.playerId)
+    .forEach((e) => {
+      const list = playerGoals.get(e.playerId) || [];
+      if (e.minute != null) list.push(e.minute);
+      playerGoals.set(e.playerId, list);
+    });
+
+  // e.playerId is Player IN (Sub), e.assistPlayerId is Player OUT (Starter)
+  const subbedOutMap = new Map<string, { minute: number; replacedByName?: string }>();
+  const subbedInMap = new Map<string, { minute: number; replacedName?: string }>();
+
+  clubEvents
+    .filter((e) => e.type === "SUBSTITUTION")
+    .forEach((e) => {
+      const min = e.minute ?? 0;
+      if (e.assistPlayerId) {
+        subbedOutMap.set(e.assistPlayerId, {
+          minute: min,
+          replacedByName: e.player?.fullName,
+        });
+      }
+      if (e.playerId) {
+        subbedInMap.set(e.playerId, {
+          minute: min,
+          replacedName: e.assistPlayer?.fullName,
+        });
+      }
+    });
 
   return (
     <div className="rounded-2xl border border-white/15 bg-black/40 overflow-hidden shadow-lg space-y-4 p-4">
@@ -392,6 +638,9 @@ function TeamLineupCard({
           {starters.map((s) => {
             const isCap = s.playerId === captainId;
             const isVc = s.playerId === viceCaptainId;
+            const goals = playerGoals.get(s.playerId);
+            const subOut = subbedOutMap.get(s.playerId);
+
             return (
               <div
                 key={s.id}
@@ -402,7 +651,14 @@ function TeamLineupCard({
                 }}
               >
                 {/* Jersey / Bubble */}
-                <div className="relative flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-pmb-gold text-pmb-black font-black text-[9px] sm:text-[10px] shadow-md border border-white/80">
+                <div
+                  className={[
+                    "relative flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full font-black text-[9px] sm:text-[10px] shadow-md border",
+                    subOut
+                      ? "bg-gray-400 text-gray-900 border-red-500 opacity-85"
+                      : "bg-pmb-gold text-pmb-black border-white/80",
+                  ].join(" ")}
+                >
                   {s.player.position.slice(0, 2)}
                   {isCap && (
                     <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-600 text-[7px] font-black text-white shadow">
@@ -414,11 +670,37 @@ function TeamLineupCard({
                       V
                     </span>
                   )}
+                  {/* Goal Indicator on Pitch */}
+                  {goals && goals.length > 0 && (
+                    <span
+                      title={`Scored: ${goals.map((m) => `${m}'`).join(", ")}`}
+                      className="absolute -bottom-1 -left-1 flex h-4 min-w-4 px-0.5 items-center justify-center rounded-full bg-black/90 border border-pmb-gold text-[8px] font-black text-pmb-gold shadow"
+                    >
+                      ⚽{goals.length > 1 ? goals.length : ""}
+                    </span>
+                  )}
+                  {/* Subbed Out Indicator on Pitch */}
+                  {subOut && (
+                    <span
+                      title={`Subbed off at ${subOut.minute}'`}
+                      className="absolute -top-1 -left-1 flex h-4 px-1 items-center justify-center rounded-full bg-red-600 border border-red-300 text-[7px] font-black text-white shadow"
+                    >
+                      🔻{subOut.minute}'
+                    </span>
+                  )}
                 </div>
+
                 {/* Name Tag */}
-                <span className="mt-0.5 max-w-[70px] truncate rounded bg-black/80 px-1 py-0.2 text-[8px] sm:text-[9px] font-bold text-white shadow">
-                  {s.player.fullName.split(" ").slice(-1)[0]}
-                </span>
+                <div className="flex items-center gap-0.5 mt-0.5">
+                  <span
+                    className={[
+                      "max-w-[70px] truncate rounded px-1 py-0.2 text-[8px] sm:text-[9px] font-bold shadow",
+                      subOut ? "bg-red-950/80 text-red-200" : "bg-black/80 text-white",
+                    ].join(" ")}
+                  >
+                    {s.player.fullName.split(" ").slice(-1)[0]}
+                  </span>
+                </div>
               </div>
             );
           })}
@@ -430,28 +712,63 @@ function TeamLineupCard({
         {starters.map((s) => {
           const isCap = s.playerId === captainId;
           const isVc = s.playerId === viceCaptainId;
+          const goals = playerGoals.get(s.playerId);
+          const subOut = subbedOutMap.get(s.playerId);
+
           return (
             <div
               key={s.id}
-              className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-white/5 hover:bg-white/10"
+              className={[
+                "flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg transition",
+                subOut
+                  ? "bg-white/[0.03] border border-red-500/20"
+                  : "bg-white/5 hover:bg-white/10",
+              ].join(" ")}
             >
-              <div className="flex items-center gap-2">
-                <span className="w-6 text-[10px] font-black text-pmb-gold uppercase">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-6 text-[10px] font-black text-pmb-gold uppercase shrink-0">
                   {s.slotRole || s.player.position}
                 </span>
-                <span className="font-semibold text-white truncate">{s.player.fullName}</span>
+                <span
+                  className={[
+                    "font-semibold truncate",
+                    subOut
+                      ? "text-gray-300 line-through decoration-red-400/50 decoration-1"
+                      : "text-white",
+                  ].join(" ")}
+                >
+                  {s.player.fullName}
+                </span>
                 {isCap && (
-                  <span className="text-[8px] font-black bg-red-600/90 text-white px-1 rounded">
+                  <span className="text-[8px] font-black bg-red-600/90 text-white px-1 rounded shrink-0">
                     CAPTAIN
                   </span>
                 )}
                 {isVc && (
-                  <span className="text-[8px] font-black bg-blue-600/90 text-white px-1 rounded">
+                  <span className="text-[8px] font-black bg-blue-600/90 text-white px-1 rounded shrink-0">
                     VC
                   </span>
                 )}
+                {goals && goals.length > 0 && (
+                  <span className="text-[9px] font-extrabold text-amber-300 bg-amber-950/60 border border-amber-500/40 px-1.5 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                    <span>⚽</span>
+                    <span>{goals.map((m) => `${m}'`).join(", ")}</span>
+                  </span>
+                )}
+                {subOut && (
+                  <span
+                    className="text-[9px] font-bold text-red-300 bg-red-950/60 border border-red-500/40 px-1.5 py-0.5 rounded-full flex items-center gap-1 shrink-0"
+                    title={
+                      subOut.replacedByName
+                        ? `Replaced by ${subOut.replacedByName}`
+                        : undefined
+                    }
+                  >
+                    <span>🔻</span> {subOut.minute}' OFF
+                  </span>
+                )}
               </div>
-              <span className="text-[10px] font-bold text-gray-400">
+              <span className="text-[10px] font-bold text-gray-400 shrink-0 ml-2">
                 OVR {s.player.overallRating || 75}
               </span>
             </div>
@@ -472,23 +789,59 @@ function TeamLineupCard({
           <p className="text-xs text-gray-500 italic">No substitutes on bench.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {substitutes.map((sub, idx) => (
-              <div
-                key={sub.id}
-                className="flex items-center justify-between text-xs py-1 px-2 rounded-md bg-white/5"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="text-[9px] font-bold text-gray-500 w-4">#{idx + 1}</span>
-                  <span className="text-[9px] font-bold text-amber-400">
-                    {sub.player.position}
+            {substitutes.map((sub, idx) => {
+              const subGoals = playerGoals.get(sub.playerId);
+              const subIn = subbedInMap.get(sub.playerId);
+
+              return (
+                <div
+                  key={sub.id}
+                  className={[
+                    "flex items-center justify-between text-xs py-1.5 px-2 rounded-md transition",
+                    subIn
+                      ? "bg-emerald-950/30 border border-emerald-500/35"
+                      : "bg-white/5",
+                  ].join(" ")}
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-[9px] font-bold text-gray-500 w-4 shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <span className="text-[9px] font-bold text-amber-400 shrink-0">
+                      {sub.player.position}
+                    </span>
+                    <span
+                      className={[
+                        "font-medium truncate",
+                        subIn ? "text-emerald-100 font-semibold" : "text-gray-300",
+                      ].join(" ")}
+                    >
+                      {sub.player.fullName}
+                    </span>
+                    {subIn && (
+                      <span
+                        className="text-[8px] font-black text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-400/40 shrink-0 flex items-center gap-0.5"
+                        title={
+                          subIn.replacedName
+                            ? `Replaced ${subIn.replacedName}`
+                            : undefined
+                        }
+                      >
+                        <span>🔺</span> {subIn.minute}' ON
+                      </span>
+                    )}
+                    {subGoals && subGoals.length > 0 && (
+                      <span className="text-[8px] font-extrabold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30 shrink-0 flex items-center gap-0.5">
+                        <span>⚽</span> {subGoals.map((m) => `${m}'`).join(", ")}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-gray-500 shrink-0 ml-1">
+                    {sub.player.overallRating || 75}
                   </span>
-                  <span className="font-medium text-gray-300 truncate">{sub.player.fullName}</span>
                 </div>
-                <span className="text-[9px] text-gray-500 shrink-0">
-                  {sub.player.overallRating || 75}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

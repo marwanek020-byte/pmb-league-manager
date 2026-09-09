@@ -61,6 +61,14 @@ export async function GET(
             },
           },
         },
+        events: {
+          include: {
+            player: { select: { id: true, fullName: true, position: true, photo: true } },
+            assistPlayer: { select: { id: true, fullName: true, position: true, photo: true } },
+            club: { select: { id: true, name: true, logo: true } },
+          },
+          orderBy: { minute: "asc" },
+        },
       },
     });
 
@@ -110,6 +118,7 @@ export async function GET(
       awayGoals: match.awayGoals,
       homeLineup,
       awayLineup,
+      events: match.events || [],
     });
   } catch (err: any) {
     return NextResponse.json(
