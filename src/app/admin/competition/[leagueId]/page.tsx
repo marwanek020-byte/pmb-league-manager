@@ -67,6 +67,14 @@ export default async function LeagueMatchdayPage({
     include: {
       homeClub: { select: { id: true, name: true, logo: true } },
       awayClub: { select: { id: true, name: true, logo: true } },
+      submissions: {
+        select: {
+          id: true,
+          status: true,
+          penaltyApplied: true,
+          createdAt: true,
+        },
+      },
     },
   });
 

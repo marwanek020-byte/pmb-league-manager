@@ -75,6 +75,7 @@ type Match = {
   ticketPriceConfirmed?: boolean;
   standardTicketPrice?: number | null;
   vipTicketPrice?: number | null;
+  submissions?: { id: string; status: string; penaltyApplied: number | null; createdAt?: any }[];
 };
 
 type Props = {
@@ -1424,15 +1425,29 @@ export function MatchdayAdmin({
                           <span>📸</span>
                           <span>Scan AI</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setReviewSubmissionMatchId(match.id)}
-                          className="text-xs px-2.5 py-1.5 rounded-lg font-bold transition bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/40 flex items-center gap-1 shadow-sm cursor-pointer"
-                          title="Review Manager Screenshot Submissions & Anti-Cheat Audit"
-                        >
-                          <span>🛡️</span>
-                          <span>Manager Subs</span>
-                        </button>
+                        {(() => {
+                          const hasPending = match.submissions?.some((s) => s.status === "PENDING_ADMIN_REVIEW");
+                          const count = match.submissions?.length || 0;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setReviewSubmissionMatchId(match.id)}
+                              className={`text-xs px-2.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                                hasPending
+                                  ? "bg-amber-500/25 text-amber-300 border border-amber-500 ring-2 ring-amber-400/40 animate-pulse"
+                                  : count > 0
+                                  ? "bg-emerald-950/50 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-900/50"
+                                  : "bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/40"
+                              }`}
+                              title="Review Manager Screenshot Submissions & Anti-Cheat Audit"
+                            >
+                              <span>🛡️</span>
+                              <span>
+                                {hasPending ? `Review Subs (${count})` : count > 0 ? `Manager Subs (${count})` : "Manager Subs"}
+                              </span>
+                            </button>
+                          );
+                        })()}
                         <button
                           onClick={() => startEdit(match)}
                           className={[
