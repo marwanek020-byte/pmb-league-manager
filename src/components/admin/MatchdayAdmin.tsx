@@ -1529,11 +1529,11 @@ export function MatchdayAdmin({
                                 <button
                                   type="button"
                                   onClick={() => setReviewSubmissionMatchId(match.id)}
-                                  className="text-xs font-bold px-3 py-1.5 bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 rounded-lg hover:bg-emerald-900/40 transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                  className="text-xs font-black px-3.5 py-1.5 bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-emerald-200 border-2 border-emerald-400 rounded-lg hover:bg-emerald-800 transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/50 cursor-pointer animate-pulse"
                                   title="Review Manager Screenshot Submissions & Anti-Cheat Audit"
                                 >
-                                  <span>🛡️</span>
-                                  <span>Manager Subs</span>
+                                  <span className="text-sm">🛡️</span>
+                                  <span className="uppercase tracking-wider">Inspect Manager Screenshots</span>
                                 </button>
                                 <button
                                   type="button"
