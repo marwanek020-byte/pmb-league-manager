@@ -368,6 +368,7 @@ model Match {
   status               MatchStatus @default(UPCOMING)
   playedAt             DateTime?
   manOfTheMatchId      String?
+  playerRatings        Json?               // Array of { playerId, playerName, clubId, position, rating, isMvp }
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
   // ── Ticket Pricing ────────────────────────────────────────────────────

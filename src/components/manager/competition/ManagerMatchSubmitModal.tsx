@@ -23,7 +23,7 @@ type QueuedImage = {
   name: string;
   dataUrl: string;
   mimeType: string;
-  type: "FULL_TIME" | "GOAL_HIGHLIGHT";
+  type: "FULL_TIME" | "GOAL_HIGHLIGHT" | "PLAYER_RATINGS";
 };
 
 export function ManagerMatchSubmitModal({
@@ -331,14 +331,26 @@ function optimizeImageForUpload(file: File, maxDim = 1920, quality = 0.85): Prom
 
           {/* ✓ CLEAN SUCCESS BANNER */}
           {successResult && (
-            <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/60 text-emerald-200 space-y-2 text-center shadow-lg">
+            <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/60 text-emerald-200 space-y-2.5 text-center shadow-lg">
               <span className="text-3xl block">✓</span>
               <h3 className="text-sm font-black uppercase tracking-wide text-white">
                 Match Screenshots Verified & Submitted!
               </h3>
               <p className="text-xs text-emerald-300">
-                AI extracted: <strong>{successResult.homeGoals} - {successResult.awayGoals}</strong> ({successResult.goals?.length || 0} goals).
+                AI extracted score: <strong>{successResult.homeGoals} - {successResult.awayGoals}</strong> ({successResult.goals?.length || 0} goals).
               </p>
+              {successResult.mvp && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold my-1 shadow">
+                  <span>⭐ Match MVP:</span>
+                  <span className="text-white font-black">{successResult.mvp.playerName}</span>
+                  <span className="text-[11px] text-amber-400 font-mono">({successResult.mvp.rating})</span>
+                </div>
+              )}
+              {Array.isArray(successResult.playerRatings) && successResult.playerRatings.length > 0 && (
+                <p className="text-[11px] text-gray-300">
+                  Extracted {successResult.playerRatings.length} player performance ratings.
+                </p>
+              )}
               <p className="text-[11px] text-gray-400">
                 Submitted to League Administrator for final confirmation. Standings will update upon approval.
               </p>
@@ -396,6 +408,9 @@ function optimizeImageForUpload(file: File, maxDim = 1920, quality = 0.85): Prom
                   <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300">
                     + Goal & Assist Highlight Screens
                   </span>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                    ⭐ Player Ratings: Home & Away (MVP ★)
+                  </span>
                 </div>
               </div>
 
@@ -435,7 +450,7 @@ function optimizeImageForUpload(file: File, maxDim = 1920, quality = 0.85): Prom
                             onChange={(e) =>
                               setImages((prev) =>
                                 prev.map((item, i) =>
-                                  i === idx ? { ...item, type: e.target.value as any } : item
+                                    i === idx ? { ...item, type: e.target.value as any } : item
                                 )
                               )
                             }
@@ -443,6 +458,7 @@ function optimizeImageForUpload(file: File, maxDim = 1920, quality = 0.85): Prom
                           >
                             <option value="FULL_TIME">📊 Full Time Screen</option>
                             <option value="GOAL_HIGHLIGHT">⚽ Goal & Assist Card</option>
+                            <option value="PLAYER_RATINGS">⭐ Player Ratings: Home / Away</option>
                           </select>
                         </div>
                       </div>

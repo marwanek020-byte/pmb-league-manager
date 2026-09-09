@@ -399,6 +399,77 @@ export function AdminSubmissionReviewModal({
                     )}
                   </div>
 
+                  {/* ⭐ MVP / Man of the Match Card */}
+                  {(currentSub.stats as any)?.mvp && (
+                    <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/70 via-black/80 to-black/60 border border-amber-500/50 shadow-lg flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-2xl shrink-0">⭐</span>
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-pmb-gold block">
+                            Official Match MVP · Player of the Match
+                          </span>
+                          <span className="text-xs font-black text-white truncate block">
+                            {(currentSub.stats as any).mvp.playerName}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-lg bg-pmb-gold text-pmb-black font-mono font-black text-xs shrink-0 shadow">
+                        ★ {(currentSub.stats as any).mvp.rating}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* ⭐ Extracted Player Performance Ratings */}
+                  {Array.isArray((currentSub.stats as any)?.playerRatings) && (currentSub.stats as any).playerRatings.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-wider text-pmb-gold block">
+                          Player Ratings ({(currentSub.stats as any).playerRatings.length})
+                        </span>
+                        <span className="text-[10px] text-gray-400">eFootball Rating</span>
+                      </div>
+                      <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                        {(currentSub.stats as any).playerRatings.map((pr: any, i: number) => (
+                          <div
+                            key={i}
+                            className={[
+                              "p-2 rounded-lg border text-xs flex items-center justify-between gap-2 transition",
+                              pr.isMvp
+                                ? "bg-amber-950/40 border-amber-500/50 text-amber-200"
+                                : "bg-white/5 border-white/10 text-gray-300",
+                            ].join(" ")}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-gray-400">
+                                {pr.position || "PLY"}
+                              </span>
+                              <span className="font-bold text-white truncate">
+                                {pr.playerName}
+                              </span>
+                              {pr.isMvp && (
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
+                                  ★ MVP
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              className={[
+                                "text-xs font-mono font-black px-2 py-0.5 rounded shrink-0",
+                                pr.rating >= 8.0
+                                  ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/30"
+                                  : pr.rating >= 7.0
+                                  ? "bg-blue-950/80 text-blue-300 border border-blue-500/30"
+                                  : "bg-white/10 text-gray-300",
+                              ].join(" ")}
+                            >
+                              {pr.rating}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Rejection Fine Box (Collapsible) */}
                   {showRejectBox && (
                     <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 space-y-2.5 text-xs">

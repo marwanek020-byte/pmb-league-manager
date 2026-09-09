@@ -21,18 +21,18 @@ function normalizeText(str: string): string {
     .trim();
 }
 
-function findBestPlayerMatch(
+function findBestPlayerMatch<T extends { id: string; fullName: string }>(
   detectedName: string,
-  players: { id: string; fullName: string }[]
-): { id: string; fullName: string } | null {
+  players: T[]
+): T | null {
   if (!players || players.length === 0) return null;
 
   const normDetected = normalizeText(detectedName);
   const exact = players.find((p) => normalizeText(p.fullName) === normDetected);
-  if (exact) return { id: exact.id, fullName: exact.fullName };
+  if (exact) return exact;
 
   const detectedWords = normDetected.split(" ").filter((w) => w.length > 2);
-  let bestPlayer: { id: string; fullName: string } | null = null;
+  let bestPlayer: T | null = null;
   let maxMatchedWords = 0;
 
   for (const p of players) {
@@ -45,7 +45,7 @@ function findBestPlayerMatch(
   }
 
   if (bestPlayer && maxMatchedWords > 0) {
-    return { id: bestPlayer.id, fullName: bestPlayer.fullName };
+    return bestPlayer;
   }
 
   return null;
@@ -156,8 +156,9 @@ export async function processManagerMatchSubmission({
     throw new Error("Gemini API key is not configured or invalid. Please check your GEMINI_API_KEY in .env or provide an API Key.");
   }
 
-  const homePlayers = match.homeClub.players;
-  const awayPlayers = match.awayClub.players;
+  const homePlayers = match.homeClub.players.map((p) => ({ ...p, clubId: match.homeClub.id }));
+  const awayPlayers = match.awayClub.players.map((p) => ({ ...p, clubId: match.awayClub.id }));
+  const allPlayers = [...homePlayers, ...awayPlayers];
 
   const formatRoster = (players: { id: string; fullName: string; position: string }[]) =>
     players.map((p) => `- ID: "${p.id}", Name: "${p.fullName}", Pos: "${p.position}"`).join("\n");
@@ -191,6 +192,15 @@ VERIFICATION CHECKS:
      - Note the minute integer (e.g. 30).
      - Assign correct clubId.
 
+3. EXTRACT ALL PLAYER RATINGS & MATCH MVP:
+   - Look for any screens titled "Player Ratings: Home" or "Player Ratings: Away" (or player ratings lists).
+   - For EVERY player shown in the list:
+     - Extract their exact full name (e.g. "Soufiane Benjdida", "Cherki El Bahri", "Marouane Ouhrou").
+     - Extract the position shown on their card (e.g. "CF", "LB", "CB", "GK", "CMF", "DMF", "SS", "LWF", "RWF").
+     - Extract their numeric rating (e.g. 8.5, 8.0, 6.5).
+     - Check if they have a star symbol "★" next to their rating (e.g. "★ 8.5"). If yes, mark "isMvp": true.
+   - The player with "isMvp": true is the official MVP / Man of the Match.
+
 OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
 {
   "detectedHomeTeam": "string",
@@ -210,6 +220,18 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
       "confidence": number
     }
   ],
+  "playerRatings": [
+    {
+      "playerName": "string",
+      "position": "string",
+      "rating": number,
+      "isMvp": boolean
+    }
+  ],
+  "mvp": {
+    "playerName": "string or null",
+    "rating": number or null
+  },
   "stats": {
     "possession": { "home": number or null, "away": number or null },
     "shots": { "home": number or null, "away": number or null }
@@ -295,7 +317,6 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
   const isFraud = totalPenalty > 0;
 
   // 5. Post-process extracted goals
-  const allPlayers = [...homePlayers, ...awayPlayers];
   const validGoals = (parsed.goals || []).map((g: any) => {
     let clubId = g.clubId;
     if (clubId !== match.homeClub.id && clubId !== match.awayClub.id) {
@@ -342,6 +363,48 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     };
   });
 
+  // 5b. Post-process extracted player ratings & MVP
+  const rawRatings: any[] = Array.isArray(parsed.playerRatings) ? parsed.playerRatings : [];
+  const validRatings = rawRatings.map((r: any) => {
+    const matchedPlayer =
+      allPlayers.find((p) => p.id === r.playerId) ||
+      findBestPlayerMatch(r.playerName || "", allPlayers);
+
+    return {
+      playerId: matchedPlayer ? matchedPlayer.id : null,
+      playerName: matchedPlayer ? matchedPlayer.fullName : r.playerName || "Unknown Player",
+      clubId: matchedPlayer ? matchedPlayer.clubId : null,
+      position: r.position || (matchedPlayer ? matchedPlayer.position : "N/A"),
+      rating: typeof r.rating === "number" ? r.rating : parseFloat(r.rating) || 6.0,
+      isMvp: Boolean(r.isMvp),
+    };
+  });
+
+  // Determine official MVP (either marked isMvp or from parsed.mvp or highest rated)
+  let officialMvp = validRatings.find((r) => r.isMvp);
+  if (!officialMvp && parsed.mvp?.playerName) {
+    const matchedMvp = findBestPlayerMatch(parsed.mvp.playerName, allPlayers);
+    if (matchedMvp) {
+      officialMvp = {
+        playerId: matchedMvp.id,
+        playerName: matchedMvp.fullName,
+        clubId: matchedMvp.clubId,
+        position: matchedMvp.position,
+        rating: typeof parsed.mvp.rating === "number" ? parsed.mvp.rating : 8.5,
+        isMvp: true,
+      };
+      const existingInRatings = validRatings.find((p) => p.playerId === matchedMvp.id);
+      if (existingInRatings) existingInRatings.isMvp = true;
+      else validRatings.unshift(officialMvp);
+    }
+  }
+
+  const submissionStats = {
+    ...(parsed.stats || {}),
+    playerRatings: validRatings,
+    mvp: officialMvp || null,
+  };
+
   // 6. If fraud detected: Execute automatic disciplinary budget deduction (€10M or €20M)
   let appliedFineDecimal: Prisma.Decimal | null = null;
 
@@ -372,7 +435,7 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
       homeGoals: parsed.homeGoals ?? 0,
       awayGoals: parsed.awayGoals ?? 0,
       events: validGoals,
-      stats: parsed.stats || null,
+      stats: submissionStats,
       aiFraudDetected: isFraud,
       aiFraudReason: isFraud ? fraudReasons.join("; ") : null,
       penaltyApplied: appliedFineDecimal,
@@ -399,6 +462,8 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     homeGoals: parsed.homeGoals ?? 0,
     awayGoals: parsed.awayGoals ?? 0,
     goals: validGoals,
+    mvp: officialMvp || null,
+    playerRatings: validRatings,
     detectedHomeTeam: parsed.detectedHomeTeam,
     detectedAwayTeam: parsed.detectedAwayTeam,
   };

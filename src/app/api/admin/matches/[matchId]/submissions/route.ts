@@ -106,6 +106,10 @@ export async function PATCH(
       const events = (submission.events as any[]) || [];
 
       await prisma.$transaction(async (tx) => {
+        const stats = (submission.stats as any) || {};
+        const mvpPlayerId = stats?.mvp?.playerId || null;
+        const playerRatings = stats?.playerRatings || null;
+
         // 1. Update Match record
         await tx.match.update({
           where: { id: params.matchId },
@@ -113,6 +117,8 @@ export async function PATCH(
             homeGoals,
             awayGoals,
             status: "COMPLETED",
+            ...(mvpPlayerId ? { manOfTheMatchId: mvpPlayerId } : {}),
+            ...(playerRatings ? { playerRatings } : {}),
           },
         });
 
