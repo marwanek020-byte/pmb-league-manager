@@ -152,11 +152,11 @@ export async function GET(
     }
 
     // Rule 7: Bench Size
-    if (lineup.substitutes.length > 11) {
+    if (lineup.substitutes.length > 12) {
       issues.push({
         type: "ERROR",
         code: "BENCH_LIMIT_EXCEEDED",
-        message: `Substitutes bench exceeds the 11-player maximum limit (${lineup.substitutes.length}/11).`,
+        message: `Substitutes bench exceeds the 12-player maximum limit (${lineup.substitutes.length}/12).`,
       });
     }
 

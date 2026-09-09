@@ -261,8 +261,8 @@ export async function POST(
         })),
       });
 
-      // Insert substitutes (up to 11)
-      const validSubs = substitutes.slice(0, 11).map((sub, idx) => ({
+      // Insert substitutes (up to 12)
+      const validSubs = substitutes.slice(0, 12).map((sub, idx) => ({
         lineupId: lineupId!,
         playerId: sub.playerId,
         order: idx,

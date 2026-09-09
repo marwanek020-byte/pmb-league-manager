@@ -194,11 +194,11 @@ export function FormationBoard({
       }
     });
 
-    // Assign up to 11 remaining best players to bench
+    // Assign up to 12 remaining best players to bench
     const remaining = availablePlayers
       .filter((p) => !assigned.has(p.id))
       .sort((a, b) => (b.overallRating ?? 0) - (a.overallRating ?? 0))
-      .slice(0, 11)
+      .slice(0, 12)
       .map((p) => p.id);
 
     setStarters(newStarters);
@@ -284,13 +284,13 @@ export function FormationBoard({
 
       setSelectedSlotKey(null);
     } else {
-      // If no slot selected and clicked, add to bench if < 11
+      // If no slot selected and clicked, add to bench if < 12
       if (substitutes.includes(playerId)) {
         setSubstitutes((subs) => subs.filter((id) => id !== playerId));
-      } else if (substitutes.length < 11) {
+      } else if (substitutes.length < 12) {
         setSubstitutes((subs) => [...subs, playerId]);
       } else {
-        setFeedback({ type: "ERROR", message: "Substitutes bench is full (max 11 players)." });
+        setFeedback({ type: "ERROR", message: "Substitutes bench is full (max 12 players)." });
       }
     }
   };
@@ -498,7 +498,7 @@ export function FormationBoard({
             </div>
             <div>
               <span className="text-gray-400">Bench:</span>{" "}
-              <span className="font-bold text-white">{substitutes.length}/11</span>
+              <span className="font-bold text-white">{substitutes.length}/12</span>
             </div>
           </div>
         </div>
@@ -763,7 +763,7 @@ export function FormationBoard({
                     Substitutes Bench
                   </span>
                   <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-300">
-                    {substitutes.length}/11
+                    {substitutes.length}/12
                   </span>
                 </div>
                 <span className="text-[10px] text-gray-400">
