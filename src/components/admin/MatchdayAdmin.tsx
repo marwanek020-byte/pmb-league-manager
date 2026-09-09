@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { ClubBadge } from "@/components/ClubBadge";
 import { MatchLineupModal } from "@/components/competition/MatchLineupModal";
+import { MatchAIScannerModal } from "@/components/admin/MatchAIScannerModal";
 
 type PlayerSummary = {
   id: string;
@@ -114,6 +115,73 @@ export function MatchdayAdmin({
   const [matchSuccesses, setMatchSuccesses] = useState<Record<string, string>>({});
   const [viewingLineupMatchId, setViewingLineupMatchId] = useState<string | null>(null);
   const [currentMatchLineups, setCurrentMatchLineups] = useState<any[]>([]);
+  const [aiScannerMatch, setAiScannerMatch] = useState<Match | null>(null);
+
+  async function openAIScanner(m: Match) {
+    setAiScannerMatch(m);
+    try {
+      const res = await fetch(`/api/admin/matches/${m.id}`);
+      const data = await res.json();
+      if (res.ok && data.match) {
+        setMatchSquads({
+          homeClub: data.match.homeClub,
+          awayClub: data.match.awayClub,
+        });
+        setCurrentMatchLineups(data.match.matchLineups || []);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleScanConfirmResult(
+    matchId: string,
+    resultData: {
+      homeGoals: number;
+      awayGoals: number;
+      events: MatchEvent[];
+      manOfTheMatchId?: string | null;
+    }
+  ) {
+    const res = await fetch(`/api/admin/matches/${matchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        homeGoals: resultData.homeGoals,
+        awayGoals: resultData.awayGoals,
+        manOfTheMatchId: resultData.manOfTheMatchId || null,
+        events: resultData.events,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error ?? "Failed to save match result.");
+    }
+
+    setMatchesByDay((prev) => {
+      const day = currentMatchday;
+      const updated = (prev[day] ?? []).map((m) =>
+        m.id === matchId
+          ? {
+              ...m,
+              homeGoals: data.match.homeGoals,
+              awayGoals: data.match.awayGoals,
+              manOfTheMatchId: data.match.manOfTheMatchId,
+              manOfTheMatch: data.match.manOfTheMatch,
+              events: resultData.events,
+              status: "COMPLETED" as const,
+            }
+          : m
+      );
+      return { ...prev, [day]: updated };
+    });
+
+    setMatchSuccesses((prev) => ({
+      ...prev,
+      [matchId]: "✓ Result scanned, verified & saved successfully!",
+    }));
+  }
 
   // ── Helper to group club players by XI / Bench / Reserve ───────────────
   const categorizeClubPlayers = useCallback((club?: Club, matchLineups?: any[]) => {
@@ -1346,6 +1414,15 @@ export function MatchdayAdmin({
                     ) : (
                       <>
                         <button
+                          type="button"
+                          onClick={() => openAIScanner(match)}
+                          className="text-xs px-3 py-1.5 rounded-lg font-bold transition bg-gradient-to-r from-amber-500/20 via-pmb-gold/25 to-amber-500/20 border border-pmb-gold/50 text-pmb-gold hover:border-pmb-gold hover:bg-pmb-gold/30 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                          title="Scan eFootball Match Screenshots with AI (Full Time & Goal Highlights)"
+                        >
+                          <span>📸</span>
+                          <span>Scan AI</span>
+                        </button>
+                        <button
                           onClick={() => startEdit(match)}
                           className={[
                             "text-xs px-3 py-1.5 rounded-lg font-semibold transition",
@@ -1413,14 +1490,25 @@ export function MatchdayAdmin({
                                   </span>
                                 </div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => setViewingLineupMatchId(match.id)}
-                                className="text-xs font-bold px-3 py-1.5 bg-pmb-gold text-pmb-black rounded-lg hover:bg-amber-300 transition flex items-center gap-1.5 self-start sm:self-auto shadow"
-                              >
-                                <span>👁️</span>
-                                <span>Open Pitch Board</span>
-                              </button>
+                              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => openAIScanner(match)}
+                                  className="text-xs font-bold px-3 py-1.5 bg-gradient-to-r from-pmb-gold/20 to-amber-500/20 border border-pmb-gold/50 text-pmb-gold rounded-lg hover:bg-pmb-gold/30 transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                  title="Scan eFootball Match Screenshots with AI"
+                                >
+                                  <span>📸</span>
+                                  <span>Scan AI</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingLineupMatchId(match.id)}
+                                  className="text-xs font-bold px-3 py-1.5 bg-pmb-gold text-pmb-black rounded-lg hover:bg-amber-300 transition flex items-center gap-1.5 shadow"
+                                >
+                                  <span>👁️</span>
+                                  <span>Open Pitch Board</span>
+                                </button>
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -1898,6 +1986,15 @@ export function MatchdayAdmin({
         matchId={viewingLineupMatchId}
         isOpen={!!viewingLineupMatchId}
         onClose={() => setViewingLineupMatchId(null)}
+      />
+
+      {/* eFootball AI Vision Screenshot Scanner & Confirmation Modal */}
+      <MatchAIScannerModal
+        match={aiScannerMatch}
+        matchSquads={matchSquads}
+        isOpen={!!aiScannerMatch}
+        onClose={() => setAiScannerMatch(null)}
+        onConfirmResult={handleScanConfirmResult}
       />
     </div>
   );
