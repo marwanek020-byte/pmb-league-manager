@@ -63,28 +63,75 @@ export function ManagerMatchSubmitModal({
     }
   }, [isOpen]);
 
-  const processFiles = useCallback((files: FileList | File[]) => {
+function optimizeImageForUpload(file: File, maxDim = 1920, quality = 0.85): Promise<{ dataUrl: string; mimeType: string }> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        resolve({ dataUrl: "", mimeType: file.type || "image/jpeg" });
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim && file.size < 800_000 && file.type === "image/jpeg") {
+          resolve({ dataUrl: src, mimeType: file.type });
+          return;
+        }
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/jpeg", quality);
+          resolve({ dataUrl: compressed, mimeType: "image/jpeg" });
+          return;
+        }
+        resolve({ dataUrl: src, mimeType: file.type || "image/jpeg" });
+      };
+      img.onerror = () => {
+        resolve({ dataUrl: src, mimeType: file.type || "image/jpeg" });
+      };
+      img.src = src;
+    };
+    reader.onerror = () => {
+      resolve({ dataUrl: "", mimeType: file.type || "image/jpeg" });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+  const processFiles = useCallback(async (files: FileList | File[]) => {
     const valid = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (valid.length === 0) return;
 
-    valid.forEach((file, idx) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setImages((prev) => [
-          ...prev,
-          {
-            id: Math.random().toString(36).substring(2, 9),
-            name: file.name,
-            dataUrl,
-            mimeType: file.type || "image/jpeg",
-            // Auto-tag first image as FULL_TIME, subsequent as GOAL_HIGHLIGHT
-            type: prev.length === 0 && idx === 0 ? "FULL_TIME" : "GOAL_HIGHLIGHT",
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
+    for (let idx = 0; idx < valid.length; idx++) {
+      const file = valid[idx];
+      const { dataUrl, mimeType } = await optimizeImageForUpload(file);
+      if (!dataUrl) continue;
+      setImages((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).substring(2, 9),
+          name: file.name,
+          dataUrl,
+          mimeType,
+          // Auto-tag first image as FULL_TIME, subsequent as GOAL_HIGHLIGHT
+          type: prev.length === 0 && idx === 0 ? "FULL_TIME" : "GOAL_HIGHLIGHT",
+        },
+      ]);
+    }
   }, []);
 
   // Global Clipboard Paste (Ctrl + V)

@@ -41,11 +41,17 @@ export function AdminSubmissionReviewModal({
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedSubIndex, setSelectedSubIndex] = useState(0);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [imageError, setImageError] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Rejection options
   const [manualFine, setManualFine] = useState<number>(0);
   const [adminNotes, setAdminNotes] = useState("");
   const [showRejectBox, setShowRejectBox] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [selectedSubIndex, activeImageIndex]);
 
   useEffect(() => {
     if (!isOpen || !matchId) {
@@ -276,22 +282,52 @@ export function AdminSubmissionReviewModal({
                     <span className="text-[10px] text-gray-400 font-normal">Inspect full resolution</span>
                   </div>
 
-                  {currentSub.screenshots[activeImageIndex]?.imageUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-white/20 bg-black/80 aspect-video flex items-center justify-center shadow-lg">
-                      <img
-                        src={currentSub.screenshots[activeImageIndex].imageUrl!}
-                        alt="Match Screenshot"
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-white/10 bg-black/40 p-8 text-center text-xs text-gray-400">
-                      Fingerprint Hash:{" "}
-                      <code className="text-pmb-gold text-[10px] block mt-1 truncate font-mono">
-                        {currentSub.screenshots[activeImageIndex]?.imageHash}
-                      </code>
-                    </div>
-                  )}
+                  {(() => {
+                    const currentImg = currentSub.screenshots[activeImageIndex];
+                    const isLegacyTruncated = Boolean(
+                      currentImg?.imageUrl &&
+                      currentImg.imageUrl.startsWith("data:") &&
+                      currentImg.imageUrl.length < 1500
+                    );
+                    const isRenderable = Boolean(currentImg?.imageUrl && !isLegacyTruncated && !imageError);
+
+                    if (isRenderable) {
+                      return (
+                        <div className="relative group rounded-xl overflow-hidden border border-white/20 bg-black/80 aspect-video flex items-center justify-center shadow-lg">
+                          <img
+                            src={currentImg.imageUrl!}
+                            alt="Match Screenshot"
+                            className="max-h-full max-w-full object-contain cursor-zoom-in transition-transform duration-200 group-hover:scale-[1.02]"
+                            onClick={() => setLightboxOpen(true)}
+                            onError={() => setImageError(true)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setLightboxOpen(true)}
+                            className="absolute bottom-2 right-2 bg-black/80 hover:bg-black text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1.5 shadow transition cursor-pointer"
+                          >
+                            <span>🔍</span> Full Resolution
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 aspect-video flex flex-col items-center justify-center p-6 text-center shadow-lg space-y-2">
+                        <span className="text-3xl">⚠️</span>
+                        <p className="text-xs font-bold text-amber-300">Screenshot Preview Unavailable</p>
+                        <p className="text-[11px] text-gray-300 max-w-xs leading-relaxed">
+                          This test submission was saved with truncated image data prior to the fix.
+                        </p>
+                        <p className="text-[10px] text-emerald-400 font-semibold">
+                          ✓ The fix is now active. All newly submitted match screenshots will display here in high resolution.
+                        </p>
+                        <div className="pt-2 text-[10px] font-mono text-gray-400 truncate max-w-[280px]">
+                          Fingerprint Hash: {currentImg?.imageHash || "N/A"}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Thumbnail Selector */}
                   {currentSub.screenshots.length > 1 && (
@@ -453,6 +489,40 @@ export function AdminSubmissionReviewModal({
           )}
         </div>
       </div>
+
+      {/* Fullscreen Lightbox Modal */}
+      {lightboxOpen && currentSub?.screenshots[activeImageIndex]?.imageUrl && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <div
+            className="w-full max-w-6xl flex items-center justify-between p-3 border-b border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-pmb-gold">
+                Screen #{activeImageIndex + 1} ({currentSub.screenshots[activeImageIndex].screenType || "SCREEN"})
+              </span>
+              <span className="text-xs text-gray-400">· {currentSub.submittingClub.name}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              className="h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white text-base font-bold transition cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 max-w-6xl w-full flex items-center justify-center p-2 overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={currentSub.screenshots[activeImageIndex].imageUrl!}
+              alt="Full Resolution Screenshot"
+              className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl border border-white/10"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

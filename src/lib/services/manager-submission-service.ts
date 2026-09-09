@@ -379,7 +379,7 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
       screenshots: {
         create: imageWithHashes.map((img) => ({
           imageHash: img.hash,
-          imageUrl: img.data.startsWith("data:") ? img.data.slice(0, 1000) : null,
+          imageUrl: img.data,
           screenType: img.screenType || "FULL_TIME",
         })),
       },
