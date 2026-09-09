@@ -6,6 +6,7 @@ import { TotwPitch } from "@/components/competition/TotwPitch";
 import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
+import { MatchLineupModal } from "@/components/competition/MatchLineupModal";
 
 type Club = {
   id: string;
@@ -77,6 +78,7 @@ export function CompetitionHub({
   isAdmin = false,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("MATCHDAY");
+  const [viewingLineupMatchId, setViewingLineupMatchId] = useState<string | null>(null);
   const [selectedMatchday, setSelectedMatchday] = useState<number>(() => {
     // Default to the first matchday with an upcoming match, else last completed
     const upcoming = allMatches.filter((m) => m.status === "UPCOMING");
@@ -242,7 +244,15 @@ export function CompetitionHub({
           </div>
 
           {/* Season name */}
-          <div className="relative z-10 mt-8 text-center">
+          <div className="relative z-10 mt-6 text-center space-y-3">
+            <button
+              type="button"
+              onClick={() => setViewingLineupMatchId(headlineMatch.id)}
+              className="inline-flex items-center gap-2 rounded-xl border border-pmb-gold/50 bg-black/70 px-4 py-2 text-xs font-black uppercase tracking-wider text-pmb-gold shadow-lg shadow-black/70 hover:bg-pmb-gold hover:text-pmb-black transition cursor-pointer backdrop-blur-md"
+            >
+              <span>📋</span>
+              <span>View Match Lineups & Tactics</span>
+            </button>
             <p className="text-[10px] font-black uppercase tracking-[.35em] text-pmb-gold/80">
               {seasonName}
             </p>
@@ -497,16 +507,25 @@ export function CompetitionHub({
                       </div>
                     </div>
 
-                    {isMyMatch && (
-                      <div className="mt-3 border-t border-pmb-gold/20 pt-2 flex items-center justify-between">
+                    <div className="mt-3 border-t border-white/10 pt-2.5 flex items-center justify-between">
+                      {isMyMatch ? (
                         <span className="text-[9px] font-black uppercase tracking-widest text-pmb-gold flex items-center gap-1">
                           ★ YOUR MATCHDAY FIXTURE
                         </span>
-                        <span className="text-[9px] text-gray-400">
-                          {match.status === "COMPLETED" ? "Result Confirmed" : "Preparation Complete"}
+                      ) : (
+                        <span className="text-[9px] text-gray-500 font-bold uppercase">
+                          Matchday {match.matchday}
                         </span>
-                      </div>
-                    )}
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setViewingLineupMatchId(match.id)}
+                        className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-pmb-gold hover:text-white px-2.5 py-1 rounded-md bg-pmb-gold/10 hover:bg-pmb-gold/20 border border-pmb-gold/30 transition cursor-pointer"
+                      >
+                        <span>📋</span>
+                        <span>Lineup</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -573,6 +592,20 @@ export function CompetitionHub({
                             </span>
                             <ClubBadge name={match.awayClub.name} logo={match.awayClub.logo} size="sm" />
                           </div>
+                        </div>
+
+                        <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
+                          <span className="text-gray-500 font-bold uppercase">
+                            {match.status === "COMPLETED" ? "Official Result" : "Upcoming Fixture"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setViewingLineupMatchId(match.id)}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-pmb-gold hover:text-white px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 transition cursor-pointer"
+                          >
+                            <span>📋</span>
+                            <span>Lineup</span>
+                          </button>
                         </div>
                       </div>
                     );
@@ -1031,11 +1064,21 @@ export function CompetitionHub({
                           </span>
                         </div>
 
-                        <span
-                          className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${resultConfig.badge}`}
-                        >
-                          {resultConfig.label}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`rounded px-2 py-0.5 text-[10px] font-bold ${resultConfig.badge}`}
+                          >
+                            {resultConfig.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setViewingLineupMatchId(match.id)}
+                            className="text-[10px] font-bold text-pmb-gold hover:text-white px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 transition cursor-pointer"
+                            title="View Matchday Lineup"
+                          >
+                            📋
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1051,6 +1094,13 @@ export function CompetitionHub({
           </div>
         )}
       </div>
+
+      {/* Matchday Tactical Lineup & Formation Pitch Modal */}
+      <MatchLineupModal
+        matchId={viewingLineupMatchId}
+        isOpen={!!viewingLineupMatchId}
+        onClose={() => setViewingLineupMatchId(null)}
+      />
     </div>
   );
 }

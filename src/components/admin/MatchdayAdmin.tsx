@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { ClubBadge } from "@/components/ClubBadge";
+import { MatchLineupModal } from "@/components/competition/MatchLineupModal";
 
 type PlayerSummary = {
   id: string;
@@ -11,11 +12,36 @@ type PlayerSummary = {
   photo?: string | null;
 };
 
+type LineupStarter = {
+  id: string;
+  playerId: string;
+  slotKey: string;
+  slotRole: string;
+  player?: PlayerSummary;
+};
+
+type LineupSub = {
+  id: string;
+  playerId: string;
+  order: number;
+  player?: PlayerSummary;
+};
+
+type ClubLineupData = {
+  id?: string;
+  formation: string;
+  captainId?: string | null;
+  viceCaptainId?: string | null;
+  starters: LineupStarter[];
+  substitutes: LineupSub[];
+};
+
 type Club = {
   id: string;
   name: string;
   logo: string | null;
   players?: PlayerSummary[];
+  lineup?: ClubLineupData | null;
 };
 
 type MatchEvent = {
@@ -86,6 +112,59 @@ export function MatchdayAdmin({
   const [saving, setSaving] = useState(false);
   const [matchErrors, setMatchErrors] = useState<Record<string, string>>({});
   const [matchSuccesses, setMatchSuccesses] = useState<Record<string, string>>({});
+  const [viewingLineupMatchId, setViewingLineupMatchId] = useState<string | null>(null);
+  const [currentMatchLineups, setCurrentMatchLineups] = useState<any[]>([]);
+
+  // ── Helper to group club players by XI / Bench / Reserve ───────────────
+  const categorizeClubPlayers = useCallback((club?: Club, matchLineups?: any[]) => {
+    if (!club || !club.players) return [];
+
+    const frozen = matchLineups?.find((ml: any) => ml.clubId === club.id);
+    const lineup = frozen || club.lineup;
+
+    const starterMap = new Map<string, { role: string; isCap: boolean }>();
+    if (lineup?.starters) {
+      for (const s of lineup.starters) {
+        starterMap.set(s.playerId, {
+          role: s.slotRole || "XI",
+          isCap: s.playerId === lineup.captainId,
+        });
+      }
+    }
+
+    const benchMap = new Map<string, number>();
+    if (lineup?.substitutes) {
+      for (const sub of lineup.substitutes) {
+        benchMap.set(sub.playerId, sub.order);
+      }
+    }
+
+    return club.players.map((p) => {
+      const starter = starterMap.get(p.id);
+      const benchOrder = benchMap.get(p.id);
+
+      let category: "XI" | "BENCH" | "RESERVE" = "RESERVE";
+      let label = "";
+
+      if (starter) {
+        category = "XI";
+        label = `⭐ [XI] ${p.fullName} (${p.position}) · OVR ${p.overallRating || 75}${starter.isCap ? " (C)" : ""}`;
+      } else if (benchOrder !== undefined) {
+        category = "BENCH";
+        label = `🪑 [BENCH #${benchOrder}] ${p.fullName} (${p.position}) · OVR ${p.overallRating || 75}`;
+      } else {
+        category = "RESERVE";
+        label = `[RES] ${p.fullName} (${p.position}) · OVR ${p.overallRating || 75}`;
+      }
+
+      return {
+        ...p,
+        category,
+        label,
+        rank: category === "XI" ? 1 : category === "BENCH" ? 2 : 3,
+      };
+    }).sort((a, b) => a.rank - b.rank || (b.overallRating || 0) - (a.overallRating || 0));
+  }, []);
 
   // ── Throne Cup Knockout Integration in Matchday Admin ─────────────────
   const [selectedCupStage, setSelectedCupStage] = useState<"ROUND_OF_16" | "QUARTER_FINALS" | "SEMI_FINALS" | "FINAL" | null>(null);
@@ -231,6 +310,7 @@ export function MatchdayAdmin({
           homeClub: data.match.homeClub,
           awayClub: data.match.awayClub,
         });
+        setCurrentMatchLineups(data.match.matchLineups || []);
         if (data.match.events) {
           setMatchEvents(data.match.events);
         }
@@ -252,6 +332,7 @@ export function MatchdayAdmin({
     setMotmId("");
     setMatchEvents([]);
     setMatchSquads(null);
+    setCurrentMatchLineups([]);
   }
 
   function addGoalEvent(clubId: string) {
@@ -914,6 +995,15 @@ export function MatchdayAdmin({
                             >
                               {isCompleted ? "Edit Stats" : "Enter Result"}
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setViewingLineupMatchId(match.id)}
+                              className="text-xs px-2.5 py-1.5 rounded-lg font-bold transition bg-white/5 border border-white/15 text-gray-300 hover:text-white hover:bg-white/10 flex items-center gap-1 shadow-sm"
+                              title="View Matchday Tactical Lineup"
+                            >
+                              <span>📋</span>
+                              <span>Lineup</span>
+                            </button>
                             {isCompleted && (
                               <button
                                 type="button"
@@ -1241,6 +1331,15 @@ export function MatchdayAdmin({
                         >
                           {isCompleted ? "Edit Stats" : "Enter Result"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setViewingLineupMatchId(match.id)}
+                          className="text-xs px-2.5 py-1.5 rounded-lg font-bold transition bg-white/5 border border-white/15 text-gray-300 hover:text-white hover:bg-white/10 flex items-center gap-1 shadow-sm"
+                          title="View Matchday Tactical Lineup (11 Starters + 12 Bench)"
+                        >
+                          <span>📋</span>
+                          <span>Lineup</span>
+                        </button>
                         {isCompleted && (
                           <button
                             type="button"
@@ -1259,54 +1358,191 @@ export function MatchdayAdmin({
                 )}
               </div>
 
-              {/* Detailed Editing Drawer (MOTM & Goals/Assists) */}
+              {/* Detailed Editing Drawer (MOTM & Goals/Assists & Matchday Lineups) */}
               {isEditing && (
                 <div className="border-t border-pmb-border/60 bg-pmb-dark/40 p-4 space-y-4">
                   {matchDetailsLoading ? (
                     <div className="text-center py-4 text-xs text-pmb-gold animate-pulse">
-                      Loading club rosters & match stats...
+                      Loading official matchday lineups & rosters...
                     </div>
                   ) : (
                     <>
-                      {/* ⭐ Man of the Match Selector */}
-                      <div className="p-3 bg-pmb-dark-surface/60 rounded-xl border border-pmb-gold/20">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-pmb-gold flex items-center gap-1.5">
-                            <span>⭐</span> Man of the Match (MOTM)
-                          </span>
-                          {motmId && (
-                            <button
-                              type="button"
-                              onClick={() => setMotmId("")}
-                              className="text-[10px] text-gray-500 hover:text-red-400"
-                            >
-                              Clear
-                            </button>
-                          )}
-                        </div>
+                      {/* 📋 Official Matchday Tactical Lineup Panel */}
+                      {(() => {
+                        const homeCategorized = categorizeClubPlayers(matchSquads?.homeClub, currentMatchLineups);
+                        const awayCategorized = categorizeClubPlayers(matchSquads?.awayClub, currentMatchLineups);
+                        const homeLineup = currentMatchLineups.find((l) => l.clubId === match.homeClubId) || matchSquads?.homeClub?.lineup;
+                        const awayLineup = currentMatchLineups.find((l) => l.clubId === match.awayClubId) || matchSquads?.awayClub?.lineup;
 
-                        <select
-                          value={motmId}
-                          onChange={(e) => setMotmId(e.target.value)}
-                          className="pmb-input w-full text-xs font-medium bg-pmb-dark"
-                        >
-                          <option value="">-- Select Man of the Match --</option>
-                          <optgroup label={`${match.homeClub.name} (Home)`}>
-                            {homePlayers.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.fullName} ({p.position}) - OVR {p.overallRating || 75}
-                              </option>
-                            ))}
-                          </optgroup>
-                          <optgroup label={`${match.awayClub.name} (Away)`}>
-                            {awayPlayers.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.fullName} ({p.position}) - OVR {p.overallRating || 75}
-                              </option>
-                            ))}
-                          </optgroup>
-                        </select>
-                      </div>
+                        return (
+                          <div className="p-3.5 bg-pmb-dark-surface/90 rounded-xl border border-pmb-gold/30 shadow-md space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">📋</span>
+                                <div>
+                                  <span className="text-xs font-black uppercase tracking-wider text-pmb-gold block">
+                                    Official Matchday Lineup & Tactics
+                                  </span>
+                                  <span className="text-[10px] text-gray-400">
+                                    Active club tactics automatically applied (11 Starters + 12 Bench)
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setViewingLineupMatchId(match.id)}
+                                className="text-xs font-bold px-3 py-1.5 bg-pmb-gold text-pmb-black rounded-lg hover:bg-amber-300 transition flex items-center gap-1.5 self-start sm:self-auto shadow"
+                              >
+                                <span>👁️</span>
+                                <span>Open Pitch Board</span>
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                              {/* Home Side Lineup */}
+                              <div className="p-2.5 rounded-lg bg-black/40 border border-white/10 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-black text-white flex items-center gap-1.5">
+                                    <ClubBadge name={match.homeClub.name} logo={match.homeClub.logo} size="xs" />
+                                    {match.homeClub.name}
+                                  </span>
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-pmb-gold/20 text-pmb-gold">
+                                    {homeLineup?.formation ? homeLineup.formation.replace(/^F_/, "").replace(/_/g, "-") : "4-3-3"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                                    Starting XI ({homeCategorized.filter((p) => p.category === "XI").length}/11)
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {homeCategorized.filter((p) => p.category === "XI").map((p) => (
+                                      <span key={p.id} className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gray-200 font-medium">
+                                        {p.fullName.split(" ").slice(-1)[0]} ({p.position})
+                                      </span>
+                                    ))}
+                                    {homeCategorized.filter((p) => p.category === "XI").length === 0 && (
+                                      <span className="text-[10px] text-gray-500 italic">No starting XI submitted</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="pt-1 border-t border-white/5">
+                                  <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">
+                                    Bench ({homeCategorized.filter((p) => p.category === "BENCH").length}/12)
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {homeCategorized.filter((p) => p.category === "BENCH").map((p) => (
+                                      <span key={p.id} className="text-[9px] px-1 py-0.2 rounded bg-white/5 text-gray-400">
+                                        {p.fullName.split(" ").slice(-1)[0]}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Away Side Lineup */}
+                              <div className="p-2.5 rounded-lg bg-black/40 border border-white/10 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-black text-white flex items-center gap-1.5">
+                                    <ClubBadge name={match.awayClub.name} logo={match.awayClub.logo} size="xs" />
+                                    {match.awayClub.name}
+                                  </span>
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-pmb-gold/20 text-pmb-gold">
+                                    {awayLineup?.formation ? awayLineup.formation.replace(/^F_/, "").replace(/_/g, "-") : "4-3-3"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                                    Starting XI ({awayCategorized.filter((p) => p.category === "XI").length}/11)
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {awayCategorized.filter((p) => p.category === "XI").map((p) => (
+                                      <span key={p.id} className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-gray-200 font-medium">
+                                        {p.fullName.split(" ").slice(-1)[0]} ({p.position})
+                                      </span>
+                                    ))}
+                                    {awayCategorized.filter((p) => p.category === "XI").length === 0 && (
+                                      <span className="text-[10px] text-gray-500 italic">No starting XI submitted</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="pt-1 border-t border-white/5">
+                                  <span className="text-[9px] font-bold text-gray-500 uppercase block mb-1">
+                                    Bench ({awayCategorized.filter((p) => p.category === "BENCH").length}/12)
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {awayCategorized.filter((p) => p.category === "BENCH").map((p) => (
+                                      <span key={p.id} className="text-[9px] px-1 py-0.2 rounded bg-white/5 text-gray-400">
+                                        {p.fullName.split(" ").slice(-1)[0]}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* ⭐ Man of the Match Selector */}
+                      {(() => {
+                        const homeCategorized = categorizeClubPlayers(matchSquads?.homeClub, currentMatchLineups);
+                        const awayCategorized = categorizeClubPlayers(matchSquads?.awayClub, currentMatchLineups);
+
+                        return (
+                          <div className="p-3 bg-pmb-dark-surface/60 rounded-xl border border-pmb-gold/20">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-bold uppercase tracking-wider text-pmb-gold flex items-center gap-1.5">
+                                <span>⭐</span> Man of the Match (MOTM)
+                              </span>
+                              {motmId && (
+                                <button
+                                  type="button"
+                                  onClick={() => setMotmId("")}
+                                  className="text-[10px] text-gray-500 hover:text-red-400"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                            </div>
+
+                            <select
+                              value={motmId}
+                              onChange={(e) => setMotmId(e.target.value)}
+                              className="pmb-input w-full text-xs font-medium bg-pmb-dark"
+                            >
+                              <option value="">-- Select Man of the Match --</option>
+                              <optgroup label={`⭐ ${match.homeClub.name} Starting XI`}>
+                                {homeCategorized.filter((p) => p.category === "XI").map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                              <optgroup label={`🪑 ${match.homeClub.name} Bench`}>
+                                {homeCategorized.filter((p) => p.category === "BENCH").map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                              <optgroup label={`⭐ ${match.awayClub.name} Starting XI`}>
+                                {awayCategorized.filter((p) => p.category === "XI").map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                              <optgroup label={`🪑 ${match.awayClub.name} Bench`}>
+                                {awayCategorized.filter((p) => p.category === "BENCH").map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            </select>
+                          </div>
+                        );
+                      })()}
 
                       {/* ⚽ Goals & Assists Section */}
                       <div className="space-y-3">
@@ -1340,12 +1576,15 @@ export function MatchdayAdmin({
                           <div className="space-y-2">
                             {matchEvents.map((ev, index) => {
                               const isHome = ev.clubId === match.homeClubId;
-                              const currentClubPlayers = isHome
-                                ? homePlayers
-                                : awayPlayers;
+                              const currentClub = isHome ? matchSquads?.homeClub : matchSquads?.awayClub;
+                              const currentCategorized = categorizeClubPlayers(currentClub, currentMatchLineups);
                               const clubName = isHome
                                 ? match.homeClub.name
                                 : match.awayClub.name;
+
+                              const xiPlayers = currentCategorized.filter((p) => p.category === "XI");
+                              const benchPlayers = currentCategorized.filter((p) => p.category === "BENCH");
+                              const reservePlayers = currentCategorized.filter((p) => p.category === "RESERVE");
 
                               return (
                                 <div
@@ -1366,11 +1605,33 @@ export function MatchdayAdmin({
                                     className="pmb-input flex-1 text-xs py-1"
                                   >
                                     <option value="">-- Scorer (Required) --</option>
-                                    {currentClubPlayers.map((p) => (
-                                      <option key={p.id} value={p.id}>
-                                        {p.fullName} ({p.position})
-                                      </option>
-                                    ))}
+                                    {xiPlayers.length > 0 && (
+                                      <optgroup label="⭐ Starting XI (11 Players)">
+                                        {xiPlayers.map((p) => (
+                                          <option key={p.id} value={p.id}>
+                                            {p.label}
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                    {benchPlayers.length > 0 && (
+                                      <optgroup label="🪑 Substitutes Bench (12 Players)">
+                                        {benchPlayers.map((p) => (
+                                          <option key={p.id} value={p.id}>
+                                            {p.label}
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                    {reservePlayers.length > 0 && (
+                                      <optgroup label="Reserves (Other Players)">
+                                        {reservePlayers.map((p) => (
+                                          <option key={p.id} value={p.id}>
+                                            {p.label}
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    )}
                                   </select>
 
                                   {/* Assist Picker */}
@@ -1386,13 +1647,45 @@ export function MatchdayAdmin({
                                     className="pmb-input flex-1 text-xs py-1"
                                   >
                                     <option value="">-- Assist (Optional) --</option>
-                                    {currentClubPlayers
+                                    {xiPlayers
                                       .filter((p) => p.id !== ev.playerId)
-                                      .map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                          👟 {p.fullName} ({p.position})
-                                        </option>
-                                      ))}
+                                      .length > 0 && (
+                                      <optgroup label="⭐ Starting XI">
+                                        {xiPlayers
+                                          .filter((p) => p.id !== ev.playerId)
+                                          .map((p) => (
+                                            <option key={p.id} value={p.id}>
+                                              👟 {p.label}
+                                            </option>
+                                          ))}
+                                      </optgroup>
+                                    )}
+                                    {benchPlayers
+                                      .filter((p) => p.id !== ev.playerId)
+                                      .length > 0 && (
+                                      <optgroup label="🪑 Substitutes Bench">
+                                        {benchPlayers
+                                          .filter((p) => p.id !== ev.playerId)
+                                          .map((p) => (
+                                            <option key={p.id} value={p.id}>
+                                              👟 {p.label}
+                                            </option>
+                                          ))}
+                                      </optgroup>
+                                    )}
+                                    {reservePlayers
+                                      .filter((p) => p.id !== ev.playerId)
+                                      .length > 0 && (
+                                      <optgroup label="Reserves">
+                                        {reservePlayers
+                                          .filter((p) => p.id !== ev.playerId)
+                                          .map((p) => (
+                                            <option key={p.id} value={p.id}>
+                                              👟 {p.label}
+                                            </option>
+                                          ))}
+                                      </optgroup>
+                                    )}
                                   </select>
 
                                   {/* Minute (optional) */}
@@ -1477,6 +1770,13 @@ export function MatchdayAdmin({
           );
         })}
       </div>
+
+      {/* Matchday Tactical Lineup Modal */}
+      <MatchLineupModal
+        matchId={viewingLineupMatchId}
+        isOpen={!!viewingLineupMatchId}
+        onClose={() => setViewingLineupMatchId(null)}
+      />
     </div>
   );
 }

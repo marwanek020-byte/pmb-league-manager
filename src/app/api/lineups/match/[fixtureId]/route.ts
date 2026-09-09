@@ -10,16 +10,37 @@ export async function GET(
   { params }: { params: { fixtureId: string } }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const match = await prisma.match.findUnique({
       where: { id: params.fixtureId },
       include: {
-        homeClub: { select: { id: true, name: true, logo: true } },
-        awayClub: { select: { id: true, name: true, logo: true } },
+        homeClub: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            lineup: {
+              include: {
+                starters: { include: { player: true } },
+                substitutes: { include: { player: true }, orderBy: { order: "asc" } },
+                setPieces: { include: { player: true } },
+              },
+            },
+          },
+        },
+        awayClub: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            lineup: {
+              include: {
+                starters: { include: { player: true } },
+                substitutes: { include: { player: true }, orderBy: { order: "asc" } },
+                setPieces: { include: { player: true } },
+              },
+            },
+          },
+        },
         matchLineups: {
           include: {
             starters: {
@@ -47,15 +68,46 @@ export async function GET(
       return NextResponse.json({ error: "Match not found" }, { status: 404 });
     }
 
-    const homeLineup = match.matchLineups.find((l) => l.clubId === match.homeClubId) || null;
-    const awayLineup = match.matchLineups.find((l) => l.clubId === match.awayClubId) || null;
+    // Helper to format or fallback to active club lineup
+    const resolveLineup = (clubId: string, clubData: any) => {
+      const frozen = match.matchLineups.find((l) => l.clubId === clubId);
+      if (frozen) {
+        return {
+          ...frozen,
+          isFrozen: true,
+          captainId: clubData?.lineup?.captainId ?? null,
+          viceCaptainId: clubData?.lineup?.viceCaptainId ?? null,
+        };
+      }
+      if (clubData?.lineup) {
+        return {
+          id: clubData.lineup.id,
+          matchId: match.id,
+          clubId,
+          formation: clubData.lineup.formation,
+          status: clubData.lineup.status,
+          isFrozen: false,
+          captainId: clubData.lineup.captainId ?? null,
+          viceCaptainId: clubData.lineup.viceCaptainId ?? null,
+          starters: clubData.lineup.starters,
+          substitutes: clubData.lineup.substitutes,
+          setPieces: clubData.lineup.setPieces,
+        };
+      }
+      return null;
+    };
+
+    const homeLineup = resolveLineup(match.homeClubId, match.homeClub);
+    const awayLineup = resolveLineup(match.awayClubId, match.awayClub);
 
     return NextResponse.json({
       matchId: match.id,
       matchday: match.matchday,
       status: match.status,
-      homeClub: match.homeClub,
-      awayClub: match.awayClub,
+      homeClub: { id: match.homeClub.id, name: match.homeClub.name, logo: match.homeClub.logo },
+      awayClub: { id: match.awayClub.id, name: match.awayClub.name, logo: match.awayClub.logo },
+      homeGoals: match.homeGoals,
+      awayGoals: match.awayGoals,
       homeLineup,
       awayLineup,
     });

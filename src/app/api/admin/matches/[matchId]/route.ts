@@ -39,6 +39,13 @@ export async function GET(
             select: { id: true, fullName: true, position: true, overallRating: true, photo: true },
             orderBy: { overallRating: "desc" },
           },
+          lineup: {
+            include: {
+              starters: { include: { player: true } },
+              substitutes: { include: { player: true }, orderBy: { order: "asc" } },
+              setPieces: { include: { player: true } },
+            },
+          },
         },
       },
       awayClub: {
@@ -50,6 +57,20 @@ export async function GET(
             select: { id: true, fullName: true, position: true, overallRating: true, photo: true },
             orderBy: { overallRating: "desc" },
           },
+          lineup: {
+            include: {
+              starters: { include: { player: true } },
+              substitutes: { include: { player: true }, orderBy: { order: "asc" } },
+              setPieces: { include: { player: true } },
+            },
+          },
+        },
+      },
+      matchLineups: {
+        include: {
+          starters: { include: { player: true } },
+          substitutes: { include: { player: true }, orderBy: { order: "asc" } },
+          setPieces: { include: { player: true } },
         },
       },
       league: { select: { id: true, name: true } },
@@ -200,6 +221,63 @@ export async function PATCH(
             status: nextRounds <= 0 ? "COMPLETED" : "IN_PROGRESS",
           },
         });
+      }
+    }
+
+    // Auto-freeze matchday lineups from active ClubLineup if not already frozen
+    for (const clubId of [match.homeClubId, match.awayClubId]) {
+      const existing = await tx.matchLineup.findUnique({
+        where: { matchId_clubId: { matchId: params.matchId, clubId } },
+      });
+      if (!existing) {
+        const clubLineup = await tx.clubLineup.findUnique({
+          where: { clubId },
+          include: {
+            starters: true,
+            substitutes: true,
+            setPieces: true,
+          },
+        });
+        if (clubLineup && clubLineup.starters.length > 0) {
+          const ml = await tx.matchLineup.create({
+            data: {
+              matchId: params.matchId,
+              clubId,
+              formation: clubLineup.formation,
+              status: "CONFIRMED",
+              lockedAt: new Date(),
+            },
+          });
+          await tx.matchStarter.createMany({
+            data: clubLineup.starters.map((s) => ({
+              matchLineupId: ml.id,
+              playerId: s.playerId,
+              slotKey: s.slotKey,
+              slotRole: s.slotRole,
+              positionX: s.positionX,
+              positionY: s.positionY,
+              positionAffinity: s.positionAffinity,
+            })),
+          });
+          if (clubLineup.substitutes.length > 0) {
+            await tx.matchSubstitute.createMany({
+              data: clubLineup.substitutes.map((sub) => ({
+                matchLineupId: ml.id,
+                playerId: sub.playerId,
+                order: sub.order,
+              })),
+            });
+          }
+          if (clubLineup.setPieces.length > 0) {
+            await tx.matchSetPiece.createMany({
+              data: clubLineup.setPieces.map((sp) => ({
+                matchLineupId: ml.id,
+                playerId: sp.playerId,
+                type: sp.type,
+              })),
+            });
+          }
+        }
       }
     }
 
