@@ -42,6 +42,10 @@ export function PlayerListClient({
   const [sortKey, setSortKey] = useState<SortKey>("fullName");
   const [page, setPage] = useState(1);
 
+  useEffect(() => {
+    setSquad(initialSquad);
+  }, [initialSquad]);
+
   const [showAddChoice, setShowAddChoice] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
