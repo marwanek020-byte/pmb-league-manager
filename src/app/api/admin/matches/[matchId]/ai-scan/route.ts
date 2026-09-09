@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveGeminiApiKey } from "@/lib/services/gemini-key-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -71,17 +72,7 @@ export async function POST(
     }
 
     // Resolve Gemini API key
-    let geminiApiKey = (
-      clientApiKey ||
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY
-    )?.trim().replace(/^["']|["']$/g, "");
-
-    // Sanitize key against contaminated env values (e.g. accidental DB connection strings)
-    if (geminiApiKey && (geminiApiKey.includes("channel_binding") || geminiApiKey.includes("postgresql:") || geminiApiKey.includes("http:"))) {
-      geminiApiKey = undefined;
-    }
+    const geminiApiKey = resolveGeminiApiKey(clientApiKey);
 
     if (!geminiApiKey) {
       return NextResponse.json(

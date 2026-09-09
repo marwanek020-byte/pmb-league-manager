@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { Prisma, BudgetTransactionType, MatchSubmissionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
+import { resolveGeminiApiKey } from "@/lib/services/gemini-key-resolver";
 
 // ── Image Hashing ────────────────────────────────────────────────────────────
 export function computeImageHash(base64Data: string): string {
@@ -149,20 +150,10 @@ export async function processManagerMatchSubmission({
   }
 
   // 3. Multimodal Vision Analysis via Gemini
-  let geminiApiKey = (
-    apiKey ||
-    process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY
-  )?.trim().replace(/^["']|["']$/g, "");
-
-  // Sanitize key against contaminated env values (e.g. accidental DB connection strings)
-  if (geminiApiKey && (geminiApiKey.includes("channel_binding") || geminiApiKey.includes("postgresql:") || geminiApiKey.includes("http:"))) {
-    geminiApiKey = undefined;
-  }
+  const geminiApiKey = resolveGeminiApiKey(apiKey);
 
   if (!geminiApiKey) {
-    throw new Error("Gemini API key is not configured or invalid. Please provide a valid Gemini API Key.");
+    throw new Error("Gemini API key is not configured or invalid. Please check your GEMINI_API_KEY in .env or provide an API Key.");
   }
 
   const homePlayers = match.homeClub.players;
