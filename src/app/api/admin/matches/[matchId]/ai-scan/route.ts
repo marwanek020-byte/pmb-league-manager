@@ -71,12 +71,17 @@ export async function POST(
     }
 
     // Resolve Gemini API key
-    const geminiApiKey = (
+    let geminiApiKey = (
       clientApiKey ||
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY
-    )?.trim();
+    )?.trim().replace(/^["']|["']$/g, "");
+
+    // Sanitize key against contaminated env values (e.g. accidental DB connection strings)
+    if (geminiApiKey && (geminiApiKey.includes("channel_binding") || geminiApiKey.includes("postgresql:") || geminiApiKey.includes("http:"))) {
+      geminiApiKey = undefined;
+    }
 
     if (!geminiApiKey) {
       return NextResponse.json(
@@ -219,7 +224,7 @@ OUTPUT FORMAT: Return STRICTLY JSON with this schema (no markdown fences, no con
       };
     });
 
-    const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+    const candidateModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash"];
     let aiResponseText: string | null = null;
     let lastError: any = null;
 

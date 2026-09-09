@@ -5,9 +5,12 @@ import {
   FORMATIONS,
   FormationKey,
   FormationSlot,
+  SlotRole,
   calculatePositionAffinity,
   getAffinityColor,
   normalizePlayerPosition,
+  getAvailableSlotRoles,
+  getRoleDisplayLabel,
 } from "@/lib/formations";
 import { PlayerDTO } from "@/lib/serialize-player";
 import { isMoroccanNationality } from "@/lib/services/botola-contract-service";
@@ -44,6 +47,7 @@ interface Props {
   squad: PlayerDTO[];
   initialFormation?: FormationKey;
   initialStarters?: Record<string, string>; // slotKey -> playerId
+  initialSlotRoles?: Record<string, string>; // slotKey -> slotRole (e.g. "SS", "CDM", "CM")
   initialSubstitutes?: string[];            // playerIds
   initialCaptainId?: string | null;
   initialViceCaptainId?: string | null;
@@ -56,6 +60,7 @@ export function FormationBoard({
   squad,
   initialFormation = "F433",
   initialStarters = {},
+  initialSlotRoles = {},
   initialSubstitutes = [],
   initialCaptainId = null,
   initialViceCaptainId = null,
@@ -64,6 +69,15 @@ export function FormationBoard({
   // ── State ─────────────────────────────────────────────────────────────
   const [formationKey, setFormationKey] = useState<FormationKey>(initialFormation);
   const [starters, setStarters] = useState<Record<string, string>>(initialStarters);
+  const [slotRoles, setSlotRoles] = useState<Record<string, SlotRole>>(() => {
+    const roles: Record<string, SlotRole> = {};
+    const currentDef = FORMATIONS[initialFormation] || FORMATIONS.F433;
+    currentDef.slots.forEach((s) => {
+      roles[s.key] = (initialSlotRoles[s.key] as SlotRole) || s.role;
+    });
+    return roles;
+  });
+  const [activePositionMenuSlotKey, setActivePositionMenuSlotKey] = useState<string | null>(null);
   const [substitutes, setSubstitutes] = useState<string[]>(initialSubstitutes);
   const [captainId, setCaptainId] = useState<string | null>(initialCaptainId);
   const [viceCaptainId, setViceCaptainId] = useState<string | null>(initialViceCaptainId);
@@ -128,17 +142,19 @@ export function FormationBoard({
     const newDef = FORMATIONS[newKey];
     if (!newDef) return;
 
-    // Migrate starters to matching slot roles if possible
+    // Migrate starters and initialize slot roles
     const newStarters: Record<string, string> = {};
+    const newSlotRoles: Record<string, SlotRole> = {};
     const oldEntries = Object.entries(starters);
     const usedPlayerIds = new Set<string>();
 
     newDef.slots.forEach((newSlot) => {
+      newSlotRoles[newSlot.key] = newSlot.role;
       // Find matching player in old slots with same role
       const match = oldEntries.find(([oldKey, pId]) => {
         if (!pId || usedPlayerIds.has(pId)) return false;
-        const oldSlot = activeFormation.slots.find((s) => s.key === oldKey);
-        return oldSlot?.role === newSlot.role;
+        const oldSlotRole = slotRoles[oldKey] || activeFormation.slots.find((s) => s.key === oldKey)?.role;
+        return oldSlotRole === newSlot.role;
       });
 
       if (match) {
@@ -148,7 +164,18 @@ export function FormationBoard({
     });
 
     setStarters(newStarters);
+    setSlotRoles(newSlotRoles);
     setSelectedSlotKey(null);
+    setActivePositionMenuSlotKey(null);
+  };
+
+  // ── Flexible Slot Role Change Handler ─────────────────────────────────
+  const handleRoleChange = (slotKey: string, newRole: SlotRole) => {
+    setSlotRoles((prev) => ({
+      ...prev,
+      [slotKey]: newRole,
+    }));
+    setActivePositionMenuSlotKey(null);
   };
 
   // ── Auto-Pick Best XI ─────────────────────────────────────────────────
@@ -370,7 +397,7 @@ export function FormationBoard({
     try {
       const startersPayload = activeFormation.slots.map((slot) => ({
         slotKey: slot.key,
-        slotRole: slot.role,
+        slotRole: slotRoles[slot.key] || slot.role,
         positionX: slot.x,
         positionY: slot.y,
         playerId: starters[slot.key],
@@ -632,13 +659,18 @@ export function FormationBoard({
                 const player = assignedPlayerId ? playerMap.get(assignedPlayerId) : null;
                 const isSelected = selectedSlotKey === slot.key;
 
+                const currentRole = slotRoles[slot.key] || slot.role;
+                const availableRoles = getAvailableSlotRoles(slot.role, slot.zone);
+                const currentDisplayLabel = getRoleDisplayLabel(currentRole);
+
                 const affinity = player
-                  ? calculatePositionAffinity(player.position, slot.role)
+                  ? calculatePositionAffinity(player.position, currentRole)
                   : 1.0;
                 const affinityStyles = getAffinityColor(affinity);
 
                 const isCap = captainId === assignedPlayerId;
                 const isVice = viceCaptainId === assignedPlayerId;
+                const isMenuOpen = activePositionMenuSlotKey === slot.key;
 
                 return (
                   <div
@@ -674,7 +706,7 @@ export function FormationBoard({
                             />
                           ) : (
                             <span className="text-xs font-black text-white">
-                              {player.overallRating || slot.label}
+                              {player.overallRating || currentDisplayLabel}
                             </span>
                           )}
 
@@ -710,29 +742,77 @@ export function FormationBoard({
                         </div>
 
                         {/* Player Name & Role Chip */}
-                        <div className="mt-1 flex max-w-[85px] flex-col items-center text-center">
+                        <div className="mt-1 flex max-w-[90px] flex-col items-center text-center">
                           <span className="truncate rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm">
                             {player.fullName.split(" ").slice(-1)[0]}
                           </span>
                           <div className="mt-0.5 flex items-center gap-1">
-                            <span
-                              className={`rounded px-1 text-[8px] font-extrabold ${
-                                slot.role === "GK"
-                                  ? "bg-amber-500/20 text-amber-300"
-                                  : "bg-white/10 text-gray-300"
+                            {/* Interactive Position Chip */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePositionMenuSlotKey(isMenuOpen ? null : slot.key);
+                              }}
+                              className={`flex items-center gap-0.5 rounded px-1 text-[8px] font-extrabold uppercase transition border ${
+                                availableRoles.length > 1
+                                  ? "border-amber-400/60 bg-black/90 hover:bg-amber-400/20 text-amber-300 cursor-pointer shadow"
+                                  : currentRole === "GK"
+                                  ? "border-transparent bg-amber-500/20 text-amber-300"
+                                  : "border-transparent bg-white/10 text-gray-300"
                               }`}
+                              title={
+                                availableRoles.length > 1
+                                  ? `Switch position (${availableRoles.map(getRoleDisplayLabel).join(", ")})`
+                                  : undefined
+                              }
                             >
-                              {slot.role}
-                            </span>
+                              <span>{currentDisplayLabel}</span>
+                              {availableRoles.length > 1 && (
+                                <span className="text-[7px] text-amber-400">▾</span>
+                              )}
+                            </button>
+
                             <span className="rounded bg-black/60 px-1 text-[8px] font-bold text-pmb-gold">
                               {player.overallRating ?? "—"}
                             </span>
                           </div>
                         </div>
+
+                        {/* Floating Position Selector Popover */}
+                        {isMenuOpen && availableRoles.length > 1 && (
+                          <div
+                            className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-xl border border-pmb-gold bg-black/95 px-2 py-1 shadow-2xl backdrop-blur-md whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-[8px] font-black uppercase text-gray-400 pr-0.5">Pos:</span>
+                            {availableRoles.map((r) => {
+                              const isCur = currentRole === r;
+                              const dLabel = getRoleDisplayLabel(r);
+                              return (
+                                <button
+                                  key={r}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRoleChange(slot.key, r);
+                                  }}
+                                  className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase transition cursor-pointer ${
+                                    isCur
+                                      ? "bg-pmb-gold text-black shadow font-bold"
+                                      : "bg-white/10 text-gray-300 hover:bg-white/25 hover:text-white"
+                                  }`}
+                                >
+                                  {dLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       /* Empty Slot */
-                      <div className="flex flex-col items-center">
+                      <div className="relative flex flex-col items-center">
                         <div
                           className={`flex h-11 w-11 items-center justify-center rounded-full border-2 border-dashed bg-black/40 text-gray-400 transition-all ${
                             isSelected
@@ -741,12 +821,55 @@ export function FormationBoard({
                           }`}
                         >
                           <span className="text-[11px] font-black uppercase">
-                            {slot.label}
+                            {currentDisplayLabel}
                           </span>
                         </div>
-                        <span className="mt-1 rounded bg-black/60 px-1 text-[9px] font-medium text-gray-400">
-                          {slot.role}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePositionMenuSlotKey(isMenuOpen ? null : slot.key);
+                          }}
+                          className={`mt-1 flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[8px] font-extrabold uppercase transition border ${
+                            availableRoles.length > 1
+                              ? "border-amber-400/40 bg-black/70 hover:bg-amber-400/20 text-amber-300 cursor-pointer"
+                              : "border-transparent bg-black/60 text-gray-400"
+                          }`}
+                        >
+                          <span>{currentDisplayLabel}</span>
+                          {availableRoles.length > 1 && <span className="text-[7px] text-amber-400">▾</span>}
+                        </button>
+
+                        {/* Floating Position Selector Popover for Empty Slot */}
+                        {isMenuOpen && availableRoles.length > 1 && (
+                          <div
+                            className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-xl border border-pmb-gold bg-black/95 px-2 py-1 shadow-2xl backdrop-blur-md whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-[8px] font-black uppercase text-gray-400 pr-0.5">Pos:</span>
+                            {availableRoles.map((r) => {
+                              const isCur = currentRole === r;
+                              const dLabel = getRoleDisplayLabel(r);
+                              return (
+                                <button
+                                  key={r}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRoleChange(slot.key, r);
+                                  }}
+                                  className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase transition cursor-pointer ${
+                                    isCur
+                                      ? "bg-pmb-gold text-black shadow font-bold"
+                                      : "bg-white/10 text-gray-300 hover:bg-white/25 hover:text-white"
+                                  }`}
+                                >
+                                  {dLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -880,19 +1003,71 @@ export function FormationBoard({
                   </div>
                 </div>
 
-                {/* Instruction banner */}
-                <div className="rounded-lg border border-pmb-gold/20 bg-pmb-gold/5 p-2 text-[11px] text-gray-300">
-                  {selectedSlotKey ? (
-                    <span className="font-semibold text-pmb-gold">
-                      👉 Click a player below to assign to slot{" "}
-                      <strong className="uppercase">{selectedSlotKey}</strong>
-                    </span>
-                  ) : (
-                    <span>
-                      💡 Tip: Click any pitch slot, or click a player to add to bench.
-                    </span>
-                  )}
-                </div>
+                {/* Selected Slot & Position Role Switcher */}
+                {selectedSlotKey ? (
+                  <div className="rounded-xl border border-pmb-gold/40 bg-pmb-gold/10 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase text-white flex items-center gap-1.5">
+                        <span>🎯 Slot:</span>
+                        <span className="text-pmb-gold">{selectedSlotKey.toUpperCase()}</span>
+                        <span className="text-gray-300">
+                          ({getRoleDisplayLabel(slotRoles[selectedSlotKey] || activeFormation.slots.find((s) => s.key === selectedSlotKey)?.role || "")})
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSlotKey(null)}
+                        className="text-[10px] text-gray-400 hover:text-white underline cursor-pointer"
+                      >
+                        Deselect
+                      </button>
+                    </div>
+
+                    {(() => {
+                      const slotDef = activeFormation.slots.find((s) => s.key === selectedSlotKey);
+                      if (!slotDef) return null;
+                      const available = getAvailableSlotRoles(slotDef.role, slotDef.zone);
+                      if (available.length <= 1) return null;
+                      const currentR = slotRoles[selectedSlotKey] || slotDef.role;
+
+                      return (
+                        <div className="flex flex-col gap-1.5 pt-1.5 border-t border-pmb-gold/20">
+                          <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wide">
+                            Change Role (e.g. LWF ➔ SS, DMF ➔ CMF):
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {available.map((roleOpt) => {
+                              const isSel = currentR === roleOpt;
+                              const dLabel = getRoleDisplayLabel(roleOpt);
+                              return (
+                                <button
+                                  key={roleOpt}
+                                  type="button"
+                                  onClick={() => handleRoleChange(selectedSlotKey, roleOpt)}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition cursor-pointer ${
+                                    isSel
+                                      ? "bg-pmb-gold text-black shadow-md font-bold"
+                                      : "bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white border border-white/10"
+                                  }`}
+                                >
+                                  {dLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <p className="text-[10px] text-gray-400 italic pt-1 border-t border-white/5">
+                      👉 Click any player below to assign to this slot.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-pmb-gold/20 bg-pmb-gold/5 p-2 text-[11px] text-gray-300">
+                    <span>💡 Tip: Click any pitch slot to change its role (e.g. LWF ➔ SS) or assign a player.</span>
+                  </div>
+                )}
 
                 {/* Squad List */}
                 <div className="max-h-[480px] space-y-1.5 overflow-y-auto pr-1">
@@ -1017,6 +1192,69 @@ export function FormationBoard({
                       );
                     })}
                   </select>
+                </div>
+
+                {/* Tactical Position Roles Customizer */}
+                <div className="space-y-2.5 pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-white text-xs">Tactical Position Roles</h4>
+                      <p className="text-[10px] text-gray-400">
+                        Customize flexible positions (e.g. LWF ➔ SS, DMF ➔ CMF)
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono text-pmb-gold font-bold">
+                      11 Slots
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                    {activeFormation.slots.map((slot) => {
+                      const assignedPId = starters[slot.key];
+                      const p = assignedPId ? playerMap.get(assignedPId) : null;
+                      const currentR = slotRoles[slot.key] || slot.role;
+                      const available = getAvailableSlotRoles(slot.role, slot.zone);
+
+                      return (
+                        <div
+                          key={slot.key}
+                          className="flex items-center justify-between gap-2 p-2 rounded-lg bg-black/50 border border-white/10 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black text-pmb-gold text-[11px] uppercase">
+                                {slot.key}
+                              </span>
+                              <span className="text-[10px] text-gray-400 truncate max-w-[110px]">
+                                {p ? p.fullName : "(Empty)"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {available.map((rOpt) => {
+                              const isCur = currentR === rOpt;
+                              const optLabel = getRoleDisplayLabel(rOpt);
+                              return (
+                                <button
+                                  key={rOpt}
+                                  type="button"
+                                  onClick={() => handleRoleChange(slot.key, rOpt)}
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase transition cursor-pointer ${
+                                    isCur
+                                      ? "bg-pmb-gold text-black font-bold shadow"
+                                      : "bg-white/5 text-gray-400 hover:bg-white/20 hover:text-white"
+                                  }`}
+                                >
+                                  {optLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Formation description */}

@@ -148,16 +148,21 @@ export async function processManagerMatchSubmission({
     );
   }
 
-  // 3. Multimodal Vision Analysis via Gemini 2.0 Flash
-  const geminiApiKey = (
+  // 3. Multimodal Vision Analysis via Gemini
+  let geminiApiKey = (
     apiKey ||
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_GEMINI_API_KEY ||
     process.env.GOOGLE_API_KEY
-  )?.trim();
+  )?.trim().replace(/^["']|["']$/g, "");
+
+  // Sanitize key against contaminated env values (e.g. accidental DB connection strings)
+  if (geminiApiKey && (geminiApiKey.includes("channel_binding") || geminiApiKey.includes("postgresql:") || geminiApiKey.includes("http:"))) {
+    geminiApiKey = undefined;
+  }
 
   if (!geminiApiKey) {
-    throw new Error("Gemini API key is not configured for vision analysis.");
+    throw new Error("Gemini API key is not configured or invalid. Please provide a valid Gemini API Key.");
   }
 
   const homePlayers = match.homeClub.players;
@@ -218,7 +223,7 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     "possession": { "home": number or null, "away": number or null },
     "shots": { "home": number or null, "away": number or null }
   }
-}`;
+} `;
 
   const imageParts = imageWithHashes.map((img) => {
     let rawData = img.data;
@@ -240,7 +245,7 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     };
   });
 
-  const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+  const candidateModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash"];
   let aiResponseText: string | null = null;
   let lastError: any = null;
 

@@ -291,9 +291,90 @@ export function normalizePlayerPosition(pos: string | null | undefined): string 
 }
 
 /**
+ * Returns available role variations for a formation slot.
+ * Allows managers to customize positions (e.g. LWF -> SS, DMF -> CMF, CF -> SS)
+ */
+export function getAvailableSlotRoles(defaultRole: SlotRole, zone?: PitchZone): SlotRole[] {
+  switch (defaultRole) {
+    // Attack / Wings
+    case "LW":
+    case "LF":
+      return ["LW", "SS", "LM", "CF", "ST"];
+    case "RW":
+    case "RF":
+      return ["RW", "SS", "RM", "CF", "ST"];
+    case "ST":
+    case "CF":
+      return ["ST", "CF", "SS"];
+    case "SS":
+      return ["SS", "CF", "ST", "LW", "RW", "CAM"];
+
+    // Midfield
+    case "CDM":
+      return ["CDM", "CM", "CB"];
+    case "CM":
+      return ["CM", "CDM", "CAM"];
+    case "CAM":
+      return ["CAM", "CM", "SS"];
+    case "LM":
+      return ["LM", "LW", "CM", "LWB"];
+    case "RM":
+      return ["RM", "RW", "CM", "RWB"];
+
+    // Defense
+    case "LB":
+      return ["LB", "LWB", "CB"];
+    case "RB":
+      return ["RB", "RWB", "CB"];
+    case "LWB":
+      return ["LWB", "LB", "LM"];
+    case "RWB":
+      return ["RWB", "RB", "RM"];
+    case "CB":
+      return ["CB", "CDM"];
+
+    // Goalkeeper
+    case "GK":
+      return ["GK"];
+
+    default:
+      return [defaultRole];
+  }
+}
+
+/**
+ * Returns clean eFootball style display label for a slot role
+ */
+export function getRoleDisplayLabel(role: SlotRole | string): string {
+  const r = (role || "").toUpperCase();
+  switch (r) {
+    case "LW":
+    case "LF":
+      return "LWF";
+    case "RW":
+    case "RF":
+      return "RWF";
+    case "ST":
+      return "CF";
+    case "CDM":
+      return "DMF";
+    case "CM":
+      return "CMF";
+    case "CAM":
+      return "AMF";
+    case "LM":
+      return "LMF";
+    case "RM":
+      return "RMF";
+    default:
+      return r;
+  }
+}
+
+/**
  * Calculates position affinity (0.5 to 1.0)
  * 1.0 = Natural position
- * 0.75 = Adjacent / secondary position
+ * 0.75 - 0.95 = Secondary / compatible position
  * 0.5 = Out of position
  */
 export function calculatePositionAffinity(rawPlayerPos: string, slotRole: SlotRole): number {
@@ -308,38 +389,52 @@ export function calculatePositionAffinity(rawPlayerPos: string, slotRole: SlotRo
     return 0.5;
   }
 
-  // 2. Exact match equivalents
+  // 2. Exact match equivalents (100% Natural)
   if (
     (p === "CB" && s === "CB") ||
     (p === "LB" && (s === "LB" || s === "LWB")) ||
     (p === "RB" && (s === "RB" || s === "RWB")) ||
-    ((p === "DMF" || p === "CDM") && (s === "CDM" || s === "CM")) ||
-    ((p === "CMF" || p === "CM") && (s === "CM" || s === "CDM")) ||
-    ((p === "AMF" || p === "CAM") && (s === "CAM" || s === "SS")) ||
-    ((p === "LWF" || p === "LW") && (s === "LW" || s === "LM")) ||
-    ((p === "RWF" || p === "RW") && (s === "RW" || s === "RM")) ||
-    ((p === "CF" || p === "ST") && (s === "ST" || s === "CF"))
+    (p === "LWB" && (s === "LWB" || s === "LB")) ||
+    (p === "RWB" && (s === "RWB" || s === "RB")) ||
+    ((p === "DMF" || p === "CDM") && (s === "CDM" || s === "DMF")) ||
+    ((p === "CMF" || p === "CM") && (s === "CM" || s === "CMF")) ||
+    ((p === "AMF" || p === "CAM") && (s === "CAM" || s === "AMF")) ||
+    ((p === "LWF" || p === "LW") && (s === "LW" || s === "LWF")) ||
+    ((p === "RWF" || p === "RW") && (s === "RW" || s === "RWF")) ||
+    ((p === "CF" || p === "ST") && (s === "ST" || s === "CF")) ||
+    (p === "SS" && s === "SS")
   ) {
     return 1.0;
   }
 
-  // 3. Adjacent / Secondary positions
-  // Fullbacks to Wingbacks / Wide Midfielders
+  // 3. High Secondary Affinities (90% - 95% Natural fit for flexible tactical roles)
+  // Second Striker adaptations
+  if (s === "SS" && (p === "CF" || p === "ST" || p === "AMF" || p === "CAM")) return 0.95;
+  if (s === "SS" && (p === "LWF" || p === "LW" || p === "RWF" || p === "RW")) return 0.90;
+  if (p === "SS" && (s === "ST" || s === "CF" || s === "CAM" || s === "LW" || s === "RW")) return 0.95;
+
+  // Midfield fluidity (DMF <-> CMF <-> AMF)
+  if ((p === "DMF" || p === "CDM") && (s === "CM" || s === "CMF")) return 0.90;
+  if ((p === "CMF" || p === "CM") && (s === "CDM" || s === "DMF")) return 0.90;
+  if ((p === "CMF" || p === "CM") && (s === "CAM" || s === "AMF")) return 0.85;
+  if ((p === "AMF" || p === "CAM") && (s === "CM" || s === "CMF")) return 0.85;
+
+  // Wingers & Wide Midfielders
+  if ((p === "LWF" || p === "LW") && (s === "LM" || s === "LMF")) return 0.90;
+  if ((p === "LM" || p === "LMF") && (s === "LW" || s === "LWF")) return 0.90;
+  if ((p === "RWF" || p === "RW") && (s === "RM" || s === "RMF")) return 0.90;
+  if ((p === "RM" || p === "RMF") && (s === "RW" || s === "RWF")) return 0.90;
+
+  // Fullbacks & Wingbacks & Wide Midfielders
   if ((p === "LB" || p === "LWB") && (s === "CB" || s === "LM")) return 0.75;
   if ((p === "RB" || p === "RWB") && (s === "CB" || s === "RM")) return 0.75;
   if (p === "CB" && (s === "CDM" || s === "LB" || s === "RB")) return 0.75;
+  if ((p === "DMF" || p === "CDM") && s === "CB") return 0.80;
 
-  // Midfielders
-  if ((p === "DMF" || p === "CDM") && (s === "CB" || s === "CAM")) return 0.75;
-  if ((p === "CMF" || p === "CM") && (s === "CAM" || s === "LM" || s === "RM")) return 0.75;
-  if ((p === "AMF" || p === "CAM") && (s === "CM" || s === "LW" || s === "RW" || s === "ST" || s === "CF")) return 0.75;
-
-  // Wingers
-  if ((p === "LWF" || p === "LW" || p === "LM") && (s === "RW" || s === "RM" || s === "AMF" || s === "CAM" || s === "ST")) return 0.75;
-  if ((p === "RWF" || p === "RW" || p === "RM") && (s === "LW" || s === "LM" || s === "AMF" || s === "CAM" || s === "ST")) return 0.75;
-
-  // Forwards
-  if ((p === "CF" || p === "ST") && (s === "LW" || s === "RW" || s === "CAM" || s === "SS")) return 0.75;
+  // General secondary positions
+  if ((p === "LWF" || p === "LW") && (s === "RW" || s === "ST" || s === "CF")) return 0.75;
+  if ((p === "RWF" || p === "RW") && (s === "LW" || s === "ST" || s === "CF")) return 0.75;
+  if ((p === "CF" || p === "ST") && (s === "LW" || s === "RW" || s === "CAM")) return 0.75;
 
   // 4. Out of position
   return 0.5;

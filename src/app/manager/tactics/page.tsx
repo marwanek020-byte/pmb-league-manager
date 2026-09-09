@@ -42,11 +42,15 @@ export default async function ManagerTacticsPage() {
 
   const serializedSquad: PlayerDTO[] = club.players.map(serializePlayer);
 
-  // Map initial starters slotKey -> playerId
+  // Map initial starters slotKey -> playerId & slotKey -> slotRole
   const initialStarters: Record<string, string> = {};
+  const initialSlotRoles: Record<string, string> = {};
   if (club.lineup?.starters) {
     club.lineup.starters.forEach((s) => {
       initialStarters[s.slotKey] = s.playerId;
+      if (s.slotRole) {
+        initialSlotRoles[s.slotKey] = s.slotRole;
+      }
     });
   }
 
@@ -82,7 +86,7 @@ export default async function ManagerTacticsPage() {
             Tactical Formation & Lineup
           </h1>
           <p className="mt-1 text-xs text-gray-400">
-            Set your team's tactical formation, starting XI, substitutes bench, and set-piece leaders.
+            Set your team&apos;s flexible tactical formation, starting XI, position roles, and bench.
           </p>
         </div>
 
@@ -103,6 +107,7 @@ export default async function ManagerTacticsPage() {
         squad={serializedSquad}
         initialFormation={initialFormation}
         initialStarters={initialStarters}
+        initialSlotRoles={initialSlotRoles}
         initialSubstitutes={initialSubstitutes}
         initialCaptainId={captainPiece?.playerId || null}
         initialViceCaptainId={viceCaptainPiece?.playerId || null}

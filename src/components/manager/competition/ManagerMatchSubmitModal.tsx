@@ -37,6 +37,8 @@ export function ManagerMatchSubmitModal({
   const [isDragging, setIsDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [showKeyInput, setShowKeyInput] = useState(false);
   const [fraudResult, setFraudResult] = useState<{
     reasons: string[];
     penalty: string;
@@ -44,6 +46,13 @@ export function ManagerMatchSubmitModal({
   const [successResult, setSuccessResult] = useState<any | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("pmb_gemini_api_key");
+      if (saved) setCustomApiKey(saved);
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -120,12 +129,17 @@ export function ManagerMatchSubmitModal({
     setFraudResult(null);
 
     try {
+      if (customApiKey.trim() && typeof window !== "undefined") {
+        localStorage.setItem("pmb_gemini_api_key", customApiKey.trim());
+      }
+
       const payload = {
         images: images.map((img) => ({
           mimeType: img.mimeType,
           data: img.dataUrl,
           screenType: img.type,
         })),
+        apiKey: customApiKey.trim() || undefined,
       };
 
       const res = await fetch(`/api/manager/matches/${match?.id}/submit`, {
@@ -179,12 +193,14 @@ export function ManagerMatchSubmitModal({
               📤
             </span>
             <div>
-              <span className="text-[10px] font-black tracking-widest text-pmb-gold uppercase block">
-                Matchday {match.matchday} Result Submission
-              </span>
-              <h2 className="text-base sm:text-xl font-black text-white flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-pmb-gold bg-pmb-gold/15 px-2 py-0.5 rounded-full">
+                  Matchday {match.matchday} Result Submission
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2 mt-0.5">
                 <span>{match.homeClub.name}</span>
-                <span className="text-gray-500 font-normal">vs</span>
+                <span className="text-gray-400 text-xs font-normal">vs</span>
                 <span>{match.awayClub.name}</span>
               </h2>
             </div>
@@ -233,10 +249,10 @@ export function ManagerMatchSubmitModal({
             </p>
             <ul className="text-[11px] text-red-300 space-y-1 list-disc list-inside font-medium pt-1">
               <li>
-                <strong>Fake / Wrong Team Screen:</strong> If you upload a screen against a different club instead of <span className="underline">{opponent.name}</span> $\rightarrow$ <strong className="text-white bg-red-900/60 px-1 py-0.2 rounded">-€10,000,000 fine</strong>!
+                <strong>Fake / Wrong Team Screen:</strong> If you upload a screen against a different club instead of <span className="underline">{opponent.name}</span> ➔ <strong className="text-white bg-red-900/60 px-1 py-0.2 rounded">-€10,000,000 fine</strong>!
               </li>
               <li>
-                <strong>Reused / Duplicate Screens:</strong> Uploading old screens or reusing past goal/assist screens $\rightarrow$ <strong className="text-white bg-red-900/60 px-1 py-0.2 rounded">-€10,000,000 fine</strong> per duplicate screen (up to <strong>-€20M</strong> total)!
+                <strong>Reused / Duplicate Screens:</strong> Uploading old screens or reusing past goal/assist screens ➔ <strong className="text-white bg-red-900/60 px-1 py-0.2 rounded">-€10,000,000 fine</strong> per duplicate screen (up to <strong>-€20M</strong> total)!
               </li>
               <li>
                 <strong>Goal & Assist Cards:</strong> You must upload the highlight cards for goals scored to verify scorers and assists.
@@ -385,6 +401,34 @@ export function ManagerMatchSubmitModal({
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[11px] text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => setShowKeyInput(!showKeyInput)}
+                  className="text-gray-400 hover:text-pmb-gold transition underline cursor-pointer text-[11px]"
+                >
+                  {showKeyInput ? "▲ Hide Custom Gemini API Key" : "⚙️ Custom Gemini API Key (Optional)"}
+                </button>
+              </div>
+
+              {showKeyInput && (
+                <div className="p-3 rounded-xl bg-black/50 border border-white/10 space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Google Gemini API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={customApiKey}
+                    onChange={(e) => setCustomApiKey(e.target.value)}
+                    placeholder="AIzaSy... (Leave blank to use server key)"
+                    className="pmb-input text-xs w-full"
+                  />
+                  <p className="text-[10px] text-gray-500">
+                    Stored safely in your browser localStorage.
+                  </p>
                 </div>
               )}
 
