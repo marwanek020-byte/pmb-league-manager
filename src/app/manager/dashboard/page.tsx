@@ -164,6 +164,12 @@ export default async function ManagerDashboardPage() {
       img: "/dashboard/login-stadium.jpg",
     },
     {
+      href: "/manager/tactics",
+      title: "Tactics & Lineup",
+      sub: "Pitch, formation & starting XI",
+      img: "/dashboard/card-players.jpg",
+    },
+    {
       href: "/manager/players",
       title: "Players",
       sub: "Manage squad",

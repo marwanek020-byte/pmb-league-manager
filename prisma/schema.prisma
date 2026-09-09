@@ -100,6 +100,8 @@ model Club {
   stadiumUpgrade                         StadiumUpgrade?
   rentalOffersFrom                       StadiumRentalOffer[]    @relation("RentalOffersFrom")
   rentalOffersTo                         StadiumRentalOffer[]    @relation("RentalOffersTo")
+  lineup                                 ClubLineup?
+  matchLineups                           MatchLineup[]
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -147,6 +149,12 @@ model Player {
   globalTotwSelections GlobalTotwPlayer[]
   throneCupMotmMatches ThroneCupMatch[]      @relation("ThroneCupMotmMatches")
   throneCupEvents      ThroneCupMatchEvent[]
+  lineupStarters       LineupStarter[]
+  lineupSubstitutes    LineupSubstitute[]
+  setPieceAssignments SetPieceAssignment[]
+  matchStarters        MatchStarter[]
+  matchSubstitutes     MatchSubstitute[]
+  matchSetPieces       MatchSetPiece[]
 
   @@index([fullName])
   @@index([position])
@@ -377,6 +385,7 @@ model Match {
   manOfTheMatch       Player?                @relation("PlayerMotmMatches", fields: [manOfTheMatchId], references: [id])
   budgetTransactions  ClubBudgetTransaction[]
   events              MatchEvent[]
+  matchLineups        MatchLineup[]
 
   @@index([competitionSeasonId])
   @@index([seasonId])
@@ -921,5 +930,190 @@ model ThroneCupMatchEvent {
   player         Player          @relation(fields: [playerId], references: [id])
 
   @@index([matchId])
+  @@index([playerId])
+}
+
+// ── Lineup & Tactical Models ──────────────────────────────────────────
+
+enum FormationName {
+  F433
+  F4231
+  F442
+  F352
+  F532
+  F4141
+  F343
+  F4312
+  F451
+  F541
+  F4411
+  F4222
+}
+
+enum PlayerSlotRole {
+  GK
+  CB
+  LB
+  RB
+  LWB
+  RWB
+  CDM
+  CM
+  CAM
+  LM
+  RM
+  LW
+  RW
+  LF
+  RF
+  CF
+  ST
+  SS
+}
+
+enum SetPieceType {
+  PENALTY
+  FREE_KICK_SHORT
+  FREE_KICK_LONG
+  CORNER_LEFT
+  CORNER_RIGHT
+  CAPTAIN
+  VICE_CAPTAIN
+}
+
+enum LineupStatus {
+  DRAFT
+  CONFIRMED
+  ARCHIVED
+}
+
+model ClubLineup {
+  id          String                  @id @default(cuid())
+  clubId      String                  @unique
+  formation   FormationName           @default(F433)
+  status      LineupStatus            @default(CONFIRMED)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  club        Club                    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  starters    LineupStarter[]
+  substitutes LineupSubstitute[]
+  setPieces   SetPieceAssignment[]
+
+  @@index([clubId])
+}
+
+model LineupStarter {
+  id               String         @id @default(cuid())
+  lineupId         String
+  playerId         String
+  slotKey          String
+  slotRole         PlayerSlotRole
+  positionX        Float
+  positionY        Float
+  positionAffinity Float          @default(1.0)
+
+  lineup           ClubLineup     @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  player           Player         @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([lineupId, slotKey])
+  @@unique([lineupId, playerId])
+  @@index([lineupId])
+  @@index([playerId])
+}
+
+model LineupSubstitute {
+  id        String     @id @default(cuid())
+  lineupId  String
+  playerId  String
+  order     Int        @default(0)
+
+  lineup    ClubLineup @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  player    Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([lineupId, playerId])
+  @@index([lineupId])
+  @@index([playerId])
+}
+
+model SetPieceAssignment {
+  id        String       @id @default(cuid())
+  lineupId  String
+  playerId  String
+  type      SetPieceType
+
+  lineup    ClubLineup   @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  player    Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([lineupId, type])
+  @@index([lineupId])
+  @@index([playerId])
+}
+
+model MatchLineup {
+  id          String             @id @default(cuid())
+  matchId     String
+  clubId      String
+  formation   FormationName      @default(F433)
+  status      LineupStatus       @default(CONFIRMED)
+  lockedAt    DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  match       Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  club        Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  starters    MatchStarter[]
+  substitutes MatchSubstitute[]
+  setPieces   MatchSetPiece[]
+
+  @@unique([matchId, clubId])
+  @@index([matchId])
+  @@index([clubId])
+}
+
+model MatchStarter {
+  id               String         @id @default(cuid())
+  matchLineupId    String
+  playerId         String
+  slotKey          String
+  slotRole         PlayerSlotRole
+  positionX        Float
+  positionY        Float
+  positionAffinity Float          @default(1.0)
+
+  matchLineup      MatchLineup    @relation(fields: [matchLineupId], references: [id], onDelete: Cascade)
+  player           Player         @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchLineupId, slotKey])
+  @@unique([matchLineupId, playerId])
+  @@index([matchLineupId])
+  @@index([playerId])
+}
+
+model MatchSubstitute {
+  id            String      @id @default(cuid())
+  matchLineupId String
+  playerId      String
+  order         Int         @default(0)
+
+  matchLineup   MatchLineup @relation(fields: [matchLineupId], references: [id], onDelete: Cascade)
+  player        Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchLineupId, playerId])
+  @@index([matchLineupId])
+  @@index([playerId])
+}
+
+model MatchSetPiece {
+  id            String       @id @default(cuid())
+  matchLineupId String
+  playerId      String
+  type          SetPieceType
+
+  matchLineup   MatchLineup  @relation(fields: [matchLineupId], references: [id], onDelete: Cascade)
+  player        Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchLineupId, type])
+  @@index([matchLineupId])
   @@index([playerId])
 }

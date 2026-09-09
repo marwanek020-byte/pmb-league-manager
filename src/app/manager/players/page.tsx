@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -56,6 +57,13 @@ export default async function PlayerListPage() {
             Players currently registered to {session.user.clubName ?? "your club"}.
           </p>
         </div>
+
+        <Link
+          href="/manager/tactics"
+          className="flex items-center gap-1.5 rounded-lg border border-pmb-gold/40 bg-pmb-gold/10 px-3.5 py-2 text-xs font-bold text-pmb-gold transition hover:bg-pmb-gold/20"
+        >
+          ⚡ Set Starting Lineup & Tactics →
+        </Link>
       </div>
 
       <PlayerListClient
