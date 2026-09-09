@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { ClubBadge } from "@/components/ClubBadge";
 import { MatchLineupModal } from "@/components/competition/MatchLineupModal";
 import { MatchAIScannerModal } from "@/components/admin/MatchAIScannerModal";
+import { AdminSubmissionReviewModal } from "@/components/admin/AdminSubmissionReviewModal";
 
 type PlayerSummary = {
   id: string;
@@ -116,6 +117,7 @@ export function MatchdayAdmin({
   const [viewingLineupMatchId, setViewingLineupMatchId] = useState<string | null>(null);
   const [currentMatchLineups, setCurrentMatchLineups] = useState<any[]>([]);
   const [aiScannerMatch, setAiScannerMatch] = useState<Match | null>(null);
+  const [reviewSubmissionMatchId, setReviewSubmissionMatchId] = useState<string | null>(null);
 
   async function openAIScanner(m: Match) {
     setAiScannerMatch(m);
@@ -1423,6 +1425,15 @@ export function MatchdayAdmin({
                           <span>Scan AI</span>
                         </button>
                         <button
+                          type="button"
+                          onClick={() => setReviewSubmissionMatchId(match.id)}
+                          className="text-xs px-2.5 py-1.5 rounded-lg font-bold transition bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/40 flex items-center gap-1 shadow-sm cursor-pointer"
+                          title="Review Manager Screenshot Submissions & Anti-Cheat Audit"
+                        >
+                          <span>🛡️</span>
+                          <span>Manager Subs</span>
+                        </button>
+                        <button
                           onClick={() => startEdit(match)}
                           className={[
                             "text-xs px-3 py-1.5 rounded-lg font-semibold transition",
@@ -1499,6 +1510,15 @@ export function MatchdayAdmin({
                                 >
                                   <span>📸</span>
                                   <span>Scan AI</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setReviewSubmissionMatchId(match.id)}
+                                  className="text-xs font-bold px-3 py-1.5 bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 rounded-lg hover:bg-emerald-900/40 transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                  title="Review Manager Screenshot Submissions & Anti-Cheat Audit"
+                                >
+                                  <span>🛡️</span>
+                                  <span>Manager Subs</span>
                                 </button>
                                 <button
                                   type="button"
@@ -1995,6 +2015,16 @@ export function MatchdayAdmin({
         isOpen={!!aiScannerMatch}
         onClose={() => setAiScannerMatch(null)}
         onConfirmResult={handleScanConfirmResult}
+      />
+
+      {/* Admin Review & Anti-Cheat Audit for Manager Submissions */}
+      <AdminSubmissionReviewModal
+        matchId={reviewSubmissionMatchId}
+        isOpen={!!reviewSubmissionMatchId}
+        onClose={() => setReviewSubmissionMatchId(null)}
+        onApproved={() => {
+          loadMatchday(currentMatchday);
+        }}
       />
     </div>
   );

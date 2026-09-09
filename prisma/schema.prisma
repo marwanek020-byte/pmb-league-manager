@@ -98,6 +98,7 @@ model Club {
   throneCupWinnerMatches                 ThroneCupMatch[]        @relation("ThroneCupWinnerMatches")
   throneCupTitles                        ThroneCup[]             @relation("ThroneCupChampion")
   stadiumUpgrade                         StadiumUpgrade?
+  matchSubmissions                       MatchSubmission[]       @relation("ClubSubmissions")
   rentalOffersFrom                       StadiumRentalOffer[]    @relation("RentalOffersFrom")
   rentalOffersTo                         StadiumRentalOffer[]    @relation("RentalOffersTo")
   lineup                                 ClubLineup?
@@ -386,6 +387,7 @@ model Match {
   budgetTransactions  ClubBudgetTransaction[]
   events              MatchEvent[]
   matchLineups        MatchLineup[]
+  submissions         MatchSubmission[]
 
   @@index([competitionSeasonId])
   @@index([seasonId])
@@ -1117,4 +1119,54 @@ model MatchSetPiece {
   @@unique([matchLineupId, type])
   @@index([matchLineupId])
   @@index([playerId])
+}
+
+// ── Manager Match Submissions & Anti-Cheat Fingerprinting ────────────────────
+enum MatchSubmissionStatus {
+  PENDING_ADMIN_REVIEW
+  APPROVED
+  REJECTED_FRAUD
+  REJECTED_MANUAL
+}
+
+model MatchSubmission {
+  id               String                  @id @default(cuid())
+  matchId          String
+  submittingClubId String
+  submittedById    String
+  status           MatchSubmissionStatus   @default(PENDING_ADMIN_REVIEW)
+  homeGoals        Int
+  awayGoals        Int
+  events           Json?                   // Extracted goals, assists, minutes, subs
+  stats            Json?                   // Possession, shots, etc.
+  aiFraudDetected  Boolean                 @default(false)
+  aiFraudReason    String?                 // "WRONG_OPPONENT" | "REUSED_SCREENSHOT" | "COMPOSITE_FRAUD"
+  penaltyApplied   Decimal?                @db.Decimal(14, 2) // e.g. -10000000.00 or -20000000.00
+  adminNotes       String?
+  reviewedAt       DateTime?
+  reviewedById     String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  match            Match                   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  submittingClub   Club                    @relation("ClubSubmissions", fields: [submittingClubId], references: [id])
+  screenshots      MatchSubmissionScreenshot[]
+
+  @@index([matchId])
+  @@index([submittingClubId])
+  @@index([status])
+}
+
+model MatchSubmissionScreenshot {
+  id           String          @id @default(cuid())
+  submissionId String
+  imageHash    String          // SHA-256 hash to detect duplicate/reused screenshots across all matchdays
+  imageUrl     String?
+  screenType   String?         // "FULL_TIME" | "GOAL_HIGHLIGHT" | "OTHER"
+  createdAt    DateTime        @default(now())
+
+  submission   MatchSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([imageHash])
+  @@index([submissionId])
 }

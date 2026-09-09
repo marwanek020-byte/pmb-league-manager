@@ -7,6 +7,7 @@ import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
 import { MatchLineupModal } from "@/components/competition/MatchLineupModal";
+import { ManagerMatchSubmitModal } from "@/components/manager/competition/ManagerMatchSubmitModal";
 
 type Club = {
   id: string;
@@ -79,6 +80,7 @@ export function CompetitionHub({
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("MATCHDAY");
   const [viewingLineupMatchId, setViewingLineupMatchId] = useState<string | null>(null);
+  const [submittingMatch, setSubmittingMatch] = useState<Match | null>(null);
   const [selectedMatchday, setSelectedMatchday] = useState<number>(() => {
     // Default to the first matchday with an upcoming match, else last completed
     const upcoming = allMatches.filter((m) => m.status === "UPCOMING");
@@ -243,16 +245,28 @@ export function CompetitionHub({
             </div>
           </div>
 
-          {/* Season name */}
+          {/* Season name & Actions */}
           <div className="relative z-10 mt-6 text-center space-y-3">
-            <button
-              type="button"
-              onClick={() => setViewingLineupMatchId(headlineMatch.id)}
-              className="inline-flex items-center gap-2 rounded-xl border border-pmb-gold/50 bg-black/70 px-4 py-2 text-xs font-black uppercase tracking-wider text-pmb-gold shadow-lg shadow-black/70 hover:bg-pmb-gold hover:text-pmb-black transition cursor-pointer backdrop-blur-md"
-            >
-              <span>📋</span>
-              <span>View Match Lineups & Tactics</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setViewingLineupMatchId(headlineMatch.id)}
+                className="inline-flex items-center gap-2 rounded-xl border border-pmb-gold/50 bg-black/70 px-4 py-2 text-xs font-black uppercase tracking-wider text-pmb-gold shadow-lg shadow-black/70 hover:bg-pmb-gold hover:text-pmb-black transition cursor-pointer backdrop-blur-md"
+              >
+                <span>📋</span>
+                <span>View Match Lineups</span>
+              </button>
+              {headlineMatch.status === "UPCOMING" && (headlineMatch.homeClub.id === myClubId || headlineMatch.awayClub.id === myClubId) && (
+                <button
+                  type="button"
+                  onClick={() => setSubmittingMatch(headlineMatch)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-400 bg-emerald-500 hover:bg-emerald-400 px-4 py-2 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+                >
+                  <span>📤</span>
+                  <span>Submit Result (AI Scan)</span>
+                </button>
+              )}
+            </div>
             <p className="text-[10px] font-black uppercase tracking-[.35em] text-pmb-gold/80">
               {seasonName}
             </p>
@@ -517,14 +531,26 @@ export function CompetitionHub({
                           Matchday {match.matchday}
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setViewingLineupMatchId(match.id)}
-                        className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-pmb-gold hover:text-white px-2.5 py-1 rounded-md bg-pmb-gold/10 hover:bg-pmb-gold/20 border border-pmb-gold/30 transition cursor-pointer"
-                      >
-                        <span>📋</span>
-                        <span>Lineup</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {isMyMatch && match.status === "UPCOMING" && (
+                          <button
+                            type="button"
+                            onClick={() => setSubmittingMatch(match)}
+                            className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-black bg-emerald-500 hover:bg-emerald-400 px-2.5 py-1 rounded-md shadow transition cursor-pointer"
+                          >
+                            <span>📤</span>
+                            <span>Submit Result</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setViewingLineupMatchId(match.id)}
+                          className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-pmb-gold hover:text-white px-2.5 py-1 rounded-md bg-pmb-gold/10 hover:bg-pmb-gold/20 border border-pmb-gold/30 transition cursor-pointer"
+                        >
+                          <span>📋</span>
+                          <span>Lineup</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1100,6 +1126,18 @@ export function CompetitionHub({
         matchId={viewingLineupMatchId}
         isOpen={!!viewingLineupMatchId}
         onClose={() => setViewingLineupMatchId(null)}
+      />
+
+      {/* Manager Match Result Submission & AI Anti-Cheat Modal */}
+      <ManagerMatchSubmitModal
+        match={submittingMatch}
+        myClubId={myClubId}
+        isOpen={!!submittingMatch}
+        onClose={() => setSubmittingMatch(null)}
+        onSuccess={() => {
+          setSubmittingMatch(null);
+          window.location.reload();
+        }}
       />
     </div>
   );
