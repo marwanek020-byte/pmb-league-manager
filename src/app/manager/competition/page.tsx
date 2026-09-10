@@ -84,13 +84,13 @@ export default async function ManagerCompetitionPage() {
       submissions: {
         select: {
           id: true,
+          submittingClubId: true,
           status: true,
           homeGoals: true,
           awayGoals: true,
           createdAt: true,
         },
         orderBy: { createdAt: "desc" },
-        take: 1,
       },
     },
   });
@@ -115,16 +115,26 @@ export default async function ManagerCompetitionPage() {
     latestSeason.competitionSeason?.name ?? latestSeason.name;
 
   // Serialize for client component
-  const allMatches = allMatchesRaw.map((m) => ({
-    id: m.id,
-    matchday: m.matchday,
-    homeClub: m.homeClub,
-    awayClub: m.awayClub,
-    homeGoals: m.homeGoals,
-    awayGoals: m.awayGoals,
-    status: m.status as "UPCOMING" | "COMPLETED",
-    latestSubmission: m.submissions[0] || null,
-  }));
+  const allMatches = allMatchesRaw.map((m) => {
+    const pendingSubs = m.submissions.filter((s) => s.status === "PENDING_ADMIN_REVIEW");
+    const mySub = pendingSubs.find((s) => s.submittingClubId === club.id) || m.submissions.find((s) => s.submittingClubId === club.id);
+    const opponentSub = pendingSubs.find((s) => s.submittingClubId !== club.id) || m.submissions.find((s) => s.submittingClubId !== club.id);
+    const subWithScore = pendingSubs.find((s) => s.homeGoals != null || s.awayGoals != null) || m.submissions[0];
+
+    return {
+      id: m.id,
+      matchday: m.matchday,
+      homeClub: m.homeClub,
+      awayClub: m.awayClub,
+      homeGoals: m.homeGoals,
+      awayGoals: m.awayGoals,
+      status: m.status as "UPCOMING" | "COMPLETED",
+      latestSubmission: subWithScore || null,
+      hasMySubmission: Boolean(mySub),
+      hasOpponentSubmission: Boolean(opponentSub),
+      pendingSubmissionCount: pendingSubs.length,
+    };
+  });
 
   return (
     <div className="space-y-6">

@@ -179,10 +179,10 @@ ${formatRoster(awayPlayers)}
 
 VERIFICATION CHECKS:
 1. OPPONENT & TEAM CHECK (ANTI-FRAUD):
-   - Examine the teams shown in the Full Time score screen and Goal highlight cards.
-   - Look at Arabic team names (e.g., "الكوكب المراكشي", "الجيش الملكي"), English names ("ASFAR PMB"), acronyms ("MARRAKECH RB", "RABAT VNR"), and club badges.
-   - Does this screenshot show a match between "${match.homeClub.name}" and "${match.awayClub.name}"?
-   - If the screenshot shows a completely different opponent (e.g. against Raja, Wydad, or a random club), set "isOpponentValid": false and state the detected opponent.
+   - Examine the teams shown in the Full Time score screen, Goal highlight cards, or Player Ratings screens.
+   - Note: In this league, BOTH managers can upload their evidence independently (e.g. winner uploads score and ratings, loser uploads goal cards and ratings/MVP).
+   - If the screens show cards, player ratings, or goals belonging to either "${match.homeClub.name}" or "${match.awayClub.name}", this is VALID match evidence for this fixture.
+   - Set "isOpponentValid": false ONLY if the screenshot explicitly shows a match against a completely different external club (e.g. against Raja when scheduled against FAR, or a random CPU/exhibition team) that neither club is playing.
 
 2. EXTRACT SCORE & HIGHLIGHT DETAILS:
    - Extract homeGoals and awayGoals.
@@ -425,6 +425,28 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     });
   }
 
+  // If this submission didn't contain a full-time score screen, check if an existing submission for this match already has the score
+  let detectedHomeGoals = typeof parsed.homeGoals === "number" ? parsed.homeGoals : null;
+  let detectedAwayGoals = typeof parsed.awayGoals === "number" ? parsed.awayGoals : null;
+
+  if (detectedHomeGoals === null || detectedAwayGoals === null) {
+    const existingWithScore = await prisma.matchSubmission.findFirst({
+      where: {
+        matchId,
+        status: MatchSubmissionStatus.PENDING_ADMIN_REVIEW,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (existingWithScore) {
+      if (detectedHomeGoals === null) detectedHomeGoals = existingWithScore.homeGoals;
+      if (detectedAwayGoals === null) detectedAwayGoals = existingWithScore.awayGoals;
+    }
+  }
+
+  const finalHomeGoals = detectedHomeGoals ?? 0;
+  const finalAwayGoals = detectedAwayGoals ?? 0;
+
   // 7. Save MatchSubmission & Screenshots
   const submission = await prisma.matchSubmission.create({
     data: {
@@ -432,8 +454,8 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
       submittingClubId,
       submittedById: submittingUserId,
       status: isFraud ? MatchSubmissionStatus.REJECTED_FRAUD : MatchSubmissionStatus.PENDING_ADMIN_REVIEW,
-      homeGoals: parsed.homeGoals ?? 0,
-      awayGoals: parsed.awayGoals ?? 0,
+      homeGoals: finalHomeGoals,
+      awayGoals: finalAwayGoals,
       events: validGoals,
       stats: submissionStats,
       aiFraudDetected: isFraud,
@@ -459,8 +481,8 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     isFraud,
     fraudReasons,
     penaltyApplied: totalPenalty > 0 ? `€${(totalPenalty / 1_000_000).toFixed(0)}M` : null,
-    homeGoals: parsed.homeGoals ?? 0,
-    awayGoals: parsed.awayGoals ?? 0,
+    homeGoals: finalHomeGoals,
+    awayGoals: finalAwayGoals,
     goals: validGoals,
     mvp: officialMvp || null,
     playerRatings: validRatings,

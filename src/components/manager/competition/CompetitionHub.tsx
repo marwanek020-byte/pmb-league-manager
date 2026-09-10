@@ -29,6 +29,9 @@ type Match = {
     homeGoals: number;
     awayGoals: number;
   } | null;
+  hasMySubmission?: boolean;
+  hasOpponentSubmission?: boolean;
+  pendingSubmissionCount?: number;
 };
 
 type StandingRow = {
@@ -278,11 +281,26 @@ export function CompetitionHub({
                 <span>View Match Lineups</span>
               </button>
               {headlineMatch.status === "UPCOMING" && (headlineMatch.homeClub.id === myClubId || headlineMatch.awayClub.id === myClubId) && (
-                headlineMatch.latestSubmission?.status === "PENDING_ADMIN_REVIEW" ? (
-                  <span className="inline-flex items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-950/70 px-4 py-2 text-xs font-black uppercase tracking-wider text-amber-300 shadow-lg backdrop-blur-md">
-                    <span>⏳</span>
-                    <span>Result Submitted (Pending Admin)</span>
-                  </span>
+                headlineMatch.hasMySubmission ? (
+                  <button
+                    type="button"
+                    onClick={() => setSubmittingMatch(headlineMatch)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-950/70 hover:bg-amber-900/80 px-4 py-2 text-xs font-black uppercase tracking-wider text-amber-300 shadow-lg backdrop-blur-md transition cursor-pointer"
+                    title="Your club uploaded screens. Click to add more (ratings, goals, assists)."
+                  >
+                    <span>📸</span>
+                    <span>Your Screens Submitted · Click to Add More</span>
+                  </button>
+                ) : headlineMatch.hasOpponentSubmission ? (
+                  <button
+                    type="button"
+                    onClick={() => setSubmittingMatch(headlineMatch)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-pmb-gold bg-pmb-gold hover:bg-yellow-400 px-4 py-2 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-pmb-gold/30 transition cursor-pointer animate-pulse"
+                    title="Opponent has submitted. Upload your goals and player ratings now!"
+                  >
+                    <span>📤</span>
+                    <span>Opponent Submitted · Upload Your Screens</span>
+                  </button>
                 ) : (
                   <button
                     type="button"
@@ -518,8 +536,12 @@ export function CompetitionHub({
                                 {match.latestSubmission.awayGoals}
                               </span>
                             </div>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-amber-400 animate-pulse mt-0.5">
-                              ⏳ PENDING
+                            <span className="text-[8px] font-black uppercase tracking-widest text-amber-400 animate-pulse mt-0.5 whitespace-nowrap">
+                              {match.hasMySubmission && match.hasOpponentSubmission
+                                ? "👥 BOTH SUBMITTED"
+                                : match.hasMySubmission
+                                ? "⏳ AWAITING ADMIN"
+                                : "⏳ OPPONENT SUBMITTED"}
                             </span>
                           </div>
                         ) : (
@@ -576,11 +598,26 @@ export function CompetitionHub({
                       )}
                       <div className="flex items-center gap-2">
                         {isMyMatch && match.status === "UPCOMING" && (
-                          match.latestSubmission?.status === "PENDING_ADMIN_REVIEW" ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/60 border border-amber-500/40 px-2.5 py-1 rounded-md shadow">
-                              <span>⏳</span>
-                              <span>Pending Admin</span>
-                            </span>
+                          match.hasMySubmission ? (
+                            <button
+                              type="button"
+                              onClick={() => setSubmittingMatch(match)}
+                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-950/60 hover:bg-amber-900/60 border border-amber-500/40 px-2.5 py-1 rounded-md shadow transition cursor-pointer"
+                              title="Your club uploaded screens. Click to add more (ratings, goals, assists)."
+                            >
+                              <span>📸</span>
+                              <span>Add Screens</span>
+                            </button>
+                          ) : match.hasOpponentSubmission ? (
+                            <button
+                              type="button"
+                              onClick={() => setSubmittingMatch(match)}
+                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-black bg-pmb-gold hover:bg-yellow-400 px-2.5 py-1 rounded-md shadow transition cursor-pointer animate-pulse"
+                              title="Opponent uploaded screens. Click to upload your goals and player ratings!"
+                            >
+                              <span>📤</span>
+                              <span>Upload Your Screens</span>
+                            </button>
                           ) : (
                             <button
                               type="button"

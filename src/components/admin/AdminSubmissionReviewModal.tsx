@@ -190,25 +190,69 @@ export function AdminSubmissionReviewModal({
             <div className="space-y-5">
               {/* Submission Selector if multiple */}
               {submissions.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {submissions.map((sub, idx) => (
-                    <button
-                      key={sub.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedSubIndex(idx);
-                        setActiveImageIndex(0);
-                      }}
-                      className={[
-                        "px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer",
-                        selectedSubIndex === idx
-                          ? "bg-pmb-gold text-pmb-black shadow"
-                          : "bg-white/10 text-gray-300 hover:bg-white/20",
-                      ].join(" ")}
-                    >
-                      Submission #{submissions.length - idx} · {sub.submittingClub.name}
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  {new Set(submissions.map((s) => s.submittingClubId)).size >= 2 && (
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-pmb-gold/20 via-amber-500/15 to-pmb-gold/20 border border-pmb-gold/40 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">👥</span>
+                        <div>
+                          <span className="font-black text-pmb-gold uppercase tracking-wider block">
+                            Dual-Manager Match Evidence Active
+                          </span>
+                          <p className="text-gray-300 text-[11px]">
+                            Both clubs submitted screenshots for this fixture. Review each upload below. Approving will automatically merge all goals, assists, and player ratings from both clubs.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-pmb-gold text-pmb-black text-[10px] font-black uppercase tracking-wider whitespace-nowrap shadow">
+                        {submissions.length} Uploads · 2 Clubs
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {submissions.map((sub, idx) => {
+                      const isSelected = selectedSubIndex === idx;
+                      const count = sub.screenshots?.length || 0;
+                      return (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSubIndex(idx);
+                            setActiveImageIndex(0);
+                          }}
+                          className={[
+                            "px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 border",
+                            isSelected
+                              ? "bg-pmb-gold text-pmb-black border-amber-300 shadow-md shadow-pmb-gold/20 font-black"
+                              : "bg-white/5 text-gray-300 hover:bg-white/15 border-white/10",
+                          ].join(" ")}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{
+                              backgroundColor: sub.aiFraudDetected
+                                ? "#ef4444"
+                                : sub.status === "APPROVED"
+                                ? "#10b981"
+                                : "#f59e0b",
+                            }}
+                          />
+                          <span>{sub.submittingClub.name}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded ${
+                              isSelected
+                                ? "bg-black/20 text-black font-black"
+                                : "bg-white/10 text-gray-400"
+                            }`}
+                          >
+                            {count} {count === 1 ? "screen" : "screens"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -552,7 +596,10 @@ export function AdminSubmissionReviewModal({
                   </>
                 ) : (
                   <>
-                    <span>✓ Approve & Apply Result</span>
+                    <span>
+                      ✓ Approve & Apply Result
+                      {submissions.length > 1 ? ` (${submissions.length} Submissions Merged)` : ""}
+                    </span>
                   </>
                 )}
               </button>

@@ -100,34 +100,76 @@ export async function PATCH(
     }
 
     if (action === "APPROVE") {
-      // Finalize the match using the submission's extracted goals & score
+      // Collect all submissions for this fixture
+      const allFixtureSubs = await prisma.matchSubmission.findMany({
+        where: { matchId: params.matchId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Best verified scores from submissions
       const homeGoals = submission.homeGoals;
       const awayGoals = submission.awayGoals;
-      const events = (submission.events as any[]) || [];
+
+      // 1. Merge goals & events across all submissions, deduplicating identical goals
+      const mergedEvents: any[] = [];
+      const seenEventKeys = new Set<string>();
+
+      for (const sub of allFixtureSubs) {
+        const subEvents = (sub.events as any[]) || [];
+        for (const ev of subEvents) {
+          const key = `${ev.clubId}_${ev.playerId}_${ev.minute || 0}`;
+          if (!seenEventKeys.has(key)) {
+            seenEventKeys.add(key);
+            mergedEvents.push(ev);
+          }
+        }
+      }
+
+      // 2. Merge player ratings across all submissions
+      const mergedRatingsMap = new Map<string, any>();
+      let officialMvpPlayerId: string | null = null;
+
+      for (const sub of allFixtureSubs) {
+        const stats = (sub.stats as any) || {};
+        if (stats?.mvp?.playerId) {
+          officialMvpPlayerId = stats.mvp.playerId;
+        }
+        const ratings = Array.isArray(stats?.playerRatings) ? stats.playerRatings : [];
+        for (const r of ratings) {
+          if (r.playerId) {
+            if (!mergedRatingsMap.has(r.playerId) || r.isMvp) {
+              mergedRatingsMap.set(r.playerId, r);
+            }
+            if (r.isMvp) officialMvpPlayerId = r.playerId;
+          }
+        }
+      }
+
+      const combinedPlayerRatings = Array.from(mergedRatingsMap.values());
+      if (!officialMvpPlayerId && combinedPlayerRatings.length > 0) {
+        const top = [...combinedPlayerRatings].sort((a, b) => (b.rating || 0) - (a.rating || 0))[0];
+        if (top?.playerId) officialMvpPlayerId = top.playerId;
+      }
 
       await prisma.$transaction(async (tx) => {
-        const stats = (submission.stats as any) || {};
-        const mvpPlayerId = stats?.mvp?.playerId || null;
-        const playerRatings = stats?.playerRatings || null;
-
-        // 1. Update Match record
+        // Update Match record
         await tx.match.update({
           where: { id: params.matchId },
           data: {
             homeGoals,
             awayGoals,
             status: "COMPLETED",
-            ...(mvpPlayerId ? { manOfTheMatchId: mvpPlayerId } : {}),
-            ...(playerRatings ? { playerRatings } : {}),
+            ...(officialMvpPlayerId ? { manOfTheMatchId: officialMvpPlayerId } : {}),
+            ...(combinedPlayerRatings.length > 0 ? { playerRatings: combinedPlayerRatings } : {}),
           },
         });
 
-        // 2. Clear old events and create extracted events
+        // Clear old events and create merged extracted events
         await tx.matchEvent.deleteMany({ where: { matchId: params.matchId } });
 
-        if (events.length > 0) {
+        if (mergedEvents.length > 0) {
           await tx.matchEvent.createMany({
-            data: events.map((ev) => ({
+            data: mergedEvents.map((ev) => ({
               matchId: params.matchId,
               clubId: ev.clubId,
               playerId: ev.playerId,
@@ -138,7 +180,7 @@ export async function PATCH(
           });
         }
 
-        // 3. Rewards & Revenue
+        // Rewards & Revenue
         await applyMatchRewards(
           tx,
           params.matchId,
@@ -150,9 +192,12 @@ export async function PATCH(
 
         await applyMatchdayRevenue(tx, params.matchId);
 
-        // 4. Update submission status
-        await tx.matchSubmission.update({
-          where: { id: submissionId },
+        // Approve ALL pending submissions for this match
+        await tx.matchSubmission.updateMany({
+          where: {
+            matchId: params.matchId,
+            status: MatchSubmissionStatus.PENDING_ADMIN_REVIEW,
+          },
           data: {
             status: MatchSubmissionStatus.APPROVED,
             adminNotes: adminNotes || "Approved and finalized by League Administrator.",
