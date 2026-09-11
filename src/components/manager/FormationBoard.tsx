@@ -640,7 +640,7 @@ export function FormationBoard({
               </svg>
 
               {/* Pitch Header info */}
-              <div className="absolute top-3 left-4 z-10 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-bold text-gray-300 backdrop-blur-md">
+              <div className="absolute top-3 left-4 z-10 flex items-center gap-2 rounded-full bg-black/80 px-3 py-1 text-[11px] font-bold text-gray-300">
                 <Shield className="h-3.5 w-3.5 text-pmb-gold" />
                 <span>{clubName}</span>
                 <span className="text-gray-500">•</span>
@@ -743,7 +743,7 @@ export function FormationBoard({
 
                         {/* Player Name & Role Chip */}
                         <div className="mt-1 flex max-w-[90px] flex-col items-center text-center">
-                          <span className="truncate rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm">
+                          <span className="truncate rounded bg-black/90 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
                             {player.fullName.split(" ").slice(-1)[0]}
                           </span>
                           <div className="mt-0.5 flex items-center gap-1">
@@ -782,7 +782,7 @@ export function FormationBoard({
                         {/* Floating Position Selector Popover */}
                         {isMenuOpen && availableRoles.length > 1 && (
                           <div
-                            className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-xl border border-pmb-gold bg-black/95 px-2 py-1 shadow-2xl backdrop-blur-md whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
+                            className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-xl border border-pmb-gold bg-neutral-950 px-2 py-1 shadow-2xl whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <span className="text-[8px] font-black uppercase text-gray-400 pr-0.5">Pos:</span>
@@ -843,7 +843,7 @@ export function FormationBoard({
                         {/* Floating Position Selector Popover for Empty Slot */}
                         {isMenuOpen && availableRoles.length > 1 && (
                           <div
-                            className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-xl border border-pmb-gold bg-black/95 px-2 py-1 shadow-2xl backdrop-blur-md whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
+                            className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-xl border border-pmb-gold bg-neutral-950 px-2 py-1 shadow-2xl whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <span className="text-[8px] font-black uppercase text-gray-400 pr-0.5">Pos:</span>

@@ -63,22 +63,18 @@ export function ManagerMatchSubmitModal({
     }
   }, [isOpen]);
 
-function optimizeImageForUpload(file: File, maxDim = 1920, quality = 0.85): Promise<{ dataUrl: string; mimeType: string }> {
+function optimizeImageForUpload(file: File, maxDim = 1280, quality = 0.68): Promise<{ dataUrl: string; mimeType: string }> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const src = e.target?.result as string;
       if (!src) {
-        resolve({ dataUrl: "", mimeType: file.type || "image/jpeg" });
+        resolve({ dataUrl: "", mimeType: "image/jpeg" });
         return;
       }
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
-        if (width <= maxDim && height <= maxDim && file.size < 800_000 && file.type === "image/jpeg") {
-          resolve({ dataUrl: src, mimeType: file.type });
-          return;
-        }
         if (width > maxDim || height > maxDim) {
           if (width > height) {
             height = Math.round((height * maxDim) / width);
@@ -215,7 +211,17 @@ function optimizeImageForUpload(file: File, maxDim = 1920, quality = 0.85): Prom
         }, 2200);
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred while submitting.");
+      const rawMsg = err?.message || "";
+      if (
+        rawMsg.toLowerCase().includes("load failed") ||
+        rawMsg.toLowerCase().includes("failed to fetch")
+      ) {
+        setError(
+          "Network upload failed (connection dropped or payload too large). Please check your connection or upload fewer screenshots."
+        );
+      } else {
+        setError(rawMsg || "An error occurred while submitting.");
+      }
     } finally {
       setSubmitting(false);
     }

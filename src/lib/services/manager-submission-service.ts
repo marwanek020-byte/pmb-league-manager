@@ -258,7 +258,7 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     };
   });
 
-  const candidateModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash"];
+  const candidateModels = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-flash-latest"];
   let aiResponseText: string | null = null;
   let lastError: any = null;
 
