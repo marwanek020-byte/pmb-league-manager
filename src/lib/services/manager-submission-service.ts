@@ -258,7 +258,7 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     };
   });
 
-  const candidateModels = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-flash-latest"];
+  const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
   let aiResponseText: string | null = null;
   let lastError: any = null;
 
@@ -285,7 +285,12 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
         if (aiResponseText) break;
       } else {
         const errBody = await geminiRes.json().catch(() => ({}));
-        lastError = errBody.error?.message || `Model ${modelName} returned status ${geminiRes.status}`;
+        const rawMsg = errBody.error?.message || `Model ${modelName} returned status ${geminiRes.status}`;
+        if (geminiRes.status === 429 || rawMsg.toLowerCase().includes("quota")) {
+          lastError = "AI scanner rate limit reached on Free Tier. Please wait 30 seconds and click Submit again.";
+        } else {
+          lastError = rawMsg;
+        }
       }
     } catch (err: any) {
       lastError = err.message || "Network error calling Gemini API";

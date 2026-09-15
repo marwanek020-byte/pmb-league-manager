@@ -75,7 +75,8 @@ Visit `http://localhost:3000`.
   lowercasing the club name and stripping spaces/punctuation — check
   `prisma/seed.ts` or the Admin Dashboard search bar if you're unsure of
   one.
-- Password (all managers): `PMB2026!`
+- Password (BOTOLA PRO managers): `PMB2026!`
+- Password (All other leagues' managers): `PMB2026New!`
 
 ## Architecture notes
 
