@@ -197,19 +197,22 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
         if (data.botolaLeague) setBotolaLeague(data.botolaLeague);
         if (data.availableMatchdays) setAvailableMatchdays(data.availableMatchdays);
 
-        let initialMds: number[] = [];
-        if (data.selectedRounds && data.selectedRounds.length > 0) {
-          initialMds = data.selectedRounds.map((r: any) => r.matchday);
+        // ALWAYS AUTOMATICALLY TAKE THE LAST 4 COMPLETED ROUNDS
+        let last4Mds: number[] = [];
+        if (data.availableMatchdays && data.availableMatchdays.length > 0) {
+          last4Mds = data.availableMatchdays.map((m: any) => m.matchday).slice(-4);
         } else if (data.defaultMonthMatchdays && data.defaultMonthMatchdays.length > 0) {
-          initialMds = data.defaultMonthMatchdays;
+          last4Mds = data.defaultMonthMatchdays;
         } else {
-          initialMds = [1, 2, 3, 4];
+          last4Mds = [1, 2, 3, 4];
         }
-        setSelectedMatchdays(initialMds);
+        setSelectedMatchdays(last4Mds);
 
         if (data.candidates) setAdminCandidates(data.candidates);
         if (data.suggestedLineup) setSuggestedLineup(data.suggestedLineup);
         if (data.podium) setAdminPodium(data.podium);
+
+        setAdminMessage(`⚡ Automatically selected the last 4 completed Botola rounds: Matchdays [${last4Mds.join(", ")}]`);
       }
     } catch (err) {
       console.error(err);
@@ -622,13 +625,28 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
                     All 11 players selected strictly from Moroccan clubs (Max 3 / club)
                   </span>
                 </div>
-                <button
-                  onClick={() => handleRecalculate(selectedMatchdays)}
-                  disabled={adminSaving}
-                  className="text-[11px] font-bold px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg hover:bg-emerald-500/30 transition flex items-center gap-1 cursor-pointer"
-                >
-                  <span>🔄</span> Recalculate Botola Stars
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const last4 = availableMatchdays.map((m) => m.matchday).slice(-4);
+                      setSelectedMatchdays(last4);
+                      handleRecalculate(last4);
+                    }}
+                    disabled={adminSaving || availableMatchdays.length === 0}
+                    className="text-[11px] font-black px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-400 text-black rounded-lg hover:brightness-110 transition flex items-center gap-1 cursor-pointer shadow"
+                    title="Automatically take the last 4 completed matchdays of Botola Pro"
+                  >
+                    <span>⚡</span> Auto-Select Last 4 Rounds
+                  </button>
+                  <button
+                    onClick={() => handleRecalculate(selectedMatchdays)}
+                    disabled={adminSaving}
+                    className="text-[11px] font-bold px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg hover:bg-emerald-500/30 transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>🔄</span> Recalculate
+                  </button>
+                </div>
               </div>
 
               {/* Matchday Toggle Pills */}

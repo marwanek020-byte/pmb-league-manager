@@ -125,21 +125,14 @@ export async function detectBotolaMonthRounds(month: number = 1): Promise<Botola
     .map(([matchday, completedMatches]) => ({ matchday, completedMatches }))
     .sort((a, b) => a.matchday - b.matchday);
 
-  // Default month matchday grouping: Month 1 = MD 1-4, Month 2 = MD 5-8, Month 3 = MD 9-12, etc.
-  const startMd = (month - 1) * 4 + 1;
-  const endMd = month * 4;
-  let defaultMonthMatchdays = availableMatchdays
-    .filter((m) => m.matchday >= startMd && m.matchday <= endMd)
-    .map((m) => m.matchday);
-
-  if (defaultMonthMatchdays.length === 0 && availableMatchdays.length > 0) {
-    defaultMonthMatchdays = availableMatchdays.slice(0, 4).map((m) => m.matchday);
-  }
+  // AUTOMATICALLY TAKE THE LAST 4 COMPLETED ROUNDS
+  const allMds = availableMatchdays.map((m) => m.matchday);
+  const last4CompletedMatchdays = allMds.length > 4 ? allMds.slice(-4) : allMds;
 
   return {
     botolaLeague: botola,
     availableMatchdays,
-    defaultMonthMatchdays,
+    defaultMonthMatchdays: last4CompletedMatchdays,
   };
 }
 
