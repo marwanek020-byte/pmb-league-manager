@@ -415,7 +415,7 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
    * 5. 🤖 AUTOMATIC AI ULTRAS REPLY TO MANAGER POSTS
    * Intelligently reads and analyzes manager publications:
    * - Detects post topic, language, and mentioned clubs/opponents.
-   * - Uses multi-model Gemini cascade ("gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash", "gemini-1.5-pro").
+   * - Uses multi-model Gemini cascade ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash").
    * - Triggers authentic, culturally adaptive commentary from the author's Ultras.
    * - Triggers genuine counter-banter from mentioned opponents (e.g. West Ham Ultras in English with Hammers culture, NOT Raja Casablanca!).
    * - Provides rich, varied, context-aware NLP offline templates when Gemini is offline.
@@ -451,9 +451,10 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
       // 1. Try Gemini Multi-Model Cascade for Author Club Ultras
       if (geminiApiKey) {
         const candidateModels = [
+          "gemini-2.5-flash",
           "gemini-2.0-flash",
+          "gemini-1.5-flash-latest",
           "gemini-1.5-flash",
-          "gemini-1.5-pro",
         ];
 
         const systemInstruction = `You are the authentic Ultras Fan Group leader of "${clubName}" named "${ultras.groupName}" (${ultras.bannerEmoji}).

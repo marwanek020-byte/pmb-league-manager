@@ -283,9 +283,10 @@ export async function POST(request: NextRequest) {
     // ── 1. GOOGLE GEMINI MULTI-MODEL CASCADE ──────────────────────────────────
     if (geminiApiKey) {
       const candidateModels = [
+        "gemini-2.5-flash",
         "gemini-2.0-flash",
+        "gemini-1.5-flash-latest",
         "gemini-1.5-flash",
-        "gemini-1.5-pro",
       ];
 
       const systemPrompt = `You are the VIP Sporting Director, Chief Scout, and Chief Tactical Analyst of "${club.name}" in PMB League Manager.

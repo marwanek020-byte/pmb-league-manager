@@ -258,9 +258,15 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     };
   });
 
-  const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+  const candidateModels = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash",
+  ];
   let aiResponseText: string | null = null;
   let lastError: any = null;
+  let hasQuotaLimit = false;
 
   for (const modelName of candidateModels) {
     try {
@@ -286,19 +292,24 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
       } else {
         const errBody = await geminiRes.json().catch(() => ({}));
         const rawMsg = errBody.error?.message || `Model ${modelName} returned status ${geminiRes.status}`;
-        if (geminiRes.status === 429 || rawMsg.toLowerCase().includes("quota")) {
-          lastError = "AI scanner rate limit reached on Free Tier. Please wait 30 seconds and click Submit again.";
-        } else {
+        if (geminiRes.status === 429 || rawMsg.toLowerCase().includes("quota") || rawMsg.toLowerCase().includes("resource_exhausted")) {
+          hasQuotaLimit = true;
+          lastError = "AI scanner rate limit or quota reached on Free Tier. Please wait 30–60 seconds, or expand '⚙️ Custom Gemini API Key' below to use your own Google AI key.";
+        } else if (!hasQuotaLimit) {
           lastError = rawMsg;
         }
       }
     } catch (err: any) {
-      lastError = err.message || "Network error calling Gemini API";
+      if (!hasQuotaLimit) {
+        lastError = err.message || "Network error calling Gemini API";
+      }
     }
   }
 
   if (!aiResponseText) {
-    throw new Error(lastError || "Failed to analyze screenshots with AI Vision.");
+    throw new Error(
+      lastError || "Failed to analyze screenshots with AI Vision. Please check your Gemini API key or try again in a moment."
+    );
   }
 
   let parsed: any;
