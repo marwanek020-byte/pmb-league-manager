@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { resolveGeminiApiKey } from "@/lib/services/gemini-key-resolver";
+import { resolveGeminiApiKey, GEMINI_CANDIDATE_MODELS } from "@/lib/services/gemini-key-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -215,12 +215,7 @@ OUTPUT FORMAT: Return STRICTLY JSON with this schema (no markdown fences, no con
       };
     });
 
-    const candidateModels = [
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
-    ];
+    const candidateModels = GEMINI_CANDIDATE_MODELS;
     let aiResponseText: string | null = null;
     let lastError: any = null;
     let hasQuotaLimit = false;

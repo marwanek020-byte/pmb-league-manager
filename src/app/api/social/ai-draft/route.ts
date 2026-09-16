@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getClubUltras } from "@/lib/services/ultras-registry";
+import { resolveGeminiApiKey, GEMINI_CANDIDATE_MODELS } from "@/lib/services/gemini-key-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ultras = getClubUltras(club.name);
-    const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
+    const geminiApiKey = resolveGeminiApiKey();
 
     // Template Fallback Generator
     const generateTemplate = () => {
@@ -105,12 +106,7 @@ export async function POST(req: NextRequest) {
 
     // If Gemini is available, generate a tailored prompt
     if (geminiApiKey) {
-      const candidateModels = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash",
-      ];
+      const candidateModels = GEMINI_CANDIDATE_MODELS;
 
       const langInstruction =
         language === "AR"

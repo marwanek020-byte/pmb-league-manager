@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PlayerFitService } from "@/lib/services/player-fit-service";
 import { WhatIfSimulatorService } from "@/lib/services/what-if-simulator-service";
 import { OpponentTacticalService } from "@/lib/services/opponent-tactical-service";
+import { resolveGeminiApiKey, GEMINI_CANDIDATE_MODELS } from "@/lib/services/gemini-key-resolver";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     const budgetEur = (Number(club.budget) / 1_000_000).toFixed(1);
     const budgetNum = Number(club.budget);
     const lower = message.toLowerCase().trim();
-    const geminiApiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim();
+    const geminiApiKey = resolveGeminiApiKey();
 
     const isArabic = /[\u0600-\u06FF]/.test(message);
     const isFrench = /\b(bonjour|salut|trouver|défenseur|attaquant|milieu|gardien|prochain|adversaire|plan|équipe|joueur)\b/i.test(lower);
@@ -282,12 +283,7 @@ export async function POST(request: NextRequest) {
 
     // ── 1. GOOGLE GEMINI MULTI-MODEL CASCADE ──────────────────────────────────
     if (geminiApiKey) {
-      const candidateModels = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash",
-      ];
+      const candidateModels = GEMINI_CANDIDATE_MODELS;
 
       const systemPrompt = `You are the VIP Sporting Director, Chief Scout, and Chief Tactical Analyst of "${club.name}" in PMB League Manager.
 You are in a direct discussion with your club manager (@${club.manager?.username || "Boss"}).

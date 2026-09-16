@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Prisma, BudgetTransactionType, MatchSubmissionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
-import { resolveGeminiApiKey } from "@/lib/services/gemini-key-resolver";
+import { resolveGeminiApiKey, GEMINI_CANDIDATE_MODELS } from "@/lib/services/gemini-key-resolver";
 
 // ── Image Hashing ────────────────────────────────────────────────────────────
 export function computeImageHash(base64Data: string): string {
@@ -258,12 +258,7 @@ OUTPUT STRICT JSON FORMAT (no markdown fences, no conversational text):
     };
   });
 
-  const candidateModels = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash",
-  ];
+  const candidateModels = GEMINI_CANDIDATE_MODELS;
   let aiResponseText: string | null = null;
   let lastError: any = null;
   let hasQuotaLimit = false;

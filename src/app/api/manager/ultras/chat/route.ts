@@ -8,6 +8,7 @@ import {
   UltrasEmotionalState,
 } from "@/lib/services/ultras-mentality-engine";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
+import { resolveGeminiApiKey, GEMINI_CANDIDATE_MODELS } from "@/lib/services/gemini-key-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -133,16 +134,11 @@ export async function POST(req: NextRequest) {
     const language: "AR" | "FR" | "EN" = isArabic ? "AR" : isFrench ? "FR" : "EN";
 
     // 4. Generate Capo Response via Gemini Multi-Model Cascade
-    const geminiApiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim();
+    const geminiApiKey = resolveGeminiApiKey();
     let replyText = "";
 
     if (geminiApiKey) {
-      const candidateModels = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash",
-      ];
+      const candidateModels = GEMINI_CANDIDATE_MODELS;
 
       const systemInstruction = UltrasMentalityEngine.buildCapoSystemInstruction({
         ultras,

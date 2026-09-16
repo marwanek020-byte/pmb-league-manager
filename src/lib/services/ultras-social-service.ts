@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getClubUltras, findMentionedClubsInText, UltrasGroup } from "@/lib/services/ultras-registry";
 import { UltrasMentalityEngine } from "@/lib/services/ultras-mentality-engine";
+import { GEMINI_CANDIDATE_MODELS } from "@/lib/services/gemini-key-resolver";
 
 /**
  * Service to manage AI Ultras, Social Media Breaking News,
@@ -415,7 +416,7 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
    * 5. 🤖 AUTOMATIC AI ULTRAS REPLY TO MANAGER POSTS
    * Intelligently reads and analyzes manager publications:
    * - Detects post topic, language, and mentioned clubs/opponents.
-   * - Uses multi-model Gemini cascade ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash").
+   * - Uses multi-model Gemini cascade (GEMINI_CANDIDATE_MODELS: "gemini-3.6-flash", "gemini-flash-latest", etc.).
    * - Triggers authentic, culturally adaptive commentary from the author's Ultras.
    * - Triggers genuine counter-banter from mentioned opponents (e.g. West Ham Ultras in English with Hammers culture, NOT Raja Casablanca!).
    * - Provides rich, varied, context-aware NLP offline templates when Gemini is offline.
@@ -450,12 +451,7 @@ ${match.manOfTheMatch ? `\n⭐ **رجل المباراة (MOTM)**: **${match.man
 
       // 1. Try Gemini Multi-Model Cascade for Author Club Ultras
       if (geminiApiKey) {
-        const candidateModels = [
-          "gemini-2.5-flash",
-          "gemini-2.0-flash",
-          "gemini-1.5-flash-latest",
-          "gemini-1.5-flash",
-        ];
+        const candidateModels = GEMINI_CANDIDATE_MODELS;
 
         const systemInstruction = `You are the authentic Ultras Fan Group leader of "${clubName}" named "${ultras.groupName}" (${ultras.bannerEmoji}).
 Official Group: "${ultras.officialGroupTitle}".
@@ -535,7 +531,7 @@ Language of publication: ${postLang}`;
         let oppCommentText = "";
 
         if (geminiApiKey) {
-          const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
+          const candidateModels = GEMINI_CANDIDATE_MODELS;
           const oppPrompt = `You are "${oppUltras.groupName}" (${oppUltras.bannerEmoji}), the authentic Ultras of "${oppUltras.clubName}".
 Anthem/Chant: "${oppUltras.chants[0]}".
 The manager of "${clubName}" just published this social post mentioning/clashing your team:

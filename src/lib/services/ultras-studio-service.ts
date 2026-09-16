@@ -1,5 +1,6 @@
 import { UltrasGroup, getClubUltras } from "./ultras-registry";
 import { UltrasMentalityEngine, CapoPersona } from "./ultras-mentality-engine";
+import { GEMINI_CANDIDATE_MODELS } from "./gemini-key-resolver";
 
 export interface GeneratedChant {
   id: string;
@@ -82,12 +83,7 @@ Requirements:
   "englishTranslation": "Short meaning summary"
 }`;
 
-        const candidateModels = [
-          "gemini-2.5-flash",
-          "gemini-2.0-flash",
-          "gemini-1.5-flash-latest",
-          "gemini-1.5-flash",
-        ];
+        const candidateModels = GEMINI_CANDIDATE_MODELS;
         for (const modelName of candidateModels) {
           const res = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`,
