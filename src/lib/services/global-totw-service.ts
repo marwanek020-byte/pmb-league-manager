@@ -489,72 +489,86 @@ export async function applyGlobalTotwRewards(
     const reversalAmount = reversalByClub.get(clubId)!;
     if (reversalAmount.isZero()) continue;
 
-    const currentBudget = await lockClubBudget(tx, clubId);
-    await applyBudgetTransaction(tx, {
-      clubId,
-      amount: reversalAmount,
-      currentBudget,
-      type: BudgetTransactionType.COMPETITION_REWARD,
-      description: `Reversed: ${descPrefix} Previous Botola TOTM reward adjustment`,
-    });
+    try {
+      const clubExists = await tx.club.findUnique({ where: { id: clubId }, select: { id: true } });
+      if (!clubExists) continue;
+
+      const currentBudget = await lockClubBudget(tx, clubId);
+      await applyBudgetTransaction(tx, {
+        clubId,
+        amount: reversalAmount,
+        currentBudget,
+        type: BudgetTransactionType.COMPETITION_REWARD,
+        description: `Reversed: ${descPrefix} Previous Botola TOTM reward adjustment`,
+      });
+    } catch (err) {
+      console.warn(`Could not reverse previous reward for club ${clubId}:`, err);
+    }
   }
 
   // 2. Apply new rewards in deterministic order by clubId
-  const clubIds = [...new Set(players.map((p) => p.clubId))].sort();
+  const clubIds = [...new Set(players.map((p) => p.clubId).filter(Boolean))].sort();
 
   for (const clubId of clubIds) {
-    const clubPlayers = players.filter((p) => p.clubId === clubId);
+    try {
+      const clubExists = await tx.club.findUnique({ where: { id: clubId }, select: { id: true } });
+      if (!clubExists) continue;
 
-    for (const p of clubPlayers) {
-      // Base €1,000,000 selection reward
-      let currentBudget = await lockClubBudget(tx, clubId);
-      currentBudget = await applyBudgetTransaction(tx, {
-        clubId,
-        amount: BOTOLA_TOTM_SELECTION_REWARD,
-        currentBudget,
-        type: BudgetTransactionType.COMPETITION_REWARD,
-        description: `${descPrefix} Selection Reward (€1,000,000)`,
-        playerId: p.playerId,
-      });
+      const clubPlayers = players.filter((p) => p.clubId === clubId);
 
-      // 🥇 1st Place Botola MVP (+€3,000,000)
-      if (p.podiumRank === 1) {
-        currentBudget = await lockClubBudget(tx, clubId);
-        await applyBudgetTransaction(tx, {
+      for (const p of clubPlayers) {
+        // Base €1,000,000 selection reward
+        let currentBudget = await lockClubBudget(tx, clubId);
+        currentBudget = await applyBudgetTransaction(tx, {
           clubId,
-          amount: BOTOLA_TOTM_1ST_PRIZE,
+          amount: BOTOLA_TOTM_SELECTION_REWARD,
           currentBudget,
           type: BudgetTransactionType.COMPETITION_REWARD,
-          description: `${descPrefix} 1st Place Botola MVP Prize (€3,000,000)`,
+          description: `${descPrefix} Selection Reward (€1,000,000)`,
           playerId: p.playerId,
         });
-      }
 
-      // 🥈 2nd Place Botola Star (+€1,750,000)
-      else if (p.podiumRank === 2) {
-        currentBudget = await lockClubBudget(tx, clubId);
-        await applyBudgetTransaction(tx, {
-          clubId,
-          amount: BOTOLA_TOTM_2ND_PRIZE,
-          currentBudget,
-          type: BudgetTransactionType.COMPETITION_REWARD,
-          description: `${descPrefix} 2nd Place Botola Star Prize (€1,750,000)`,
-          playerId: p.playerId,
-        });
-      }
+        // 🥇 1st Place Botola MVP (+€3,000,000)
+        if (p.podiumRank === 1) {
+          currentBudget = await lockClubBudget(tx, clubId);
+          await applyBudgetTransaction(tx, {
+            clubId,
+            amount: BOTOLA_TOTM_1ST_PRIZE,
+            currentBudget,
+            type: BudgetTransactionType.COMPETITION_REWARD,
+            description: `${descPrefix} 1st Place Botola MVP Prize (€3,000,000)`,
+            playerId: p.playerId,
+          });
+        }
 
-      // 🥉 3rd Place Botola Star (+€1,500,000)
-      else if (p.podiumRank === 3) {
-        currentBudget = await lockClubBudget(tx, clubId);
-        await applyBudgetTransaction(tx, {
-          clubId,
-          amount: BOTOLA_TOTM_3RD_PRIZE,
-          currentBudget,
-          type: BudgetTransactionType.COMPETITION_REWARD,
-          description: `${descPrefix} 3rd Place Botola Star Prize (€1,500,000)`,
-          playerId: p.playerId,
-        });
+        // 🥈 2nd Place Botola Star (+€1,750,000)
+        else if (p.podiumRank === 2) {
+          currentBudget = await lockClubBudget(tx, clubId);
+          await applyBudgetTransaction(tx, {
+            clubId,
+            amount: BOTOLA_TOTM_2ND_PRIZE,
+            currentBudget,
+            type: BudgetTransactionType.COMPETITION_REWARD,
+            description: `${descPrefix} 2nd Place Botola Star Prize (€1,750,000)`,
+            playerId: p.playerId,
+          });
+        }
+
+        // 🥉 3rd Place Botola Star (+€1,500,000)
+        else if (p.podiumRank === 3) {
+          currentBudget = await lockClubBudget(tx, clubId);
+          await applyBudgetTransaction(tx, {
+            clubId,
+            amount: BOTOLA_TOTM_3RD_PRIZE,
+            currentBudget,
+            type: BudgetTransactionType.COMPETITION_REWARD,
+            description: `${descPrefix} 3rd Place Botola Star Prize (€1,500,000)`,
+            playerId: p.playerId,
+          });
+        }
       }
+    } catch (err) {
+      console.warn(`Failed applying TOTM reward for club ${clubId}:`, err);
     }
   }
 }

@@ -149,65 +149,95 @@ export async function POST(req: Request) {
     const secondPlace = players.find((p: any) => p.podiumRank === 2);
     const thirdPlace = players.find((p: any) => p.podiumRank === 3);
 
+    const playersData = players.map((p: any) => ({
+      playerId: p.playerId,
+      clubId: p.clubId,
+      leagueId: p.leagueId || null,
+      position: p.position,
+      ratingBoost: p.ratingBoost || 3,
+      goalsInMatchday: p.goalsInMatchday || 0,
+      assistsInMatchday: p.assistsInMatchday || 0,
+      isMotm: p.isMotm || false,
+      podiumRank: p.podiumRank || null,
+    }));
+
     // Save and Distribute Rewards within Prisma transaction
     const globalTotw = await prisma.$transaction(
       async (tx) => {
-        // Delete previous record for this edition if re-publishing
         const existing = await tx.globalTeamOfTheWeek.findUnique({
           where: { edition },
         });
 
+        let savedTotw;
         if (existing) {
+          // Clear old players first
           await tx.globalTotwPlayer.deleteMany({ where: { globalTotwId: existing.id } });
-          await tx.globalTeamOfTheWeek.delete({ where: { id: existing.id } });
-        }
 
-        const created = await tx.globalTeamOfTheWeek.create({
-          data: {
-            edition,
-            title,
-            formation,
-            leagueRounds: leagueRounds || [],
-            isPublished: true,
-            firstPlacePlayerId: firstPlace?.playerId || null,
-            secondPlacePlayerId: secondPlace?.playerId || null,
-            thirdPlacePlayerId: thirdPlace?.playerId || null,
-            players: {
-              create: players.map((p: any) => ({
-                playerId: p.playerId,
-                clubId: p.clubId,
-                leagueId: p.leagueId || null,
-                position: p.position,
-                ratingBoost: p.ratingBoost || 3,
-                goalsInMatchday: p.goalsInMatchday || 0,
-                assistsInMatchday: p.assistsInMatchday || 0,
-                isMotm: p.isMotm || false,
-                podiumRank: p.podiumRank || null,
-              })),
-            },
-          },
-          include: {
-            players: {
-              include: {
-                player: true,
-                club: true,
-                league: true,
+          savedTotw = await tx.globalTeamOfTheWeek.update({
+            where: { id: existing.id },
+            data: {
+              title,
+              formation,
+              leagueRounds: leagueRounds || [],
+              isPublished: true,
+              firstPlacePlayerId: firstPlace?.playerId || null,
+              secondPlacePlayerId: secondPlace?.playerId || null,
+              thirdPlacePlayerId: thirdPlace?.playerId || null,
+              players: {
+                create: playersData,
               },
             },
-          },
-        });
+            include: {
+              players: {
+                include: {
+                  player: true,
+                  club: true,
+                  league: true,
+                },
+              },
+            },
+          });
+        } else {
+          savedTotw = await tx.globalTeamOfTheWeek.create({
+            data: {
+              edition,
+              title,
+              formation,
+              leagueRounds: leagueRounds || [],
+              isPublished: true,
+              firstPlacePlayerId: firstPlace?.playerId || null,
+              secondPlacePlayerId: secondPlace?.playerId || null,
+              thirdPlacePlayerId: thirdPlace?.playerId || null,
+              players: {
+                create: playersData,
+              },
+            },
+            include: {
+              players: {
+                include: {
+                  player: true,
+                  club: true,
+                  league: true,
+                },
+              },
+            },
+          });
+        }
 
         // Apply financial rewards (+1M per player, +3M 1st, +1.75M 2nd, +1.5M 3rd)
         await applyGlobalTotwRewards(tx, edition, players);
 
-        return created;
+        return savedTotw;
       },
       { maxWait: 15000, timeout: 30000 }
     );
 
     return NextResponse.json({ success: true, globalTotw });
-  } catch (error) {
-    console.error("Error saving Global TOTW:", error);
-    return NextResponse.json({ error: "Failed to save Global TOTW" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Error saving Botola TOTM:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to save Botola Pro TOTM" },
+      { status: 500 }
+    );
   }
 }
