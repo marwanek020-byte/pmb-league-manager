@@ -63,7 +63,7 @@ type Props = {
   isAdmin?: boolean;
 };
 
-const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "STATS & AWARDS", "TOTW", "GLOBAL TOTW", "THRONE CUP 👑", "MY CLUB"] as const;
+const TABS = ["MATCHDAY", "FIXTURES", "TABLE", "STATS & AWARDS", "TOTW", "BOTOLA TOTM 🇲🇦", "THRONE CUP 👑", "MY CLUB"] as const;
 type Tab = (typeof TABS)[number];
 
 const ordinal = (n: number) => {
@@ -1043,8 +1043,8 @@ export function CompetitionHub({
           </div>
         )}
 
-        {/* GLOBAL TOTW TAB */}
-        {activeTab === "GLOBAL TOTW" && (
+        {/* BOTOLA PRO TEAM OF THE MONTH (TOTM) TAB */}
+        {activeTab === "BOTOLA TOTM 🇲🇦" && (
           <div className="space-y-6">
             <GlobalTotwPitch isAdmin={isAdmin} />
           </div>

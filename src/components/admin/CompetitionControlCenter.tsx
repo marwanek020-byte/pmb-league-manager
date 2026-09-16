@@ -345,7 +345,7 @@ export function CompetitionControlCenter({
         })}
       </div>
 
-      {/* ─── GLOBAL TEAM OF THE WEEK (ALL-STARS STUDIO) ───────────────── */}
+      {/* ─── BOTOLA PRO TEAM OF THE MONTH (TOTM STUDIO 🇲🇦) ──────────── */}
       <div className="pt-8 border-t border-pmb-border/60">
         <GlobalTotwPitch isAdmin={true} />
       </div>

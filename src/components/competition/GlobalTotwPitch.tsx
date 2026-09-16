@@ -147,15 +147,16 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
   // Admin modal state
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [adminEdition, setAdminEdition] = useState(1);
-  const [detectedRounds, setDetectedRounds] = useState<any[]>([]);
-  const [customRounds, setCustomRounds] = useState<Record<string, number | null>>({});
+  const [botolaLeague, setBotolaLeague] = useState<any>(null);
+  const [availableMatchdays, setAvailableMatchdays] = useState<{ matchday: number; completedMatches: number }[]>([]);
+  const [selectedMatchdays, setSelectedMatchdays] = useState<number[]>([1, 2, 3, 4]);
   const [adminCandidates, setAdminCandidates] = useState<any[]>([]);
   const [suggestedLineup, setSuggestedLineup] = useState<any[]>([]);
   const [adminPodium, setAdminPodium] = useState<any>({});
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
 
-  // 1. Load published Global TOTW
+  // 1. Load published Botola Pro TOTM
   useEffect(() => {
     let cancelled = false;
     async function loadGlobalTotw() {
@@ -193,14 +194,19 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
       const data = await res.json();
       if (res.ok) {
         setAdminEdition(data.activeEdition || selectedEdition || 1);
-        if (data.detectedLeagueRounds) {
-          setDetectedRounds(data.detectedLeagueRounds);
-          const initialMap: Record<string, number | null> = {};
-          data.detectedLeagueRounds.forEach((lr: any) => {
-            initialMap[lr.leagueId] = lr.latestCompletedMatchday;
-          });
-          setCustomRounds(initialMap);
+        if (data.botolaLeague) setBotolaLeague(data.botolaLeague);
+        if (data.availableMatchdays) setAvailableMatchdays(data.availableMatchdays);
+
+        let initialMds: number[] = [];
+        if (data.selectedRounds && data.selectedRounds.length > 0) {
+          initialMds = data.selectedRounds.map((r: any) => r.matchday);
+        } else if (data.defaultMonthMatchdays && data.defaultMonthMatchdays.length > 0) {
+          initialMds = data.defaultMonthMatchdays;
+        } else {
+          initialMds = [1, 2, 3, 4];
         }
+        setSelectedMatchdays(initialMds);
+
         if (data.candidates) setAdminCandidates(data.candidates);
         if (data.suggestedLineup) setSuggestedLineup(data.suggestedLineup);
         if (data.podium) setAdminPodium(data.podium);
@@ -210,14 +216,16 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
     }
   }
 
-  // 3. Recalculate candidates when admin changes league rounds
-  async function handleRecalculate() {
+  // 3. Recalculate candidates when admin toggles matchdays
+  async function handleRecalculate(matchdaysToUse = selectedMatchdays) {
     setAdminSaving(true);
     setAdminMessage(null);
     try {
-      const roundsPayload = Object.entries(customRounds)
-        .filter(([_, md]) => md !== null && md > 0)
-        .map(([leagueId, matchday]) => ({ leagueId, matchday: Number(matchday) }));
+      const bId = botolaLeague?.id;
+      const roundsPayload = matchdaysToUse.map((md) => ({
+        leagueId: bId,
+        matchday: Number(md),
+      }));
 
       const res = await fetch(
         `/api/admin/global-totw?edition=${adminEdition}&rounds=${encodeURIComponent(JSON.stringify(roundsPayload))}`
@@ -227,35 +235,33 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
         setAdminCandidates(data.candidates || []);
         setSuggestedLineup(data.suggestedLineup || []);
         setAdminPodium(data.podium || {});
-        setAdminMessage(`✅ Analyzed ${data.candidates?.length || 0} global candidates from ${roundsPayload.length} leagues!`);
+        setAdminMessage(
+          `✅ Analyzed ${data.candidates?.length || 0} Botola Pro stars across Matchdays [${matchdaysToUse.join(", ")}]!`
+        );
       }
     } catch (err) {
       console.error(err);
-      setAdminMessage("Failed to recalculate candidates");
+      setAdminMessage("Failed to recalculate Botola candidates");
     } finally {
       setAdminSaving(false);
     }
   }
 
-  // 4. Publish Global TOTW
+  // 4. Publish Botola Pro TOTM
   async function handlePublish() {
     if (suggestedLineup.length < 11) {
-      setAdminMessage(`Need 11 unique players (only found ${suggestedLineup.length}). Please adjust included league rounds.`);
+      setAdminMessage(`Need 11 unique players (only found ${suggestedLineup.length}). Please ensure selected matchdays have completed matches.`);
       return;
     }
 
     setAdminSaving(true);
     try {
-      const roundsPayload = Object.entries(customRounds)
-        .filter(([_, md]) => md !== null && md > 0)
-        .map(([leagueId, matchday]) => {
-          const lInfo = detectedRounds.find((d) => d.leagueId === leagueId);
-          return {
-            leagueId,
-            leagueName: lInfo?.leagueName || "League",
-            matchday: Number(matchday),
-          };
-        });
+      const bId = botolaLeague?.id;
+      const roundsPayload = selectedMatchdays.map((md) => ({
+        leagueId: bId,
+        leagueName: "BOTOLA PRO",
+        matchday: Number(md),
+      }));
 
       const payloadPlayers = suggestedLineup.map((slot) => ({
         playerId: slot.player.playerId,
@@ -274,7 +280,7 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           edition: adminEdition,
-          title: `Global All-Stars Edition #${adminEdition}`,
+          title: `Botola Pro Team of the Month (Month #${adminEdition})`,
           formation: "4-3-3",
           leagueRounds: roundsPayload,
           players: payloadPlayers,
@@ -285,14 +291,14 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
       if (res.ok && data.globalTotw) {
         setGlobalTotw(data.globalTotw);
         setSelectedEdition(adminEdition);
-        setAdminMessage("✅ Global TOTW Published & World Prizes Distributed (1M€ + Podium Bonuses)!");
+        setAdminMessage("✅ Botola Pro TOTM Published & Prizes Distributed (1M€ + Podium Bonuses)!");
         setTimeout(() => setAdminModalOpen(false), 1400);
       } else {
-        setAdminMessage(data.error || "Failed to publish Global TOTW");
+        setAdminMessage(data.error || "Failed to publish Botola Pro TOTM");
       }
     } catch (err) {
       console.error(err);
-      setAdminMessage("Network error saving Global TOTW");
+      setAdminMessage("Network error saving Botola Pro TOTM");
     } finally {
       setAdminSaving(false);
     }
@@ -415,45 +421,53 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header & Edition Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-pmb-dark-surface to-purple-950/30 border border-cyan-500/30">
+      {/* Header & Month Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/50 via-pmb-dark-surface to-red-950/40 border border-emerald-500/40 shadow-xl">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🌍</span>
-            <h2 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-pmb-gold to-yellow-300">
-              Official PMB Global Team of the Week
-            </h2>
+            <span className="text-2xl">🇲🇦</span>
+            <div>
+              <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-pmb-gold to-yellow-300">
+                Official Botola Pro Team of the Month
+              </h2>
+              <span className="text-xs font-bold text-emerald-400/90 block">
+                تشكيلة الشهر — البطولة الاحترافية المغربية Inwi
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-300 mt-1">
-            <span>The 11 Best Players in the World (+3 OVR Boost)</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-300 mt-2">
+            <span className="text-gray-300 font-semibold">11 Elite Stars of Morocco (+3 OVR Boost)</span>
             <span className="text-gray-600">•</span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[10px]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[10px]">
               💰 +€1,000,000 per Player
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-bold text-[10px]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 font-bold text-[10px]">
               👑 1st MVP: +€3M
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-300/10 border border-slate-300/30 text-slate-200 font-bold text-[10px]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-300/15 border border-slate-300/30 text-slate-200 font-bold text-[10px]">
               🥈 2nd: +€1.75M
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-600/10 border border-amber-600/30 text-amber-400 font-bold text-[10px]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-600/15 border border-amber-600/30 text-amber-300 font-bold text-[10px]">
               🥉 3rd: +€1.5M
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold text-[10px]">
-              🛡️ Max 3 / League
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-300 font-bold text-[10px]">
+              🇲🇦 Botola Pro Inwi Exclusivity
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pmb-gold/15 border border-pmb-gold/30 text-pmb-gold font-bold text-[10px]">
+              🛡️ Max 3 / Club
             </span>
           </div>
 
           {/* Included League Rounds Pills */}
           {globalTotw?.leagueRounds && globalTotw.leagueRounds.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap mt-2">
-              <span className="text-[10px] text-gray-400 font-semibold">Included Rounds:</span>
+            <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+              <span className="text-[10px] text-gray-400 font-semibold">Included Botola Rounds:</span>
               {globalTotw.leagueRounds.map((lr) => (
                 <span
-                  key={lr.leagueId}
-                  className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-black/50 border border-cyan-500/40 text-cyan-200"
+                  key={`${lr.leagueId}-${lr.matchday}`}
+                  className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-black/60 border border-emerald-500/40 text-emerald-300"
                 >
-                  {lr.leagueName || "League"} (MD {lr.matchday})
+                  Botola Pro (MD {lr.matchday})
                 </span>
               ))}
             </div>
@@ -462,10 +476,10 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
 
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Edition Picker */}
-          <div className="flex items-center gap-1 bg-pmb-dark p-1 rounded-xl border border-cyan-500/30">
+          {/* Month Picker */}
+          <div className="flex items-center gap-1 bg-pmb-dark p-1 rounded-xl border border-emerald-500/40 shadow-inner">
             <span className="text-[10px] font-bold text-gray-400 uppercase px-2">
-              Edition
+              Month
             </span>
             <div className="flex gap-1 overflow-x-auto max-w-[200px]">
               {(availableEditions.length > 0 ? availableEditions : [1]).map((ed) => (
@@ -475,7 +489,7 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
                   className={[
                     "h-7 px-2.5 rounded-lg text-xs font-bold transition",
                     ed === selectedEdition
-                      ? "bg-cyan-500 text-black scale-105 shadow-md shadow-cyan-500/30"
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-black scale-105 shadow-md shadow-emerald-500/30"
                       : "text-gray-400 hover:text-white hover:bg-white/5",
                   ].join(" ")}
                 >
@@ -489,43 +503,43 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
           {isAdmin && (
             <button
               onClick={openAdminModal}
-              className="text-xs font-bold px-3 py-2 bg-gradient-to-r from-cyan-400 via-pmb-gold to-yellow-400 text-black rounded-xl hover:brightness-110 shadow-md shadow-cyan-500/20 transition flex items-center gap-1.5"
+              className="text-xs font-black px-3.5 py-2 bg-gradient-to-r from-emerald-400 via-pmb-gold to-yellow-400 text-black rounded-xl hover:brightness-110 shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5 cursor-pointer"
             >
               <span>⚡</span>
-              <span>Global Studio</span>
+              <span>Botola TOTM Studio</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 2D Stadium Tactical Pitch (Global Aurora Theme) */}
-      <div className="relative w-full max-w-4xl mx-auto rounded-3xl overflow-hidden border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/10 bg-gradient-to-b from-slate-950 via-cyan-950/70 to-slate-950 p-4 sm:p-8 min-h-[580px] flex flex-col justify-between">
+      {/* 2D Stadium Tactical Pitch (Botola Moroccan Stadium Theme) */}
+      <div className="relative w-full max-w-4xl mx-auto rounded-3xl overflow-hidden border-2 border-emerald-500/50 shadow-2xl shadow-emerald-950/40 bg-gradient-to-b from-slate-950 via-emerald-950/50 to-slate-950 p-4 sm:p-8 min-h-[580px] flex flex-col justify-between">
         {/* Pitch Lines / Markings */}
-        <div className="absolute inset-4 rounded-2xl border-2 border-cyan-400/20 pointer-events-none" />
-        <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-cyan-400/20 pointer-events-none -translate-y-1/2" />
-        <div className="absolute top-1/2 left-1/2 w-32 h-32 rounded-full border-2 border-cyan-400/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-48 h-20 border-b-2 border-x-2 border-cyan-400/20 rounded-b-xl pointer-events-none" />
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-48 h-20 border-t-2 border-x-2 border-cyan-400/20 rounded-t-xl pointer-events-none" />
+        <div className="absolute inset-4 rounded-2xl border-2 border-emerald-400/25 pointer-events-none" />
+        <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-emerald-400/25 pointer-events-none -translate-y-1/2" />
+        <div className="absolute top-1/2 left-1/2 w-32 h-32 rounded-full border-2 border-emerald-400/25 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-48 h-20 border-b-2 border-x-2 border-emerald-400/25 rounded-b-xl pointer-events-none" />
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-48 h-20 border-t-2 border-x-2 border-emerald-400/25 rounded-t-xl pointer-events-none" />
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center text-sm font-bold text-cyan-300 animate-pulse">
-            🌍 Scouting the World's Best Performers for Edition #{selectedEdition}...
+          <div className="flex-1 flex items-center justify-center text-sm font-bold text-emerald-300 animate-pulse">
+            🇲🇦 Scouting Botola Pro's Best Performers for Month #{selectedEdition}...
           </div>
         ) : !globalTotw || globalTotw.players.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-            <span className="text-4xl mb-2">🌍</span>
+            <span className="text-4xl mb-2">🇲🇦</span>
             <h3 className="text-lg font-bold text-white">
-              No Global TOTW Published for Edition #{selectedEdition}
+              No Botola Pro TOTM Published for Month #{selectedEdition}
             </h3>
             <p className="text-xs text-gray-400 mt-1 max-w-md">
-              The PMB Competition Board unites the top 11 performing superstars across all active leagues once matchdays conclude.
+              The Botola Pro Technical Board analyzes all matches and player ratings across Moroccan clubs to crown the 11 Stars of the Month.
             </p>
             {isAdmin && (
               <button
                 onClick={openAdminModal}
-                className="mt-4 text-xs font-bold px-4 py-2 bg-cyan-500 text-black rounded-xl hover:brightness-110 transition shadow-lg shadow-cyan-500/20"
+                className="mt-4 text-xs font-black px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-400 text-black rounded-xl hover:brightness-110 transition shadow-lg shadow-emerald-500/25 cursor-pointer"
               >
-                Auto-Generate Global TOTW
+                Auto-Generate Botola TOTM
               </button>
             )}
           </div>
@@ -564,21 +578,21 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
       {/* Admin Studio Modal */}
       {adminModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="pmb-card w-full max-w-2xl p-6 border-cyan-500 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="pmb-card w-full max-w-2xl p-6 border-emerald-500/50 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-                <span>🌍</span> Global TOTW Studio — Edition #{adminEdition}
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <span>🇲🇦</span> Botola Pro Team of the Month Studio — Month #{adminEdition}
               </h3>
               <button
                 onClick={() => setAdminModalOpen(false)}
-                className="text-gray-400 hover:text-white text-lg font-bold"
+                className="text-gray-400 hover:text-white text-lg font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Prize Matrix Pill */}
-            <div className="grid grid-cols-4 gap-2 p-2.5 rounded-xl bg-pmb-dark border border-cyan-500/30 text-[11px]">
+            <div className="grid grid-cols-4 gap-2 p-2.5 rounded-xl bg-pmb-dark border border-emerald-500/30 text-[11px]">
               <div className="text-center">
                 <span className="text-gray-400 block text-[9px] uppercase font-bold">11 Players</span>
                 <span className="text-emerald-400 font-extrabold">+€1,000,000</span>
@@ -597,68 +611,72 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
               </div>
             </div>
 
-            {/* Multi-League Round Selector Matrix */}
-            <div className="space-y-2 p-3 bg-pmb-dark/80 rounded-xl border border-pmb-border">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider">
-                  Select Included Matchday Per League (Max 3 Players / League)
-                </span>
+            {/* Botola Pro Month Matchdays Selector */}
+            <div className="space-y-2.5 p-3 bg-pmb-dark/80 rounded-xl border border-pmb-border">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <span className="text-xs font-black text-emerald-400 uppercase tracking-wider block">
+                    Select Botola Pro Matchdays for Month #{adminEdition}
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    All 11 players selected strictly from Moroccan clubs (Max 3 / club)
+                  </span>
+                </div>
                 <button
-                  onClick={handleRecalculate}
+                  onClick={() => handleRecalculate(selectedMatchdays)}
                   disabled={adminSaving}
-                  className="text-[11px] font-bold px-2.5 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-lg hover:bg-cyan-500/30 transition flex items-center gap-1"
+                  className="text-[11px] font-bold px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg hover:bg-emerald-500/30 transition flex items-center gap-1 cursor-pointer"
                 >
-                  <span>🔄</span> Recalculate
+                  <span>🔄</span> Recalculate Botola Stars
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                {detectedRounds.map((league) => {
-                  const currentVal = customRounds[league.leagueId];
-                  return (
-                    <div
-                      key={league.leagueId}
-                      className="flex items-center justify-between p-2 rounded-lg bg-pmb-dark-surface/60 border border-pmb-border/40"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <span className="font-semibold text-white truncate max-w-[120px]">
-                          {league.leagueName}
-                        </span>
-                        <span className="text-[10px] text-gray-500">
-                          ({league.totalCompletedMatches} matches)
-                        </span>
-                      </div>
-
-                      <select
-                        value={currentVal === null ? "" : currentVal}
-                        onChange={(e) => {
-                          const val = e.target.value === "" ? null : Number(e.target.value);
-                          setCustomRounds((prev) => ({ ...prev, [league.leagueId]: val }));
+              {/* Matchday Toggle Pills */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {availableMatchdays.length > 0 ? (
+                  availableMatchdays.map((md) => {
+                    const isSelected = selectedMatchdays.includes(md.matchday);
+                    return (
+                      <button
+                        key={md.matchday}
+                        type="button"
+                        onClick={() => {
+                          const updated = isSelected
+                            ? selectedMatchdays.filter((m) => m !== md.matchday)
+                            : [...selectedMatchdays, md.matchday].sort((a, b) => a - b);
+                          setSelectedMatchdays(updated);
+                          handleRecalculate(updated);
                         }}
-                        className="text-xs bg-black/60 border border-cyan-500/40 rounded-lg px-2 py-1 text-cyan-200 font-bold focus:outline-none focus:border-cyan-400"
+                        className={[
+                          "px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 border cursor-pointer",
+                          isSelected
+                            ? "bg-emerald-500 text-black border-emerald-400 shadow-md shadow-emerald-500/20 font-black"
+                            : "bg-black/50 text-gray-400 border-white/10 hover:text-white hover:bg-white/10",
+                        ].join(" ")}
                       >
-                        <option value="">🚫 Exclude</option>
-                        {Array.from({ length: 15 }, (_, i) => i + 1).map((roundNum) => (
-                          <option key={roundNum} value={roundNum}>
-                            Round {roundNum} {roundNum === league.latestCompletedMatchday ? "⭐ (Latest)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })}
+                        <span>{isSelected ? "✓" : "+"}</span>
+                        <span>MD {md.matchday}</span>
+                        <span className="text-[9px] opacity-75">({md.completedMatches}m)</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-gray-500 py-2">
+                    No completed Botola Pro matches found yet.
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Suggested 11 Lineup & Podium Preview */}
             {suggestedLineup.length > 0 ? (
-              <div className="space-y-1.5 p-2.5 bg-pmb-dark rounded-xl border border-cyan-500/30 text-xs">
+              <div className="space-y-1.5 p-2.5 bg-pmb-dark rounded-xl border border-emerald-500/30 text-xs">
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">
-                    Selected Global Starting 11 ({suggestedLineup.length}/11)
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">
+                    Selected Botola Pro Starting 11 ({suggestedLineup.length}/11)
                   </span>
-                  <span className="text-[10px] text-gray-400 font-bold">
-                    Max 3/League Constraint: Active ✅
+                  <span className="text-[10px] text-emerald-400 font-bold">
+                    Max 3/Club Balance: Active ✅
                   </span>
                 </div>
 
@@ -683,13 +701,13 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
                         ].join(" ")}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <span className="font-bold text-cyan-300 w-10 text-[10px] px-1.5 py-0.5 rounded bg-black/40 border border-cyan-500/30 text-center">
+                          <span className="font-bold text-emerald-300 w-10 text-[10px] px-1.5 py-0.5 rounded bg-black/40 border border-emerald-500/30 text-center">
                             {slot.key}
                           </span>
                           <span className="font-semibold text-white">{slot.player.fullName}</span>
                           <span className="text-[10px] text-gray-400">({slot.player.clubName})</span>
-                          <span className="text-[9px] text-cyan-300 bg-cyan-950/60 px-1 rounded border border-cyan-500/30">
-                            {slot.player.leagueName}
+                          <span className="text-[9px] text-emerald-300 bg-emerald-950/60 px-1.5 rounded border border-emerald-500/30">
+                            🇲🇦 Botola Pro
                           </span>
                         </div>
 
@@ -721,12 +739,12 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
               </div>
             ) : (
               <div className="text-center py-6 text-xs text-gray-500">
-                No candidates available. Please select rounds that have completed matchday fixtures.
+                No candidates available. Please select Botola Pro matchdays that have completed matches.
               </div>
             )}
 
             {adminMessage && (
-              <div className="p-3 bg-cyan-500/10 border border-cyan-500/40 rounded-xl text-xs font-semibold text-cyan-300 text-center">
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/40 rounded-xl text-xs font-semibold text-emerald-300 text-center">
                 {adminMessage}
               </div>
             )}
@@ -734,7 +752,7 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setAdminModalOpen(false)}
-                className="pmb-btn-secondary text-xs px-4 py-2"
+                className="pmb-btn-secondary text-xs px-4 py-2 cursor-pointer"
                 disabled={adminSaving}
               >
                 Close
@@ -742,9 +760,9 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
               <button
                 onClick={handlePublish}
                 disabled={adminSaving || suggestedLineup.length < 11}
-                className="text-xs font-bold px-4 py-2 bg-gradient-to-r from-cyan-400 via-pmb-gold to-yellow-400 text-black rounded-xl hover:brightness-110 shadow-lg shadow-cyan-500/20 transition disabled:opacity-50"
+                className="text-xs font-black px-4 py-2 bg-gradient-to-r from-emerald-400 via-pmb-gold to-yellow-400 text-black rounded-xl hover:brightness-110 shadow-lg shadow-emerald-500/20 transition disabled:opacity-50 cursor-pointer"
               >
-                {adminSaving ? "Publishing..." : `⚡ Publish Global TOTW #${adminEdition} + Distribute Prizes`}
+                {adminSaving ? "Publishing..." : `⚡ Publish Botola TOTM (Month #${adminEdition}) + Distribute €1M–€3M Prizes`}
               </button>
             </div>
           </div>
@@ -753,3 +771,6 @@ export function GlobalTotwPitch({ isAdmin = false }: Props) {
     </div>
   );
 }
+
+// Named alias export for backward compatibility
+export const BotolaTotmPitch = GlobalTotwPitch;

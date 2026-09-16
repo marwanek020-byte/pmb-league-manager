@@ -9,8 +9,14 @@ export const GLOBAL_TOTW_1ST_PRIZE        = new Prisma.Decimal("3000000"); // 3M
 export const GLOBAL_TOTW_2ND_PRIZE        = new Prisma.Decimal("1750000"); // 1.75M EUR for 2nd Place Star
 export const GLOBAL_TOTW_3RD_PRIZE        = new Prisma.Decimal("1500000"); // 1.5M EUR for 3rd Place Star
 
-export const MAX_PLAYERS_PER_LEAGUE = 3;
-export const MAX_PLAYERS_PER_CLUB   = 2;
+export const BOTOLA_TOTM_SELECTION_REWARD = GLOBAL_TOTW_SELECTION_REWARD;
+export const BOTOLA_TOTM_1ST_PRIZE        = GLOBAL_TOTW_1ST_PRIZE;
+export const BOTOLA_TOTM_2ND_PRIZE        = GLOBAL_TOTW_2ND_PRIZE;
+export const BOTOLA_TOTM_3RD_PRIZE        = GLOBAL_TOTW_3RD_PRIZE;
+
+// Botola Pro Team of the Month: all 11 players from Botola Pro, max 3 players per club
+export const MAX_PLAYERS_PER_LEAGUE = 11;
+export const MAX_PLAYERS_PER_CLUB   = 3;
 
 export type LeagueRoundDetection = {
   leagueId: string;
@@ -20,6 +26,12 @@ export type LeagueRoundDetection = {
   latestCompletedMatchday: number | null;
   totalCompletedMatches: number;
   isIncluded: boolean;
+};
+
+export type BotolaMonthDetection = {
+  botolaLeague: { id: string; name: string; country: string; logo: string | null } | null;
+  availableMatchdays: { matchday: number; completedMatches: number }[];
+  defaultMonthMatchdays: number[];
 };
 
 export type GlobalCandidate = {
@@ -77,10 +89,71 @@ function normalizePosition(rawPos: string | null | undefined): {
 }
 
 /**
- * 1. Auto-detect the latest completed matchday for each league.
+ * Fetch official Botola Pro League
+ */
+export async function getBotolaLeague() {
+  return await prisma.league.findFirst({
+    where: {
+      OR: [
+        { name: { contains: "BOTOLA", mode: "insensitive" } },
+        { country: { contains: "Morocco", mode: "insensitive" } },
+      ],
+    },
+  });
+}
+
+/**
+ * Detect completed matchdays in Botola Pro and group by Month
+ */
+export async function detectBotolaMonthRounds(month: number = 1): Promise<BotolaMonthDetection> {
+  const botola = await getBotolaLeague();
+  if (!botola) {
+    return { botolaLeague: null, availableMatchdays: [], defaultMonthMatchdays: [] };
+  }
+
+  const matches = await prisma.match.findMany({
+    where: { leagueId: botola.id, status: "COMPLETED" },
+    select: { matchday: true },
+  });
+
+  const mdCountMap = new Map<number, number>();
+  for (const m of matches) {
+    mdCountMap.set(m.matchday, (mdCountMap.get(m.matchday) || 0) + 1);
+  }
+
+  const availableMatchdays = Array.from(mdCountMap.entries())
+    .map(([matchday, completedMatches]) => ({ matchday, completedMatches }))
+    .sort((a, b) => a.matchday - b.matchday);
+
+  // Default month matchday grouping: Month 1 = MD 1-4, Month 2 = MD 5-8, Month 3 = MD 9-12, etc.
+  const startMd = (month - 1) * 4 + 1;
+  const endMd = month * 4;
+  let defaultMonthMatchdays = availableMatchdays
+    .filter((m) => m.matchday >= startMd && m.matchday <= endMd)
+    .map((m) => m.matchday);
+
+  if (defaultMonthMatchdays.length === 0 && availableMatchdays.length > 0) {
+    defaultMonthMatchdays = availableMatchdays.slice(0, 4).map((m) => m.matchday);
+  }
+
+  return {
+    botolaLeague: botola,
+    availableMatchdays,
+    defaultMonthMatchdays,
+  };
+}
+
+/**
+ * 1. Auto-detect Botola Pro league rounds and general league information.
  */
 export async function detectLatestLeagueRounds(): Promise<LeagueRoundDetection[]> {
   const leagues = await prisma.league.findMany({
+    where: {
+      OR: [
+        { name: { contains: "BOTOLA", mode: "insensitive" } },
+        { country: { contains: "Morocco", mode: "insensitive" } },
+      ],
+    },
     include: {
       matches: {
         where: { status: "COMPLETED" },
@@ -396,13 +469,17 @@ export async function applyGlobalTotwRewards(
   edition: number,
   players: GlobalTotwRewardPlayerInput[]
 ): Promise<void> {
-  const descPrefix = `Global TOTW Edition #${edition}:`;
+  const descPrefix = `Botola Pro TOTM Month #${edition}:`;
+  const legacyPrefix = `Global TOTW Edition #${edition}:`;
 
   // 1. Reverse previous rewards for this edition
   const previousTxns = await tx.clubBudgetTransaction.findMany({
     where: {
       type: BudgetTransactionType.COMPETITION_REWARD,
-      description: { startsWith: descPrefix },
+      OR: [
+        { description: { startsWith: descPrefix } },
+        { description: { startsWith: legacyPrefix } },
+      ],
     },
     select: { id: true, clubId: true, amount: true },
   });
@@ -425,7 +502,7 @@ export async function applyGlobalTotwRewards(
       amount: reversalAmount,
       currentBudget,
       type: BudgetTransactionType.COMPETITION_REWARD,
-      description: `Reversed: ${descPrefix} Previous Global TOTW reward adjustment`,
+      description: `Reversed: ${descPrefix} Previous Botola TOTM reward adjustment`,
     });
   }
 
@@ -440,48 +517,48 @@ export async function applyGlobalTotwRewards(
       let currentBudget = await lockClubBudget(tx, clubId);
       currentBudget = await applyBudgetTransaction(tx, {
         clubId,
-        amount: GLOBAL_TOTW_SELECTION_REWARD,
+        amount: BOTOLA_TOTM_SELECTION_REWARD,
         currentBudget,
         type: BudgetTransactionType.COMPETITION_REWARD,
         description: `${descPrefix} Selection Reward (€1,000,000)`,
         playerId: p.playerId,
       });
 
-      // 🥇 1st Place Global MVP (+€3,000,000)
+      // 🥇 1st Place Botola MVP (+€3,000,000)
       if (p.podiumRank === 1) {
         currentBudget = await lockClubBudget(tx, clubId);
         await applyBudgetTransaction(tx, {
           clubId,
-          amount: GLOBAL_TOTW_1ST_PRIZE,
+          amount: BOTOLA_TOTM_1ST_PRIZE,
           currentBudget,
           type: BudgetTransactionType.COMPETITION_REWARD,
-          description: `${descPrefix} 1st Place Global MVP Prize (€3,000,000)`,
+          description: `${descPrefix} 1st Place Botola MVP Prize (€3,000,000)`,
           playerId: p.playerId,
         });
       }
 
-      // 🥈 2nd Place Global Star (+€1,750,000)
+      // 🥈 2nd Place Botola Star (+€1,750,000)
       else if (p.podiumRank === 2) {
         currentBudget = await lockClubBudget(tx, clubId);
         await applyBudgetTransaction(tx, {
           clubId,
-          amount: GLOBAL_TOTW_2ND_PRIZE,
+          amount: BOTOLA_TOTM_2ND_PRIZE,
           currentBudget,
           type: BudgetTransactionType.COMPETITION_REWARD,
-          description: `${descPrefix} 2nd Place Global Star Prize (€1,750,000)`,
+          description: `${descPrefix} 2nd Place Botola Star Prize (€1,750,000)`,
           playerId: p.playerId,
         });
       }
 
-      // 🥉 3rd Place Global Star (+€1,500,000)
+      // 🥉 3rd Place Botola Star (+€1,500,000)
       else if (p.podiumRank === 3) {
         currentBudget = await lockClubBudget(tx, clubId);
         await applyBudgetTransaction(tx, {
           clubId,
-          amount: GLOBAL_TOTW_3RD_PRIZE,
+          amount: BOTOLA_TOTM_3RD_PRIZE,
           currentBudget,
           type: BudgetTransactionType.COMPETITION_REWARD,
-          description: `${descPrefix} 3rd Place Global Star Prize (€1,500,000)`,
+          description: `${descPrefix} 3rd Place Botola Star Prize (€1,500,000)`,
           playerId: p.playerId,
         });
       }

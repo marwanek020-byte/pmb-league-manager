@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
   detectLatestLeagueRounds,
+  detectBotolaMonthRounds,
   getGlobalTotwCandidates,
   generateGlobalSuggestedLineup,
   applyGlobalTotwRewards,
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
   const customRoundsParam = searchParams.get("rounds");
 
   try {
-    // 1. Fetch all existing Global TOTW editions
+    // 1. Fetch all existing Botola TOTM / Global TOTW editions
     const existingEditions = await prisma.globalTeamOfTheWeek.findMany({
       orderBy: { edition: "desc" },
       include: {
@@ -49,7 +50,8 @@ export async function GET(req: Request) {
 
     const currentEditionData = existingEditions.find((e) => e.edition === activeEditionNumber) || null;
 
-    // 2. Auto-detect latest completed round for each league
+    // 2. Fetch Botola Pro Month rounds
+    const { botolaLeague, availableMatchdays, defaultMonthMatchdays } = await detectBotolaMonthRounds(activeEditionNumber);
     const detectedLeagueRounds = await detectLatestLeagueRounds();
 
     // 3. Resolve which rounds to pull candidates from
@@ -61,15 +63,13 @@ export async function GET(req: Request) {
       } catch (err) {
         console.error("Invalid custom rounds JSON:", err);
       }
-    } else if (currentEditionData?.leagueRounds) {
+    } else if (currentEditionData?.leagueRounds && (currentEditionData.leagueRounds as any[]).length > 0) {
       roundsToUse = currentEditionData.leagueRounds as { leagueId: string; matchday: number }[];
-    } else {
-      roundsToUse = detectedLeagueRounds
-        .filter((d) => d.isIncluded && d.latestCompletedMatchday !== null)
-        .map((d) => ({
-          leagueId: d.leagueId,
-          matchday: d.latestCompletedMatchday!,
-        }));
+    } else if (botolaLeague) {
+      roundsToUse = defaultMonthMatchdays.map((md) => ({
+        leagueId: botolaLeague.id,
+        matchday: md,
+      }));
     }
 
     // 4. Fetch candidates and generate suggested 11 + Podium
@@ -82,6 +82,9 @@ export async function GET(req: Request) {
       existingEditions,
       currentEditionData,
       detectedLeagueRounds,
+      botolaLeague,
+      availableMatchdays,
+      defaultMonthMatchdays,
       selectedRounds: roundsToUse,
       candidates,
       suggestedLineup,
@@ -91,7 +94,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error("Error in GET /api/admin/global-totw:", error);
-    return NextResponse.json({ error: "Failed to load Global TOTW admin data" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load Botola TOTM admin data" }, { status: 500 });
   }
 }
 
@@ -106,7 +109,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const {
       edition,
-      title = "Global All-Stars",
+      title = `Botola Pro Team of the Month (Month #${edition})`,
       formation = "4-3-3",
       leagueRounds,
       players, // Array of 11
@@ -116,30 +119,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields (edition, players)" }, { status: 400 });
     }
 
-    // Deduplication check & League/Club Cap enforcement
+    // Deduplication check & Club Cap enforcement
     const seenIds = new Set<string>();
-    const leagueCounts = new Map<string, number>();
     const clubCounts = new Map<string, number>();
 
     for (const p of players) {
       if (seenIds.has(p.playerId)) {
         return NextResponse.json(
-          { error: `Duplicate player detected in Global TOTW (${p.playerId}). Each player must be unique.` },
+          { error: `Duplicate player detected in Botola TOTM (${p.playerId}). Each player must be unique.` },
           { status: 400 }
         );
       }
       seenIds.add(p.playerId);
-
-      if (p.leagueId) {
-        const lCount = (leagueCounts.get(p.leagueId) || 0) + 1;
-        if (lCount > MAX_PLAYERS_PER_LEAGUE) {
-          return NextResponse.json(
-            { error: `League limit exceeded: Maximum ${MAX_PLAYERS_PER_LEAGUE} players allowed from the same league.` },
-            { status: 400 }
-          );
-        }
-        leagueCounts.set(p.leagueId, lCount);
-      }
 
       if (p.clubId) {
         const cCount = (clubCounts.get(p.clubId) || 0) + 1;
