@@ -364,3 +364,66 @@ body {
   animation: goldShine 3s linear infinite;
 }
 
+/* ── Astra 6 Design Tokens & Component Classes ────────────────────────── */
+.pmb-heading {
+  @apply font-black uppercase tracking-wide;
+}
+.pmb-eyebrow {
+  @apply text-xs font-bold uppercase tracking-wider text-pmb-text-secondary;
+}
+.pmb-data {
+  @apply font-mono tabular-nums;
+}
+.pmb-button {
+  @apply inline-flex min-h-11 items-center justify-center gap-2
+    rounded-xl px-4 py-2 text-sm font-bold transition
+    disabled:cursor-not-allowed disabled:opacity-50;
+}
+.pmb-button-primary {
+  @apply pmb-button bg-pmb-gold text-pmb-void shadow-gold
+    hover:bg-pmb-gold-light;
+}
+.pmb-button-secondary {
+  @apply pmb-button border border-white/15 bg-white/5
+    text-white hover:border-pmb-gold/40 hover:bg-white/10;
+}
+.pmb-icon-button {
+  @apply inline-flex h-11 w-11 shrink-0 items-center justify-center
+    rounded-xl border border-white/10 bg-white/5
+    transition hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed;
+}
+.pmb-input {
+  @apply min-h-11 w-full rounded-xl border border-white/15
+    bg-pmb-void px-3 py-2 text-sm text-white
+    placeholder:text-pmb-text-secondary focus:outline-none focus:ring-2 focus:ring-pmb-gold-light;
+}
+.pmb-pill {
+  @apply inline-flex items-center gap-1.5 rounded-full
+    border border-white/10 bg-white/5 px-3 py-1
+    text-xs font-semibold text-pmb-text-secondary;
+}
+.pmb-positive {
+  @apply border-pmb-turf/30 bg-pmb-turf/10 text-emerald-300;
+}
+.pmb-danger {
+  @apply border-pmb-red/30 bg-pmb-red/10 text-red-300;
+}
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.pitch-turf {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.025) 0%,
+      rgba(255, 255, 255, 0.025) 10%,
+      transparent 10%,
+      transparent 20%
+    ),
+    linear-gradient(180deg, #075b42, #063e30);
+}
+.ticker:hover .ticker-track,
+.ticker:focus-within .ticker-track {
+  animation-play-state: paused;
+}
+
