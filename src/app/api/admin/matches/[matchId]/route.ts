@@ -220,20 +220,22 @@ export async function PATCH(
     // Apply stadium matchday ticket revenue (confirmed prices > last match > smart default)
     await applyMatchdayRevenue(tx, params.matchId);
 
-    // If first time completing this match, advance active stadium upgrade for the host club
+    // If first time completing this match, advance active stadium upgrades for BOTH clubs
     if (match.status === "UPCOMING") {
-      const upgrade = await tx.stadiumUpgrade.findUnique({
-        where: { clubId: match.homeClubId },
-      });
-      if (upgrade && upgrade.status === "IN_PROGRESS") {
-        const nextRounds = upgrade.roundsLeft - 1;
-        await tx.stadiumUpgrade.update({
-          where: { clubId: match.homeClubId },
-          data: {
-            roundsLeft: Math.max(0, nextRounds),
-            status: nextRounds <= 0 ? "COMPLETED" : "IN_PROGRESS",
-          },
+      for (const clubId of [match.homeClubId, match.awayClubId]) {
+        const upgrade = await tx.stadiumUpgrade.findUnique({
+          where: { clubId },
         });
+        if (upgrade && upgrade.status === "IN_PROGRESS") {
+          const nextRounds = upgrade.roundsLeft - 1;
+          await tx.stadiumUpgrade.update({
+            where: { clubId },
+            data: {
+              roundsLeft: Math.max(0, nextRounds),
+              status: nextRounds <= 0 ? "COMPLETED" : "IN_PROGRESS",
+            },
+          });
+        }
       }
     }
 

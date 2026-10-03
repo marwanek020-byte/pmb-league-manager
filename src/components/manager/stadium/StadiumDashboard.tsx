@@ -14,8 +14,6 @@ import {
   Clock,
   Wallet,
   Star,
-  ChevronDown,
-  ChevronUp,
   Zap,
   Users,
   Send,
@@ -781,8 +779,6 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
   const [priceConfirmStatus, setPriceConfirmStatus] = useState<null | "confirmed" | "boycott">(null);
   const [confirmedPrices, setConfirmedPrices] = useState<{ standard: number; vip: number } | null>(null);
 
-  // ── DEV TOOLBAR ───────────────────────────────────────────────────────────
-  const [devToolbarOpen, setDevToolbarOpen] = useState(false);
 
   // ─────────────────────────────────────────────────────────────────────────
   // FETCH: Next Home Match
@@ -1069,25 +1065,13 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
     await loadRentalData(); // refresh
   }
 
-  // Dev helpers
-  function devSetTier(tier: MatchTier) { setNextFixture((prev) => ({ ...prev, tier })); }
-  function devAddWin()  { setPast10Matches((prev) => [...prev.slice(-9), "W"]); }
-  function devAddDraw() { setPast10Matches((prev) => [...prev.slice(-9), "D"]); }
-  function devAddLoss() { setPast10Matches((prev) => [...prev.slice(-9), "L"]); }
-  async function devAdvanceRound() {
-    await fetch("/api/manager/stadium-upgrade", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "ADVANCE_ROUND" }),
-    });
-    await fetchUpgrade();
-  }
+
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pb-20">
+    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans">
 
       {/* MODALS */}
       {showUpgradeModal && (
@@ -1847,56 +1831,7 @@ export default function StadiumDashboard({ currentClub, globalBudget, onBudgetCh
         </div>
       </div>
 
-      {/* DEV TOOLBAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-800 bg-gray-950/95 backdrop-blur-sm shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
-        <button type="button" onClick={() => setDevToolbarOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-6 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors">
-          <span className="flex items-center gap-2 font-mono">
-            <Zap className="w-3.5 h-3.5 text-yellow-600" />
-            DEV TOOLBAR — Logic Testing Controls
-          </span>
-          {devToolbarOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-        </button>
 
-        {devToolbarOpen && (
-          <div className="px-6 pb-4 pt-2 border-t border-gray-800/50 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {upgradeStatus.isUpgrading && (
-                <button type="button" onClick={devAdvanceRound}
-                  className="flex items-center gap-1.5 bg-amber-900/40 hover:bg-amber-800/60 border border-amber-700 text-xs text-amber-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
-                  <Zap className="w-3.5 h-3.5" /> Advance 1 Round ({upgradeStatus.roundsLeft} left)
-                </button>
-              )}
-              <span className="w-px bg-gray-700 self-stretch mx-1" />
-              <button type="button" onClick={devAddWin}  className="bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/50 text-xs text-emerald-300 px-3 py-1.5 rounded-lg cursor-pointer">+W</button>
-              <button type="button" onClick={devAddDraw} className="bg-yellow-900/40 hover:bg-yellow-800/60 border border-yellow-700/50 text-xs text-yellow-300 px-3 py-1.5 rounded-lg cursor-pointer">+D</button>
-              <button type="button" onClick={devAddLoss} className="bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 text-xs text-red-300 px-3 py-1.5 rounded-lg cursor-pointer">+L</button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-gray-500 font-mono mr-1">Next Match Tier:</span>
-              {(["regular", "decider", "derby", "throne"] as MatchTier[]).map((tier) => {
-                const meta = TIER_META[tier];
-                const isActive = nextFixture.tier === tier;
-                return (
-                  <button key={tier} type="button" onClick={() => devSetTier(tier)}
-                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                      isActive
-                        ? `${meta.bgColor} ${meta.borderColor} ${meta.color}`
-                        : "bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300"
-                    }`}>
-                    {meta.icon} {meta.shortLabel}
-                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="text-xs text-gray-600 font-mono">
-              club={club.name} | cap={club.capacity.toLocaleString()} | budget={formatEuro(budget)} | form={teamForm} | tier={nextFixture.tier} | boycott={String(isBoycottActive)}
-              {matchdayForecast && ` | forecast: ${formatEuro(matchdayForecast.finances.netProfit)} net | fans: ${matchdayForecast.attendance.total.toLocaleString()}`}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
