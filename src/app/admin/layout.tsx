@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { isAnyAdmin } from "@/lib/admin-auth";
 import { Navbar } from "@/components/Navbar";
 import { LiveFeed } from "@/components/LiveFeed";
 import { UnreadMessageNotifier } from "@/components/UnreadMessageNotifier";
@@ -12,15 +13,20 @@ export default async function AdminLayout({
   const session = await auth();
 
   if (!session) redirect("/login");
-  if (session.user.role !== "ADMINISTRATOR") {
+  if (!isAnyAdmin(session.user)) {
     redirect("/unauthorized");
   }
+
+  const rightLabel =
+    session.user.role === "LEAGUE_ADMIN" && session.user.adminLeagueName
+      ? `${session.user.adminLeagueName} Admin`
+      : "Administrator";
 
   return (
     <div className="admin-world min-h-screen">
       <Navbar
         homeHref="/admin/dashboard"
-        rightLabel="Administrator"
+        rightLabel={rightLabel}
       />
 
       {/* PMB animated live feed */}

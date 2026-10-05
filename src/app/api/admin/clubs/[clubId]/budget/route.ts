@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
+import { isAnyAdmin, canAccessLeague } from "@/lib/admin-auth";
 import {
   adjustClubBudget,
   BudgetServiceError,
@@ -28,7 +30,7 @@ export async function POST(
 ) {
   const session = await auth();
 
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 403 }

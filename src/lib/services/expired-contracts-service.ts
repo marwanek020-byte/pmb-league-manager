@@ -13,6 +13,7 @@ import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-se
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 import { validateForeignQuota } from "@/lib/services/botola-contract-service";
 import type { NegotiationOffer } from "@/lib/services/botola-contract-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export class ExpiredContractsService {
   /**
@@ -121,7 +122,7 @@ export class ExpiredContractsService {
       select: { role: true },
     });
 
-    if (!admin || admin.role !== "ADMINISTRATOR") {
+    if (!admin || !isAnyAdmin(admin)) {
       throw new Error("Unauthorized: Only Administrators can release players to the Free Agent Market.");
     }
 

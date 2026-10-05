@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { LandingPage } from "@/components/LandingPage";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function HomePage({
   const session = await auth();
 
   if (session?.user) {
-    if (session.user.role === "ADMINISTRATOR") {
+    if (isAnyAdmin(session.user)) {
       redirect("/admin/dashboard");
     }
     if (session.user.role === "CLUB_MANAGER") {

@@ -6,6 +6,7 @@ import {
 } from "@/lib/services/transfer-service";
 import { serializeTransfer } from "@/lib/serialize-transfer";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export async function POST(
   req: Request,
@@ -15,7 +16,7 @@ export async function POST(
 
   if (
     !session ||
-    session.user.role !== "ADMINISTRATOR" ||
+    !isAnyAdmin(session.user) ||
     !session.user.id
   ) {
     return NextResponse.json(

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getAvailableFreeAgents } from "@/lib/services/auction-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

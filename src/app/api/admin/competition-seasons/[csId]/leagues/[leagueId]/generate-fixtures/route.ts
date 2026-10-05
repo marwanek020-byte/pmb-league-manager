@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateFixtures } from "@/lib/services/fixture-generator";
+import { isAnyAdmin, canAccessLeague } from "@/lib/admin-auth";
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") return null;
+  if (!session || !isAnyAdmin(session.user)) return null;
   return session;
 }
 
@@ -22,6 +23,12 @@ export async function POST(
   }
 
   const { csId, leagueId } = params;
+  if (!canAccessLeague(session.user, leagueId)) {
+    return NextResponse.json(
+      { error: "Forbidden: You are not authorized to generate fixtures for this league." },
+      { status: 403 }
+    );
+  }
 
   // Load the competition season
   const competitionSeason = await prisma.competitionSeason.findUnique({

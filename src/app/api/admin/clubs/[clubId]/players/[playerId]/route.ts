@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isAnyAdmin, canAccessLeague } from "@/lib/admin-auth";
 
 export async function DELETE(
   _req: Request,
@@ -9,7 +10,7 @@ export async function DELETE(
 ) {
   const session = await auth();
 
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json(
       { error: "Unauthorized", code: "FORBIDDEN" },
       { status: 401 }

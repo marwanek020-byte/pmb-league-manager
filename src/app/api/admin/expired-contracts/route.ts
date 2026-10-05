@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { ExpiredContractsService } from "@/lib/services/expired-contracts-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -24,7 +25,7 @@ export async function GET() {
 
 export async function POST() {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

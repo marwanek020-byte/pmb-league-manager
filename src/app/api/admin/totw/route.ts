@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { applyTotwRewards } from "@/lib/services/totw-reward-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") return null;
+  if (!session || !isAnyAdmin(session.user)) return null;
   return session;
 }
 

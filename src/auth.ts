@@ -28,6 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             club: {
               include: { league: true },
             },
+            adminLeague: true,
           },
         });
 
@@ -43,6 +44,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           clubId: user.clubId,
           clubName: user.club?.name ?? null,
           leagueName: user.club?.league?.name ?? null,
+          adminLeagueId: user.leagueId ?? null,
+          adminLeagueName: user.adminLeague?.name ?? null,
         };
       },
     }),
@@ -52,10 +55,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         const u = user as typeof user & {
           id?: string;
-          role: "ADMINISTRATOR" | "CLUB_MANAGER";
+          role: "SUPER_ADMIN" | "LEAGUE_ADMIN" | "ADMINISTRATOR" | "CLUB_MANAGER";
           clubId: string | null;
           clubName: string | null;
           leagueName: string | null;
+          adminLeagueId: string | null;
+          adminLeagueName: string | null;
           username: string;
         };
         token.id = u.id || user.id || token.sub;
@@ -64,6 +69,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.clubId = u.clubId;
         token.clubName = u.clubName;
         token.leagueName = u.leagueName;
+        token.adminLeagueId = u.adminLeagueId;
+        token.adminLeagueName = u.adminLeagueName;
         token.username = u.username;
       }
       return token;
@@ -71,10 +78,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = (token.id || token.sub) as string;
-        session.user.role = token.role as "ADMINISTRATOR" | "CLUB_MANAGER";
+        session.user.role = token.role as "SUPER_ADMIN" | "LEAGUE_ADMIN" | "ADMINISTRATOR" | "CLUB_MANAGER";
         session.user.clubId = token.clubId as string | null;
         session.user.clubName = token.clubName as string | null;
         session.user.leagueName = token.leagueName as string | null;
+        session.user.adminLeagueId = token.adminLeagueId as string | null;
+        session.user.adminLeagueName = token.adminLeagueName as string | null;
         session.user.username = token.username as string;
       }
       return session;

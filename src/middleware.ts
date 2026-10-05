@@ -6,6 +6,8 @@ import { auth } from "@/auth";
 // take a club id from the URL, so there is nothing for a manager to edit
 // in the address bar to reach another club's data; access is always
 // derived from their own session.
+const ADMIN_ROLES = ["SUPER_ADMIN", "LEAGUE_ADMIN", "ADMINISTRATOR"];
+
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
@@ -20,7 +22,7 @@ export default auth((req) => {
   }
 
   if (isLoggedIn) {
-    if (isAdminRoute && role !== "ADMINISTRATOR") {
+    if (isAdminRoute && (!role || !ADMIN_ROLES.includes(role))) {
       return NextResponse.redirect(new URL("/unauthorized", nextUrl));
     }
     if (isManagerRoute && role !== "CLUB_MANAGER") {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,14 @@ export async function GET() {
             },
           },
         },
+        adminLeague: {
+          select: {
+            id: true,
+            name: true,
+            country: true,
+            logo: true,
+          },
+        },
       },
       orderBy: { username: "asc" },
     });
@@ -60,19 +69,33 @@ export async function GET() {
 
     // Format contacts with league information
     const contacts = users.map((u) => {
-      const isHQ = u.role === "ADMINISTRATOR";
-      const leagueId = isHQ ? "hq" : u.club?.league?.id || "other";
-      const leagueName = isHQ ? "🛡️ PMB League HQ & Officials" : u.club?.league?.name || "Independent Clubs";
+      const isSuper = u.role === "SUPER_ADMIN" || u.role === "ADMINISTRATOR";
+      const isLeagueAdmin = u.role === "LEAGUE_ADMIN";
+      const isHQ = isSuper || isLeagueAdmin;
+      const leagueId = isSuper
+        ? "hq"
+        : isLeagueAdmin
+        ? (u.adminLeague?.id || "hq")
+        : (u.club?.league?.id || "other");
+      const leagueName = isSuper
+        ? "🛡️ PMB League HQ & Officials"
+        : isLeagueAdmin
+        ? (`🛡️ ${u.adminLeague?.name ?? "League"} Admin`)
+        : (u.club?.league?.name || "Independent Clubs");
 
       return {
         userId: u.id,
         username: u.username,
         role: u.role,
-        clubName: u.club?.name || (isHQ ? "PMB League HQ" : "Independent"),
-        clubLogo: u.club?.logo || (isHQ ? "/branding/pmb-lion.jpg" : null),
+        clubName: isSuper
+          ? "PMB League HQ"
+          : isLeagueAdmin
+          ? `${u.adminLeague?.name ?? "League"} Official`
+          : (u.club?.name || "Independent"),
+        clubLogo: isHQ ? "/branding/pmb-lion.jpg" : (u.club?.logo || null),
         leagueId,
         leagueName,
-        leagueLogo: u.club?.league?.logo || null,
+        leagueLogo: (isLeagueAdmin ? u.adminLeague?.logo : u.club?.league?.logo) || null,
         unread: unreadMap[u.id] || 0,
       };
     });

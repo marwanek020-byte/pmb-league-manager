@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { ThroneCupService, SaveCupMatchResultInput } from "@/lib/services/throne-cup-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ type RouteContext = {
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") return null;
+  if (!session || !isAnyAdmin(session.user)) return null;
   return session;
 }
 

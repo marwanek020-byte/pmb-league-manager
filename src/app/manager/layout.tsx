@@ -7,6 +7,7 @@ import { LiveFeed } from "@/components/LiveFeed";
 import { ClubThemeShell } from "@/components/ClubThemeShell";
 
 import { UnreadMessageNotifier } from "@/components/UnreadMessageNotifier";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function ManagerLayout({
 
   if (!session?.user) redirect("/login");
 
-  if (session.user.role === "ADMINISTRATOR") {
+  if (isAnyAdmin(session.user)) {
     redirect("/admin/dashboard");
   }
 

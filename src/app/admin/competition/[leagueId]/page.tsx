@@ -8,6 +8,7 @@ import { TotwPitch } from "@/components/competition/TotwPitch";
 import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
+import { isAnyAdmin, canAccessLeague } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,12 @@ export default async function LeagueMatchdayPage({
   searchParams: { csId?: string; seasonId?: string; matchday?: string };
 }) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") redirect("/unauthorized");
+  if (!session || !isAnyAdmin(session.user)) redirect("/unauthorized");
 
   const { leagueId } = params;
+  if (!canAccessLeague(session.user, leagueId)) {
+    redirect("/admin/competition");
+  }
   const { csId, seasonId, matchday: matchdayParam } = searchParams;
 
   if (!csId || !seasonId) redirect("/admin/competition");

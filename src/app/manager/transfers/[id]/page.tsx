@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { serializeTransfer } from "@/lib/serialize-transfer";
 import { notFound, redirect } from "next/navigation";
 import { TransferDetailsClient } from "@/app/manager/transfers/[id]/TransferDetailsClient";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 async function fetchTransfer(id: string) {
   const transfer = await prisma.transfer.findUnique({ where: { id } });
@@ -17,7 +18,7 @@ export default async function TransferDetailsPage({ params }: { params: { id: st
     redirect("/login");
   }
 
-  if (session.user.role !== "CLUB_MANAGER" && session.user.role !== "ADMINISTRATOR") {
+  if (session.user.role !== "CLUB_MANAGER" && !isAnyAdmin(session.user)) {
     redirect("/unauthorized");
   }
 
@@ -37,7 +38,7 @@ export default async function TransferDetailsPage({ params }: { params: { id: st
   }
 
   const perspective =
-    session.user.role === "ADMINISTRATOR"
+    isAnyAdmin(session.user)
       ? "buyer"
       : session.user.clubId === transfer.fromClubId
       ? "seller"

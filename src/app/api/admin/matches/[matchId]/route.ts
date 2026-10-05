@@ -6,12 +6,13 @@ import { applyMatchdayRevenue, reverseMatchdayRevenue } from "@/lib/services/mat
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 import { recalculateMarketValuesForLeague } from "@/lib/services/player-valuation-service";
 import { MatchEventType } from "@prisma/client";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") return null;
+  if (!session || !isAnyAdmin(session.user)) return null;
   return session;
 }
 

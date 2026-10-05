@@ -3,12 +3,13 @@ import { auth } from "@/auth";
 import { ExpiredContractsService } from "@/lib/services/expired-contracts-service";
 import { getClubForeignPlayerCount, BOTOLA_MAX_FOREIGN_PLAYERS } from "@/lib/services/botola-contract-service";
 import { prisma } from "@/lib/prisma";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session || (session.user.role !== "CLUB_MANAGER" && session.user.role !== "ADMINISTRATOR")) {
+  if (!session || (session.user.role !== "CLUB_MANAGER" && !isAnyAdmin(session.user))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -143,7 +144,7 @@ export async function PATCH(req: NextRequest) {
   const { action, clubId: targetClubId } = body;
 
   // Only admins can advance rounds, or use the club's own ID
-  const isAdmin = session?.user?.role === "ADMINISTRATOR";
+  const isAdmin = isAnyAdmin(session?.user);
   const resolvedClubId = isAdmin ? (targetClubId ?? session?.user?.clubId) : session?.user?.clubId;
 
   if (!resolvedClubId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

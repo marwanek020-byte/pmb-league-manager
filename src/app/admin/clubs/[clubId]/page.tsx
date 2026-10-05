@@ -6,6 +6,7 @@ import { PlayerListClient } from "@/components/manager/PlayerListClient";
 import { prisma } from "@/lib/prisma";
 import { serializePlayer } from "@/lib/serialize-player";
 import { ClubBudgetManager } from "@/components/admin/ClubBudgetManager";
+import { isAnyAdmin, canAccessLeague } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function AdminClubPage({
     redirect("/login");
   }
 
-  if (session.user.role !== "ADMINISTRATOR") {
+  if (!isAnyAdmin(session.user)) {
     redirect("/unauthorized");
   }
 

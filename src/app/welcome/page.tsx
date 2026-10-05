@@ -1,6 +1,7 @@
 import { LandingPage } from "@/components/LandingPage";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function WelcomePage({
   const session = await auth();
 
   if (session?.user && params.fromApp !== "true" && params.preview !== "true") {
-    if (session.user.role === "ADMINISTRATOR") {
+    if (isAnyAdmin(session.user)) {
       redirect("/admin/dashboard");
     }
     if (session.user.role === "CLUB_MANAGER") {

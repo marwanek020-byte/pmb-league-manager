@@ -13,6 +13,7 @@ import {
   lockClubBudget,
 } from "@/lib/services/budget-service";
 import { validateForeignQuota } from "@/lib/services/botola-contract-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export type TransferServiceErrorCode =
   | "WINDOW_CLOSED"
@@ -515,7 +516,7 @@ export async function completeTransfer(userId: string, transferId: string) {
       throw new TransferServiceError("User not found.", "USER_NOT_FOUND");
     }
 
-    if (user.role !== "ADMINISTRATOR") {
+    if (!isAnyAdmin(user)) {
       throw new TransferServiceError("Only an administrator can complete a transfer.", "FORBIDDEN");
     }
 

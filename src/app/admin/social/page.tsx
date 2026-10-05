@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ManagerSocialHub } from "@/components/social/ManagerSocialHub";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export default async function AdminSocialPage() {
   const session = await auth();
@@ -9,7 +10,7 @@ export default async function AdminSocialPage() {
     redirect("/login");
   }
 
-  if (session.user.role !== "ADMINISTRATOR") {
+  if (!isAnyAdmin(session.user)) {
     redirect("/unauthorized");
   }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { serializeTransfer } from "@/lib/serialize-transfer";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export async function GET(
   req: Request,
@@ -46,7 +47,7 @@ export async function GET(
       );
     }
 
-    const isAdmin = session.user.role === "ADMINISTRATOR";
+    const isAdmin = isAnyAdmin(session.user);
     const isManager =
       session.user.role === "CLUB_MANAGER" && !!session.user.clubId;
 

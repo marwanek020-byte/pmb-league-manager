@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ClubBadge } from "@/components/ClubBadge";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function ManagerDashboardPage() {
     redirect("/login");
   }
 
-  if (session.user.role === "ADMINISTRATOR") {
+  if (isAnyAdmin(session.user)) {
     redirect("/admin/dashboard");
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -148,7 +149,7 @@ export async function POST(
     }
 
     if (
-      session.user.role !== "ADMINISTRATOR" &&
+      !isAnyAdmin(session.user) &&
       session.user.clubId !== clubId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

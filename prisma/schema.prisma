@@ -13,6 +13,7 @@ model User {
   password              String
   role                  Role
   clubId                String?                 @unique
+  leagueId              String?                 // Only for LEAGUE_ADMIN: scopes admin to a specific league
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
   activityLogs          ActivityLog[]
@@ -21,6 +22,7 @@ model User {
   transfersInitiated    Transfer[]              @relation("TransferInitiatedBy")
   transfersResponded    Transfer[]              @relation("TransferRespondedBy")
   club                  Club?                   @relation("UserManagesClub", fields: [clubId], references: [id])
+  adminLeague           League?                 @relation("LeagueAdmin", fields: [leagueId], references: [id])
   auctionsCreated       Auction[]               @relation("AuctionsCreated")
   auctionBids           AuctionBid[]
   posts                 Post[]
@@ -30,6 +32,7 @@ model User {
   receivedMessages      DirectMessage[]         @relation("ReceivedMessages")
 
   @@index([role])
+  @@index([leagueId])
 }
 
 model CompetitionSeason {
@@ -60,6 +63,7 @@ model League {
   totws     TeamOfTheWeek[]
   globalTotwPlayers GlobalTotwPlayer[]
   throneCups ThroneCup[]
+  leagueAdmins User[]  @relation("LeagueAdmin")
 }
 
 model Club {
@@ -416,7 +420,9 @@ model ClubPowerRating {
   @@index([rating])
 }
 enum Role {
-  ADMINISTRATOR
+  SUPER_ADMIN
+  LEAGUE_ADMIN
+  ADMINISTRATOR  // @deprecated – kept for backward compatibility during migration
   CLUB_MANAGER
 }
 

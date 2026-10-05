@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
 import { StadiumEconomyEngine } from "@/lib/services/stadium-economy-engine";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ type RouteContext = { params: { offerId: string } };
  */
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const session = await auth();
-  if (session?.user?.role !== "ADMINISTRATOR") {
+  if (!isAnyAdmin(session?.user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

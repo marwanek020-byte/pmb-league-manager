@@ -3,13 +3,14 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { finalizeContractSigning, validateForeignQuota } from "@/lib/services/botola-contract-service";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export async function POST(
   _req: Request,
   { params }: { params: { auctionId: string } }
 ) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

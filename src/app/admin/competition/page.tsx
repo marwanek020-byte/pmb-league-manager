@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CompetitionControlCenter } from "@/components/admin/CompetitionControlCenter";
 import { NewSeasonWidget } from "./NewSeasonWidget";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function AdminCompetitionPage({
   searchParams: { csId?: string };
 }) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") redirect("/unauthorized");
+  if (!session || !isAnyAdmin(session.user)) redirect("/unauthorized");
 
   const csId = searchParams.csId;
 

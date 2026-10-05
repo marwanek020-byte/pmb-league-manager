@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export type CreateAuctionInput = {
   playerId: string;
@@ -44,9 +45,9 @@ export async function createAuctionWithPlayer(adminUserId: string, input: Create
       })
     : null;
 
-  if (!validAdmin || validAdmin.role !== "ADMINISTRATOR") {
+  if (!validAdmin || !isAnyAdmin(validAdmin)) {
     const adminUser = await prisma.user.findFirst({
-      where: { role: "ADMINISTRATOR" },
+      where: { role: { in: ["SUPER_ADMIN", "LEAGUE_ADMIN", "ADMINISTRATOR"] } },
       select: { id: true },
     });
     if (adminUser) {

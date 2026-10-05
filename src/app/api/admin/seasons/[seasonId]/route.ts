@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { updateClubPowerRatingsForSeason } from "@/lib/services/club-power-rating-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 async function requireAdmin() {
   const session = await auth();
 
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return null;
   }
 

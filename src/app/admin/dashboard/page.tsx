@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { LeagueOverview } from "@/components/admin/LeagueOverview";
 import { TransferWindowControls } from "@/components/admin/TransferWindowControls";
@@ -9,6 +10,7 @@ import { RecalculateMarketValuesWidget } from "@/components/admin/RecalculateMar
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
+  const session = await auth();
   const [
     leagues,
     transferWindow,
@@ -114,6 +116,30 @@ export default async function AdminDashboardPage() {
 
       {/* Live Market Valuation Engine Recalculation Widget */}
       <RecalculateMarketValuesWidget />
+
+            {session?.user?.role === "LEAGUE_ADMIN" && (
+        <div className="rounded-2xl border border-pmb-gold/50 bg-gradient-to-r from-pmb-gold/20 via-pmb-charcoal to-pmb-black p-6 shadow-xl shadow-black/60">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-pmb-gold/50 bg-pmb-gold/20 text-2xl shadow-gold">
+                🛡️
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-black tracking-widest text-pmb-gold">League Administrator Active</p>
+                <h2 className="text-lg font-bold text-white">
+                  Executive Authority: <span className="text-pmb-gold">{session.user.adminLeagueName ?? "Assigned League"}</span>
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Your management controls, fixture generations, and match verifications are scoped to your assigned league.
+                </p>
+              </div>
+            </div>
+            <span className="self-start sm:self-center rounded-full border border-pmb-gold/50 bg-pmb-gold/20 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-pmb-gold">
+              {session.user.adminLeagueName}
+            </span>
+          </div>
+        </div>
+      )}
 
       <section className="admin-hero relative overflow-hidden rounded-2xl border border-pmb-gold/35 p-7 sm:p-10">
         <img src="/branding/pmb-lion.jpg" alt="PMB lion" className="absolute -right-8 top-7 h-40 w-40 rounded-full object-cover opacity-35 sm:right-12 sm:h-52 sm:w-52" />

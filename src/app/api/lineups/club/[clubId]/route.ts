@@ -5,6 +5,7 @@ import { FormationName, PlayerSlotRole, SetPieceType } from "@prisma/client";
 import { FORMATIONS, FormationKey, calculatePositionAffinity } from "@/lib/formations";
 import { isMoroccanNationality } from "@/lib/services/botola-contract-service";
 import { serializePlayer } from "@/lib/serialize-player";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ export async function GET(
 
     // Check permission: Club manager can view their club, Admin can view any
     if (
-      session.user.role !== "ADMINISTRATOR" &&
+      !isAnyAdmin(session.user) &&
       session.user.clubId !== club.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -108,7 +109,7 @@ export async function POST(
     }
 
     if (
-      session.user.role !== "ADMINISTRATOR" &&
+      !isAnyAdmin(session.user) &&
       session.user.clubId !== params.clubId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -331,7 +332,7 @@ export async function DELETE(
     }
 
     if (
-      session.user.role !== "ADMINISTRATOR" &&
+      !isAnyAdmin(session.user) &&
       session.user.clubId !== params.clubId
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

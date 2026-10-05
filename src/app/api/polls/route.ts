@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { TeamOfTheMonthService } from "@/lib/services/team-of-month-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function GET() {
 // POST /api/polls - Create a new poll (Admin only)
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

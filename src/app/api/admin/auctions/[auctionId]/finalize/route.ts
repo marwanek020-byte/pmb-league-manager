@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { finalizeAuction, cancelAuction } from "@/lib/services/auction-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export async function POST(
   req: Request,
   { params }: { params: { auctionId: string } }
 ) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") {
+  if (!session || !isAnyAdmin(session.user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

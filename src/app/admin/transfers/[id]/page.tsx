@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { serializeTransfer } from "@/lib/serialize-transfer";
 import { notFound, redirect } from "next/navigation";
 import { TransferDetailsClient } from "@/app/manager/transfers/[id]/TransferDetailsClient";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 async function fetchTransfer(id: string) {
   const transfer = await prisma.transfer.findUnique({ where: { id } });
@@ -17,7 +18,7 @@ export default async function AdminTransferDetailsPage({ params }: { params: { i
     redirect("/login");
   }
 
-  if (session.user.role !== "ADMINISTRATOR") {
+  if (!isAnyAdmin(session.user)) {
     redirect("/unauthorized");
   }
 

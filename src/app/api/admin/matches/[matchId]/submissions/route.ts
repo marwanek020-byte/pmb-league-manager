@@ -5,6 +5,7 @@ import { MatchEventType, MatchSubmissionStatus, BudgetTransactionType, Prisma } 
 import { applyMatchRewards } from "@/lib/services/match-reward-service";
 import { applyMatchdayRevenue } from "@/lib/services/matchday-revenue-service";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session || session.user?.role !== "ADMINISTRATOR") {
+    if (!session || !isAnyAdmin(session.user)) {
       return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 401 });
     }
 
@@ -45,7 +46,7 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    if (!session || session.user?.role !== "ADMINISTRATOR") {
+    if (!session || !isAnyAdmin(session.user)) {
       return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 401 });
     }
 

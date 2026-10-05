@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ async function getManagerClub(): Promise<{ session: any; clubId: string } | null
     clubId = club?.id ?? null;
   }
 
-  if (!clubId && session.user.role === "ADMINISTRATOR") {
+  if (!clubId && isAnyAdmin(session.user)) {
     const club = await prisma.club.findFirst({ select: { id: true } });
     clubId = club?.id ?? null;
   }

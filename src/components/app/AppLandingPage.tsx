@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { CinematicIntro } from "@/components/CinematicIntro";
 import { AppHomeDashboard } from "./AppHomeDashboard";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 interface AppUser {
   id?: string;
   username?: string;
-  role?: "ADMINISTRATOR" | "CLUB_MANAGER";
+  role?: "SUPER_ADMIN" | "LEAGUE_ADMIN" | "ADMINISTRATOR" | "CLUB_MANAGER";
   clubId?: string | null;
   clubName?: string | null;
   leagueName?: string | null;
+  adminLeagueId?: string | null;
+  adminLeagueName?: string | null;
 }
 
 export function AppLandingPage({
@@ -380,7 +383,7 @@ export function AppLandingPage({
                 {currentUser?.clubName || "FAR RABAT"}
               </p>
               <p className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#e9c349]">
-                {currentUser?.role === "ADMINISTRATOR" ? "ADMINISTRATOR" : "MANAGER"}
+                {isAnyAdmin(currentUser) ? (currentUser?.role === "LEAGUE_ADMIN" ? "LEAGUE ADMIN" : "ADMINISTRATOR") : "MANAGER"}
               </p>
             </div>
           </div>

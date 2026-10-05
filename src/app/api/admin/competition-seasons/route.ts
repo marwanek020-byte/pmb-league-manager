@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session || session.user.role !== "ADMINISTRATOR") return null;
+  if (!session || !isAnyAdmin(session.user)) return null;
   return session;
 }
 

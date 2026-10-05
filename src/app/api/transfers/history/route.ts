@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { serializeTransfer } from "@/lib/serialize-transfer";
 import { TransferStatus } from "@prisma/client";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
 
   const skip = (page - 1) * pageSize;
 
-  const isAdmin = session.user.role === "ADMINISTRATOR";
+  const isAdmin = isAnyAdmin(session.user);
   const clubId = session.user.clubId;
 
   if (!isAdmin && (!clubId || session.user.role !== "CLUB_MANAGER")) {

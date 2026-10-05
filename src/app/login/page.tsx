@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "./login-form";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export default async function LoginPage() {
   const session = await auth();
 
   if (session?.user) {
-    redirect(session.user.role === "ADMINISTRATOR" ? "/admin/dashboard" : "/manager/dashboard");
+    redirect(isAnyAdmin(session.user) ? "/admin/dashboard" : "/manager/dashboard");
   }
 
 

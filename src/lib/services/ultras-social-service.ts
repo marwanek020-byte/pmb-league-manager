@@ -11,7 +11,7 @@ export class UltrasSocialService {
   /**
    * Helper to ensure an AI Ultras/Media bot user exists in the database
    */
-  private static async getOrCreateBotUser(username: string, roleName = "ADMINISTRATOR"): Promise<string> {
+  private static async getOrCreateBotUser(username: string, roleName = "SUPER_ADMIN"): Promise<string> {
     const existing = await prisma.user.findUnique({
       where: { username },
       select: { id: true },

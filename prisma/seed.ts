@@ -190,25 +190,39 @@ const leaguesData: { name: string; country: string; clubs: string[] }[] = [
   },
 ];
 
+// Leagues that get their own LEAGUE_ADMIN account.
+// Every league gets a designated league admin account (admin-<prefix>)
+const LEAGUES_WITH_OWN_ADMIN = [
+  "Premier League",
+  "La Liga",
+  "Serie A",
+  "Bundesliga",
+  "Ligue 1",
+  "VIP League",
+  "BOTOLA PRO",
+];
+
 async function main() {
   console.log("Seeding PMB League Manager database...");
 
-  // --- Administrator ---
+  // --- Global Super Administrator ---
   const adminPasswordHash = await bcrypt.hash("PMBAdmin2026!", 10);
   await prisma.user.upsert({
     where: { username: "admin" },
-    update: {},
+    update: { role: Role.SUPER_ADMIN },
     create: {
       username: "admin",
       password: adminPasswordHash,
-      role: Role.ADMINISTRATOR,
+      role: Role.SUPER_ADMIN,
     },
   });
-  console.log("Created administrator account: admin");
+  console.log("Created SUPER_ADMIN account: admin");
 
   // --- Leagues, Clubs, Managers ---
   const managerPasswordHash = await bcrypt.hash("PMB2026!", 10);
+  const leagueAdminPasswordHash = await bcrypt.hash("PMBLeagueAdmin2026!", 10);
   let clubCount = 0;
+  let leagueAdminCount = 0;
 
   for (const leagueData of leaguesData) {
     const league = await prisma.league.upsert({
@@ -221,6 +235,23 @@ async function main() {
     });
 
     const prefix = LEAGUE_PREFIX[leagueData.name];
+
+    // --- Per-League Admin (except BOTOLA PRO) ---
+    if (LEAGUES_WITH_OWN_ADMIN.includes(leagueData.name)) {
+      const leagueAdminUsername = `admin-${prefix}`;
+      await prisma.user.upsert({
+        where: { username: leagueAdminUsername },
+        update: { role: Role.LEAGUE_ADMIN, leagueId: league.id },
+        create: {
+          username: leagueAdminUsername,
+          password: leagueAdminPasswordHash,
+          role: Role.LEAGUE_ADMIN,
+          leagueId: league.id,
+        },
+      });
+      leagueAdminCount += 1;
+      console.log(`  Created LEAGUE_ADMIN: ${leagueAdminUsername} → ${leagueData.name}`);
+    }
 
     for (const clubName of leagueData.clubs) {
       const club = await prisma.club.upsert({
@@ -264,7 +295,11 @@ async function main() {
     create: { id: "singleton", isOpen: false },
   });
 
-  console.log(`Done. ${clubCount} clubs and ${clubCount + 1} user accounts created.`);
+  console.log(`\nDone.`);
+  console.log(`  ${clubCount} clubs with club manager accounts`);
+  console.log(`  ${leagueAdminCount} league admin accounts`);
+  console.log(`  1 super admin account`);
+  console.log(`  Total: ${clubCount + leagueAdminCount + 1} user accounts`);
 }
 
 main()

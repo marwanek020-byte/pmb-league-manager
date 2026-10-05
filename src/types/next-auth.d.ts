@@ -5,29 +5,35 @@ declare module "next-auth" {
     user: {
       id: string;
       username: string;
-      role: "ADMINISTRATOR" | "CLUB_MANAGER";
+      role: "SUPER_ADMIN" | "LEAGUE_ADMIN" | "ADMINISTRATOR" | "CLUB_MANAGER";
       clubId: string | null;
       clubName: string | null;
       leagueName: string | null;
+      adminLeagueId: string | null;
+      adminLeagueName: string | null;
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
     username: string;
-    role: "ADMINISTRATOR" | "CLUB_MANAGER";
+    role: "SUPER_ADMIN" | "LEAGUE_ADMIN" | "ADMINISTRATOR" | "CLUB_MANAGER";
     clubId: string | null;
     clubName: string | null;
     leagueName: string | null;
+    adminLeagueId: string | null;
+    adminLeagueName: string | null;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    role: "ADMINISTRATOR" | "CLUB_MANAGER";
+    role: "SUPER_ADMIN" | "LEAGUE_ADMIN" | "ADMINISTRATOR" | "CLUB_MANAGER";
     clubId: string | null;
     clubName: string | null;
     leagueName: string | null;
+    adminLeagueId: string | null;
+    adminLeagueName: string | null;
     username: string;
   }
 }

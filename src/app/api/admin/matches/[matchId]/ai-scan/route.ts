@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveGeminiApiKey, GEMINI_CANDIDATE_MODELS } from "@/lib/services/gemini-key-resolver";
+import { isAnyAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session || session.user?.role !== "ADMINISTRATOR") {
+    if (!session || !isAnyAdmin(session.user)) {
       return NextResponse.json({ error: "Unauthorized. Admin access required." }, { status: 401 });
     }
 
