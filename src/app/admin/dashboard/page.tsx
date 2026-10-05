@@ -354,6 +354,32 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Security & Forensic Audit Logs */}
+      <div className="space-y-4 rounded-xl border border-red-500/30 bg-gradient-to-br from-red-950/20 via-pmb-charcoal/70 to-pmb-black/50 p-6 shadow-lg">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[.2em] text-red-400">
+              Security Intelligence · Forensic Audit Trail
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-white flex items-center gap-2">
+              <span>🛡️</span> Account Logins & Player Deletion Logs
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-400">
+              Track client IP addresses, browser user-agents, multi-account hopping, and player release actions in real-time.
+            </p>
+          </div>
+
+          <Link
+            href="/admin/security-logs"
+            className="rounded-full bg-red-600/90 hover:bg-red-500 text-white px-6 py-3 text-sm font-semibold whitespace-nowrap shadow-lg shadow-red-900/30 transition-all border border-red-400/30 inline-flex items-center gap-2 shrink-0"
+          >
+            <span>Open Security Logs</span>
+            <span>→</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Competition Control Center */}
       <div className="space-y-4 rounded-xl border border-pmb-gold/30 bg-gradient-to-br from-pmb-charcoal/70 to-pmb-black/50 p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

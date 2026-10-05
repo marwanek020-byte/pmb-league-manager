@@ -87,6 +87,12 @@ export function Navbar({
                   >
                     The Dugout
                   </Link>
+                  <Link
+                    href="/admin/security-logs"
+                    className={`transition flex items-center gap-1 ${pathname.startsWith("/admin/security-logs") ? "text-red-400 font-black" : "text-red-400/80 hover:text-red-300"}`}
+                  >
+                    <span>🛡️</span> Security
+                  </Link>
                 </>
               ) : (
                 <>
@@ -262,6 +268,19 @@ export function Navbar({
             <span className="text-sm">💬</span>
             <span>Dugout</span>
           </Link>
+
+          {/* Admin Security Logs */}
+          {isAdmin && (
+            <Link
+              href="/admin/security-logs"
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 text-[9px] font-bold uppercase tracking-wider shrink-0 transition ${
+                pathname.includes("/security-logs") ? "text-red-400 scale-105" : "text-red-400/70"
+              }`}
+            >
+              <span className="text-sm">🛡️</span>
+              <span>Security</span>
+            </Link>
+          )}
         </div>
       </nav>
     </>

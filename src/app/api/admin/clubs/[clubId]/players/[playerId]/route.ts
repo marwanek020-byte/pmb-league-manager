@@ -1,3 +1,4 @@
+import { logSecurityEvent } from "@/lib/audit-logger";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { Prisma } from "@prisma/client";

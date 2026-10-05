@@ -1,3 +1,4 @@
+import { logSecurityEvent } from "@/lib/audit-logger";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -55,7 +56,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             passwordValid = true;
           }
         }
-        if (!passwordValid) return null;
+        if (!passwordValid) {
+          logSecurityEvent({
+            action: "USER_LOGIN_FAILED",
+            username: trimmedUsername,
+            details: "Invalid password attempt",
+          }).catch(() => {});
+          return null;
+        }
+
+        logSecurityEvent({
+          action: "USER_LOGIN_SUCCESS",
+          actorUserId: user.id,
+          username: user.username,
+          role: user.role,
+          clubId: user.clubId,
+          clubName: user.club?.name ?? null,
+        }).catch(() => {});
 
         return {
           id: user.id,

@@ -1,3 +1,4 @@
+import { logSecurityEvent } from "@/lib/audit-logger";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
@@ -46,6 +47,18 @@ export async function POST(
       session.user.clubId,
       severanceAmount
     );
+
+    logSecurityEvent({
+      action: "CONTRACT_TERMINATED",
+      actorUserId: session.user.id,
+      username: session.user.username,
+      role: session.user.role,
+      clubId: session.user.clubId,
+      clubName: session.user.clubName,
+      targetPlayerId: params.playerId,
+      req,
+      details: `Mutual contract termination with severance (€${severanceAmount.toLocaleString()})`,
+    }).catch(() => {});
 
     return NextResponse.json(result);
   } catch (err: unknown) {
