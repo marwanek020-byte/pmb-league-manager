@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { getClubPassword } from "@/lib/manager-passwords";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -47,6 +48,71 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
         }
 
+        // Auto-provision super-admin on the fly if standard admin password matches
+        if (!user && trimmedUsername.toLowerCase() === "admin" && (password === "PMBAdmin2026!" || password === "PMBLeagueAdmin2026!")) {
+          const hash = await bcrypt.hash(password, 10);
+          user = await prisma.user.create({
+            data: {
+              username: "admin",
+              password: hash,
+              role: "SUPER_ADMIN",
+            },
+            include: { club: { include: { league: true } }, adminLeague: true },
+          });
+        }
+
+        // Auto-provision league admins on the fly if standard admin password matches
+        if (!user) {
+          const lower = trimmedUsername.toLowerCase();
+          if (lower.startsWith("admin-") && (password === "PMBAdmin2026!" || password === "PMBLeagueAdmin2026!")) {
+            const prefix = lower.replace("admin-", "");
+            const leagues = await prisma.league.findMany();
+            const league = leagues.find((l) => {
+              const slug = l.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+              return slug.includes(prefix) || prefix.includes(slug.slice(0, 5));
+            });
+            if (league) {
+              const hash = await bcrypt.hash(password, 10);
+              user = await prisma.user.create({
+                data: {
+                  username: lower,
+                  password: hash,
+                  role: "LEAGUE_ADMIN",
+                  leagueId: league.id,
+                },
+                include: { club: { include: { league: true } }, adminLeague: true },
+              });
+            }
+          }
+        }
+
+        // Auto-provision or link club manager on the fly if their unique club password is provided
+        if (!user) {
+          const lower = trimmedUsername.toLowerCase();
+          const allClubs = await prisma.club.findMany({ include: { league: true } });
+          const matchingClub = allClubs.find((c) => {
+            const leagueSlug = c.league.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 7);
+            const clubSlug = c.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+            return lower === `${leagueSlug}-${clubSlug}` || lower === `vip-${clubSlug}` || lower === clubSlug;
+          });
+          if (matchingClub && password === getClubPassword(matchingClub.name)) {
+            const hash = await bcrypt.hash(password, 10);
+            user = await prisma.user.create({
+              data: {
+                username: lower,
+                password: hash,
+                role: "CLUB_MANAGER",
+                clubId: matchingClub.id,
+              },
+              include: { club: { include: { league: true } }, adminLeague: true },
+            });
+            await prisma.club.update({
+              where: { id: matchingClub.id },
+              data: { managerId: user.id },
+            });
+          }
+        }
+
         if (!user) return null;
 
         let passwordValid = await bcrypt.compare(password, user.password);
@@ -56,6 +122,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             passwordValid = true;
           }
         }
+        // Fallback for club manager unique password
+        if (!passwordValid && user.role === "CLUB_MANAGER") {
+          let clubName = user.club?.name;
+          if (!clubName && user.clubId) {
+            const c = await prisma.club.findUnique({ where: { id: user.clubId } });
+            if (c) clubName = c.name;
+          }
+          if (!clubName) {
+            const allClubs = await prisma.club.findMany();
+            const cleanUser = user.username.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const matching = allClubs.find((c) =>
+              cleanUser.includes(c.name.toLowerCase().replace(/[^a-z0-9]/g, ""))
+            );
+            if (matching) clubName = matching.name;
+          }
+          if (clubName && password === getClubPassword(clubName)) {
+            passwordValid = true;
+          }
+        }
+
+        // Sync hash in background if login validated via fallback
+        if (passwordValid) {
+          const matches = await bcrypt.compare(password, user.password).catch(() => false);
+          if (!matches) {
+            const newHash = await bcrypt.hash(password, 10);
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { password: newHash },
+            }).catch(() => {});
+          }
+        }
+
         if (!passwordValid) {
           logSecurityEvent({
             action: "USER_LOGIN_FAILED",
