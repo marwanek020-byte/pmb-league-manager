@@ -16,6 +16,11 @@ type TeamSearchResponse = {
  * Names that TheSportsDB recognizes differently.
  */
 const ALIASES: Record<string, string[]> = {
+  Genk: [
+    "KRC Genk",
+    "Racing Genk",
+  ],
+
   Lyon: [
     "Olympique Lyonnais",
     "Olympique Lyon",

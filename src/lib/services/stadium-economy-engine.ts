@@ -220,18 +220,19 @@ export class StadiumEconomyEngine {
     "Nice": { stadium: "Allianz Riviera", capacity: 36178 },
     "Lens": { stadium: "Stade Bollaert-Delelis", capacity: 38223 },
     // ── VIP LEAGUE & INTERNATIONAL ───────────────────────────────────────────
+    "Borussia Dortmund": { stadium: "Signal Iduna Park", capacity: 81365 },
+    "Bayern Munich": { stadium: "Allianz Arena", capacity: 75024 },
+    "Bayer Leverkusen": { stadium: "BayArena", capacity: 30210 },
+    "Eintracht Frankfurt": { stadium: "Deutsche Bank Park", capacity: 58000 },
+    "Galatasaray": { stadium: "Rams Park", capacity: 52280 },
+    "Besiktas": { stadium: "Tüpraş Stadium", capacity: 42590 },
+    "Fenerbahce": { stadium: "Ülker Stadium", capacity: 47834 },
     "Ajax": { stadium: "Johan Cruyff Arena", capacity: 55865 },
+    "PSV": { stadium: "Philips Stadion", capacity: 35119 },
+    "Celtic": { stadium: "Celtic Park", capacity: 60411 },
     "Benfica": { stadium: "Estádio da Luz", capacity: 64642 },
     "Porto": { stadium: "Estádio do Dragão", capacity: 50033 },
-    "Sporting CP": { stadium: "Estádio José Alvalade", capacity: 50095 },
-    "Celtic": { stadium: "Celtic Park", capacity: 60411 },
-    "Rangers": { stadium: "Ibrox Stadium", capacity: 50817 },
-    "Galatasaray": { stadium: "Rams Park", capacity: 52280 },
-    "Fenerbahce": { stadium: "Ülker Stadium", capacity: 47834 },
-    "Besiktas": { stadium: "Tüpraş Stadium", capacity: 42590 },
-    "Olympiacos": { stadium: "Georgios Karaiskakis Stadium", capacity: 32115 },
-    "PSV": { stadium: "Philips Stadion", capacity: 35119 },
-    "Club Brugge": { stadium: "Jan Breydel Stadium", capacity: 29062 },
+    "Genk": { stadium: "Cegeka Arena", capacity: 23718 },
   });
 
   // VIP allotment across all venues (5%)

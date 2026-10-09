@@ -56,8 +56,19 @@ const KNOWN_CLUB_THEMES: Record<string, Omit<ClubTheme, "stadium">> = {
   "Marseille": { primary: "#38bdf8", secondary: "#ffffff", accent: "#fbbf24", background: "#020914", glow: "rgba(56, 189, 248, 0.45)" },
 
   // 🌟 VIP LEAGUE
-  "Ajax": { primary: "#dc2626", secondary: "#ffffff", accent: "#fbbf24", background: "#0f0304", glow: "rgba(220, 38, 38, 0.45)" },
+  "Borussia Dortmund": { primary: "#facc15", secondary: "#000000", accent: "#ffffff", background: "#0f0c02", glow: "rgba(250, 204, 21, 0.5)" },
+  "Bayern Munich": { primary: "#dc2626", secondary: "#2563eb", accent: "#ffffff", background: "#0f0304", glow: "rgba(220, 38, 38, 0.45)" },
+  "Bayer Leverkusen": { primary: "#ef4444", secondary: "#000000", accent: "#facc15", background: "#0f0304", glow: "rgba(239, 68, 68, 0.4)" },
+  "Eintracht Frankfurt": { primary: "#e11d48", secondary: "#000000", accent: "#ffffff", background: "#0d0204", glow: "rgba(225, 29, 72, 0.45)" },
   "Galatasaray": { primary: "#be185d", secondary: "#f59e0b", accent: "#ffffff", background: "#0f0308", glow: "rgba(190, 24, 93, 0.45)" },
+  "Besiktas": { primary: "#ffffff", secondary: "#000000", accent: "#dc2626", background: "#050505", glow: "rgba(255, 255, 255, 0.35)" },
+  "Fenerbahce": { primary: "#facc15", secondary: "#1e3a8a", accent: "#ffffff", background: "#0f0c02", glow: "rgba(250, 204, 21, 0.5)" },
+  "Ajax": { primary: "#dc2626", secondary: "#ffffff", accent: "#fbbf24", background: "#0f0304", glow: "rgba(220, 38, 38, 0.45)" },
+  "PSV": { primary: "#ef4444", secondary: "#ffffff", accent: "#000000", background: "#0f0203", glow: "rgba(239, 68, 68, 0.45)" },
+  "Celtic": { primary: "#059669", secondary: "#ffffff", accent: "#facc15", background: "#02120a", glow: "rgba(5, 150, 105, 0.45)" },
+  "Benfica": { primary: "#dc2626", secondary: "#ffffff", accent: "#facc15", background: "#0f0304", glow: "rgba(220, 38, 38, 0.45)" },
+  "Porto": { primary: "#1d4ed8", secondary: "#ffffff", accent: "#facc15", background: "#020614", glow: "rgba(29, 78, 216, 0.45)" },
+  "Genk": { primary: "#1d4ed8", secondary: "#ffffff", accent: "#60a5fa", background: "#020617", glow: "rgba(29, 78, 216, 0.45)" },
 };
 
 /**
