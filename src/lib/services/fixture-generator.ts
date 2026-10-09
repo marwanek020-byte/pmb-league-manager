@@ -15,16 +15,27 @@ export type FixturePair = {
   awayClubId: string;
 };
 
+function shuffleArray<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 /**
  * Generate a complete fixture list using the Berger round-robin algorithm.
  *
  * @param clubIds  Array of club IDs to schedule (minimum 2 clubs required)
  * @param doubleRoundRobin  If true, every pair plays home AND away (default: true)
+ * @param shuffle  If true, shuffles team seedings so each season has unique rounds (default: true)
  * @returns An array of FixturePair objects ordered by matchday then fixture
  */
 export function generateFixtures(
   clubIds: string[],
-  doubleRoundRobin = true
+  doubleRoundRobin = true,
+  shuffle = true
 ): FixturePair[] {
   if (clubIds.length < 2) {
     throw new Error("At least 2 clubs are required to generate fixtures.");
@@ -32,8 +43,8 @@ export function generateFixtures(
 
   const fixtures: FixturePair[] = [];
 
-  // Work on a shallow copy to avoid mutating the input array
-  const teams = [...clubIds];
+  // Work on a copy; shuffle clubs by default so every season's rounds are fresh and unique
+  const teams = shuffle ? shuffleArray(clubIds) : [...clubIds];
 
   // Berger algorithm requires an even number of teams.
   // If odd, insert a virtual "bye" slot — any match involving the bye is skipped.

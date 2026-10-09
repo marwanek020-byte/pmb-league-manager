@@ -127,8 +127,16 @@ export async function PATCH(
       }
     }
 
-    // When activating: mark all per-league seasons as ACTIVE
+    // When activating: mark all per-league seasons as ACTIVE and retire previous active ones
     if (newStatus === "ACTIVE") {
+      await prisma.competitionSeason.updateMany({
+        where: { id: { not: params.csId }, status: "ACTIVE" },
+        data: { status: "FINISHED" },
+      });
+      await prisma.season.updateMany({
+        where: { competitionSeasonId: { not: params.csId }, status: "ACTIVE" },
+        data: { status: "FINISHED" },
+      });
       await prisma.season.updateMany({
         where: { competitionSeasonId: params.csId },
         data: { status: "ACTIVE" },
