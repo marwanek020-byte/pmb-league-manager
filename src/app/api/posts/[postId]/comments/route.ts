@@ -3,9 +3,31 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 
+export async function GET(
+  _req: Request,
+  { params }: { params: { postId: string } | Promise<{ postId: string }> }
+) {
+  try {
+    const { postId } = await params;
+    const comments = await prisma.postComment.findMany({
+      where: { postId },
+      orderBy: { createdAt: "asc" },
+      include: {
+        user: { select: { id: true, username: true, role: true } },
+        club: { select: { id: true, name: true, logo: true } },
+      },
+    });
+
+    return NextResponse.json({ comments });
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
+  }
+}
+
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ postId: string }> }
+  { params }: { params: { postId: string } | Promise<{ postId: string }> }
 ) {
   try {
     const session = await auth();
@@ -62,7 +84,7 @@ export async function POST(
     }
 
     // Trigger AI Ultras thread monitoring if a club was mentioned or challenged
-    if (!session.user.username.includes("_ultras") && session.user.username !== "pmb_sports_media") {
+    if (session.user.username && !session.user.username.includes("_ultras") && session.user.username !== "pmb_sports_media") {
       UltrasSocialService.respondToCommentThread(postId, newComment.id).catch((err) => {
         console.error("[CommentsAPI] Failed to trigger Ultras thread reply:", err);
       });

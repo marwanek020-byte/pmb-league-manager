@@ -483,12 +483,12 @@ export function MatchdayAdmin({
           events: validEvents,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
         setMatchErrors((prev) => ({
           ...prev,
-          [matchId]: data.error ?? "Failed to save result.",
+          [matchId]: data?.error ?? `Server error (${res.status}). Failed to save result.`,
         }));
         return;
       }
@@ -520,10 +520,10 @@ export function MatchdayAdmin({
       setTimeout(() => {
         setMatchSuccesses((prev) => ({ ...prev, [matchId]: "" }));
       }, 3000);
-    } catch {
+    } catch (err: any) {
       setMatchErrors((prev) => ({
         ...prev,
-        [matchId]: "Network error.",
+        [matchId]: err?.message || "Network error.",
       }));
     } finally {
       setSaving(false);
@@ -547,11 +547,11 @@ export function MatchdayAdmin({
       const res = await fetch(`/api/admin/matches/${matchId}`, {
         method: "DELETE",
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         setMatchErrors((prev) => ({
           ...prev,
-          [matchId]: data.error ?? "Failed to cancel match result.",
+          [matchId]: data?.error ?? `Server error (${res.status}). Failed to cancel match result.`,
         }));
         return;
       }
@@ -587,8 +587,8 @@ export function MatchdayAdmin({
       setTimeout(() => {
         window.location.reload();
       }, 800);
-    } catch {
-      setMatchErrors((prev) => ({ ...prev, [matchId]: "Network error." }));
+    } catch (err: any) {
+      setMatchErrors((prev) => ({ ...prev, [matchId]: err?.message || "Network error." }));
     } finally {
       setSaving(false);
     }
@@ -660,9 +660,9 @@ export function MatchdayAdmin({
           manOfTheMatchId: motmId || null,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setMatchErrors((prev) => ({ ...prev, [matchId]: data.error ?? "Failed to save cup result." }));
+        setMatchErrors((prev) => ({ ...prev, [matchId]: data?.error ?? `Server error (${res.status}). Failed to save cup result.` }));
         return;
       }
 
@@ -670,8 +670,8 @@ export function MatchdayAdmin({
       setEditingId(null);
       setMatchSquads(null);
       await fetchCupData();
-    } catch {
-      setMatchErrors((prev) => ({ ...prev, [matchId]: "Network error." }));
+    } catch (err: any) {
+      setMatchErrors((prev) => ({ ...prev, [matchId]: err?.message || "Network error." }));
     } finally {
       setSaving(false);
     }
@@ -690,9 +690,9 @@ export function MatchdayAdmin({
       const res = await fetch(`/api/admin/throne-cup/matches/${matchId}`, {
         method: "DELETE",
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setMatchErrors((prev) => ({ ...prev, [matchId]: data.error ?? "Failed to cancel cup result." }));
+        setMatchErrors((prev) => ({ ...prev, [matchId]: data?.error ?? `Server error (${res.status}). Failed to cancel cup result.` }));
         return;
       }
 
@@ -700,8 +700,8 @@ export function MatchdayAdmin({
       setEditingId(null);
       setMatchSquads(null);
       await fetchCupData();
-    } catch {
-      setMatchErrors((prev) => ({ ...prev, [matchId]: "Network error." }));
+    } catch (err: any) {
+      setMatchErrors((prev) => ({ ...prev, [matchId]: err?.message || "Network error." }));
     } finally {
       setSaving(false);
     }

@@ -9,7 +9,7 @@ export async function GET(
   _req: Request,
   { params }: { params: { seasonId: string } }
 ) {
-  const season = await prisma.season.findUnique({
+  let season = await prisma.season.findUnique({
     where: { id: params.seasonId },
     include: {
       league: {
@@ -21,11 +21,24 @@ export async function GET(
   });
 
   if (!season) {
+    season = await prisma.season.findFirst({
+      where: { competitionSeasonId: params.seasonId },
+      include: {
+        league: {
+          include: {
+            clubs: { select: { id: true, name: true, logo: true } },
+          },
+        },
+      },
+    });
+  }
+
+  if (!season) {
     return NextResponse.json({ error: "Season not found." }, { status: 404 });
   }
 
   const matches = await prisma.match.findMany({
-    where: { seasonId: params.seasonId },
+    where: { seasonId: season.id },
     select: {
       id: true,
       status: true,

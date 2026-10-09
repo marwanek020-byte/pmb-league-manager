@@ -93,13 +93,12 @@ export async function GET() {
     const vipPrice = Number(lastMatch.vipTicketPrice ?? 200);
 
     const clubName = club.name;
-    const prestige = CLUB_PRESTIGE[clubName] ?? 55;
-    const reg = StadiumEconomyEngine.BOTOLA_STADIUM_REGISTRY[clubName];
-    const stadiumName = lastMatch.overrideStadiumName ?? reg?.stadium ?? "Unknown Stadium";
+    const prestige = CLUB_PRESTIGE[clubName] ?? 70;
+    const venue = StadiumEconomyEngine._resolveClubVenue(clubName);
+    const totalCap = venue?.capacity ?? 45000;
+    const stadiumName = lastMatch.overrideStadiumName ?? venue?.stadium ?? `${clubName} Stadium`;
 
-    const vipCapacity = reg
-      ? Math.floor(reg.capacity * StadiumEconomyEngine.VIP_CAPACITY_PERCENTAGE)
-      : 0;
+    const vipCapacity = Math.floor(totalCap * StadiumEconomyEngine.VIP_CAPACITY_PERCENTAGE);
 
     const engineResult = StadiumEconomyEngine.calculateMatchday({
       clubIdentifier: clubName,

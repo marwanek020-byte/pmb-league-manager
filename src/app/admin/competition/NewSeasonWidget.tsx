@@ -23,15 +23,15 @@ export function NewSeasonWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), format: "DOUBLE_ROUND_ROBIN" }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data.error ?? "Could not create season.");
+        setError(data?.error ?? `Server error (${res.status}). Could not create season.`);
         return;
       }
       setName("");
       router.refresh();
-    } catch {
-      setError("Network error.");
+    } catch (err: any) {
+      setError(err?.message || "Network error.");
     } finally {
       setCreating(false);
     }

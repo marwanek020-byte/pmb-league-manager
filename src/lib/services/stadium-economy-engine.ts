@@ -157,6 +157,92 @@ export class StadiumEconomyEngine {
       stadium: "Stade Municipal de rabat",
       capacity: 18000,
     },
+    // ── SERIE A ─────────────────────────────────────────────────────────────
+    "Atalanta": { stadium: "Gewiss Stadium", capacity: 24950 },
+    "Inter": { stadium: "San Siro", capacity: 75817 },
+    "AC Milan": { stadium: "San Siro", capacity: 75817 },
+    "Juventus": { stadium: "Allianz Stadium", capacity: 41507 },
+    "Roma": { stadium: "Stadio Olimpico", capacity: 70634 },
+    "Lazio": { stadium: "Stadio Olimpico", capacity: 70634 },
+    "Napoli": { stadium: "Stadio Diego Armando Maradona", capacity: 54726 },
+    "Fiorentina": { stadium: "Stadio Artemio Franchi", capacity: 43147 },
+    "Bologna": { stadium: "Stadio Renato Dall'Ara", capacity: 36462 },
+    "Torino": { stadium: "Stadio Olimpico Grande Torino", capacity: 28177 },
+    "Udinese": { stadium: "Bluenergy Stadium", capacity: 25144 },
+    "Sassuolo": { stadium: "Mapei Stadium", capacity: 21584 },
+    "Cagliari": { stadium: "Unipol Domus", capacity: 16416 },
+    "Monza": { stadium: "U-Power Stadium", capacity: 16917 },
+    "Como": { stadium: "Stadio Giuseppe Sinigaglia", capacity: 13602 },
+    "Venezia": { stadium: "Stadio Pier Luigi Penzo", capacity: 11150 },
+    "Lecce": { stadium: "Stadio Via del Mare", capacity: 31533 },
+    "Parma": { stadium: "Stadio Ennio Tardini", capacity: 22352 },
+    "Frosinone": { stadium: "Stadio Benito Stirpe", capacity: 16227 },
+    "Verona": { stadium: "Stadio Marcantonio Bentegodi", capacity: 31045 },
+    // ── PREMIER LEAGUE ───────────────────────────────────────────────────────
+    "Liverpool": { stadium: "Anfield", capacity: 61276 },
+    "Manchester City": { stadium: "Etihad Stadium", capacity: 53400 },
+    "Arsenal": { stadium: "Emirates Stadium", capacity: 60704 },
+    "Manchester United": { stadium: "Old Trafford", capacity: 74310 },
+    "Chelsea": { stadium: "Stamford Bridge", capacity: 40341 },
+    "Tottenham": { stadium: "Tottenham Hotspur Stadium", capacity: 62850 },
+    "Newcastle": { stadium: "St James' Park", capacity: 52305 },
+    "Aston Villa": { stadium: "Villa Park", capacity: 42640 },
+    "Everton": { stadium: "Goodison Park", capacity: 39572 },
+    "West Ham": { stadium: "London Stadium", capacity: 62500 },
+    "Wolves": { stadium: "Molineux Stadium", capacity: 31750 },
+    "Brighton": { stadium: "Amex Stadium", capacity: 31800 },
+    "Brentford": { stadium: "Gtech Community Stadium", capacity: 17250 },
+    "Crystal Palace": { stadium: "Selhurst Park", capacity: 25486 },
+    "Fulham": { stadium: "Craven Cottage", capacity: 25700 },
+    "Bournemouth": { stadium: "Vitality Stadium", capacity: 11307 },
+    "Nottingham Forest": { stadium: "City Ground", capacity: 30445 },
+    "Leicester": { stadium: "King Power Stadium", capacity: 32262 },
+    "Southampton": { stadium: "St Mary's Stadium", capacity: 32384 },
+    "Ipswich": { stadium: "Portman Road", capacity: 29673 },
+    // ── LA LIGA ─────────────────────────────────────────────────────────────
+    "Real Madrid": { stadium: "Santiago Bernabéu", capacity: 84744 },
+    "Barcelona": { stadium: "Spotify Camp Nou", capacity: 99354 },
+    "Atletico Madrid": { stadium: "Cívitas Metropolitano", capacity: 70460 },
+    "Sevilla": { stadium: "Ramón Sánchez-Pizjuán", capacity: 42714 },
+    "Real Betis": { stadium: "Benito Villamarín", capacity: 60721 },
+    "Athletic Bilbao": { stadium: "San Mamés", capacity: 53289 },
+    "Real Sociedad": { stadium: "Reale Arena", capacity: 39313 },
+    "Valencia": { stadium: "Mestalla", capacity: 49430 },
+    "Villarreal": { stadium: "Estadio de la Cerámica", capacity: 23000 },
+    "Celta Vigo": { stadium: "Abanca-Balaídos", capacity: 24791 },
+    // ── BUNDESLIGA ───────────────────────────────────────────────────────────
+    "Bayern Munich": { stadium: "Allianz Arena", capacity: 75024 },
+    "Borussia Dortmund": { stadium: "Signal Iduna Park", capacity: 81365 },
+    "Bayer Leverkusen": { stadium: "BayArena", capacity: 30210 },
+    "RB Leipzig": { stadium: "Red Bull Arena", capacity: 47069 },
+    "Eintracht Frankfurt": { stadium: "Deutsche Bank Park", capacity: 58000 },
+    "Stuttgart": { stadium: "MHPArena", capacity: 60449 },
+    "Borussia Monchengladbach": { stadium: "Borussia-Park", capacity: 54057 },
+    "Werder Bremen": { stadium: "Weserstadion", capacity: 42100 },
+    "Schalke": { stadium: "Veltins-Arena", capacity: 62271 },
+    "Hamburg": { stadium: "Volksparkstadion", capacity: 57000 },
+    // ── LIGUE 1 ──────────────────────────────────────────────────────────────
+    "PSG": { stadium: "Parc des Princes", capacity: 47929 },
+    "Marseille": { stadium: "Orange Vélodrome", capacity: 67394 },
+    "Lyon": { stadium: "Groupama Stadium", capacity: 59186 },
+    "Monaco": { stadium: "Stade Louis II", capacity: 16360 },
+    "Lille": { stadium: "Decathlon Arena - Stade Pierre-Mauroy", capacity: 50186 },
+    "Rennes": { stadium: "Roazhon Park", capacity: 29778 },
+    "Nice": { stadium: "Allianz Riviera", capacity: 36178 },
+    "Lens": { stadium: "Stade Bollaert-Delelis", capacity: 38223 },
+    // ── VIP LEAGUE & INTERNATIONAL ───────────────────────────────────────────
+    "Ajax": { stadium: "Johan Cruyff Arena", capacity: 55865 },
+    "Benfica": { stadium: "Estádio da Luz", capacity: 64642 },
+    "Porto": { stadium: "Estádio do Dragão", capacity: 50033 },
+    "Sporting CP": { stadium: "Estádio José Alvalade", capacity: 50095 },
+    "Celtic": { stadium: "Celtic Park", capacity: 60411 },
+    "Rangers": { stadium: "Ibrox Stadium", capacity: 50817 },
+    "Galatasaray": { stadium: "Rams Park", capacity: 52280 },
+    "Fenerbahce": { stadium: "Ülker Stadium", capacity: 47834 },
+    "Besiktas": { stadium: "Tüpraş Stadium", capacity: 42590 },
+    "Olympiacos": { stadium: "Georgios Karaiskakis Stadium", capacity: 32115 },
+    "PSV": { stadium: "Philips Stadion", capacity: 35119 },
+    "Club Brugge": { stadium: "Jan Breydel Stadium", capacity: 29062 },
   });
 
   // VIP allotment across all venues (5%)
@@ -230,10 +316,11 @@ export class StadiumEconomyEngine {
     } = input;
 
     // ── 1. VALIDATE & RESOLVE CLUB VENUE ─────────────────────────────────────
-    const venue = this._resolveClubVenue(clubIdentifier);
-    if (!venue) {
-      throw new Error(`[StadiumEconomyEngine] Unknown club identifier: "${clubIdentifier}".`);
-    }
+    const venue = this._resolveClubVenue(clubIdentifier) || {
+      clubName: String(clubIdentifier || "Club"),
+      stadium: `${clubIdentifier || "Club"} Stadium`,
+      capacity: 45000,
+    };
 
     const totalCapacity = (input.venueCapacityOverride && input.venueCapacityOverride > 0)
       ? input.venueCapacityOverride
@@ -501,7 +588,12 @@ export class StadiumEconomyEngine {
       }
     }
 
-    return null;
+    // 3. Robust universal fallback for any club not explicitly registered
+    return {
+      clubName: trimmed,
+      stadium: `${trimmed} Stadium`,
+      capacity: 45000,
+    };
   }
 }
 

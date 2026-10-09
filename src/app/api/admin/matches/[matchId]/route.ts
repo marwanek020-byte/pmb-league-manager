@@ -6,7 +6,7 @@ import { applyMatchdayRevenue, reverseMatchdayRevenue } from "@/lib/services/mat
 import { UltrasSocialService } from "@/lib/services/ultras-social-service";
 import { recalculateMarketValuesForLeague } from "@/lib/services/player-valuation-service";
 import { MatchEventType } from "@prisma/client";
-import { isAnyAdmin } from "@/lib/admin-auth";
+import { isAnyAdmin, canAccessLeague } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +102,8 @@ export async function PATCH(
   req: Request,
   { params }: RouteContext
 ) {
-  const session = await requireAdmin();
+  try {
+    const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -140,6 +141,13 @@ export async function PATCH(
 
   if (!match) {
     return NextResponse.json({ error: "Match not found." }, { status: 404 });
+  }
+
+  if (!canAccessLeague(session.user, match.leagueId)) {
+    return NextResponse.json(
+      { error: "Forbidden: You are not authorized to edit matches for this league." },
+      { status: 403 }
+    );
   }
 
   if (match.competitionSeason.status === "FINISHED") {
@@ -313,6 +321,13 @@ export async function PATCH(
   }
 
   return NextResponse.json({ success: true, match: updated });
+  } catch (error: any) {
+    console.error("PATCH /api/admin/matches/[matchId] error:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to save match result." },
+      { status: 500 }
+    );
+  }
 }
 
 // DELETE /api/admin/matches/[matchId]
@@ -321,72 +336,87 @@ export async function DELETE(
   _req: Request,
   { params }: RouteContext
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = await requireAdmin();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const match = await prisma.match.findUnique({
-    where: { id: params.matchId },
-    include: {
-      competitionSeason: { select: { status: true } },
-      league: { select: { id: true } },
-    },
-  });
+    const match = await prisma.match.findUnique({
+      where: { id: params.matchId },
+      include: {
+        competitionSeason: { select: { status: true } },
+        league: { select: { id: true } },
+      },
+    });
 
-  if (!match) {
-    return NextResponse.json({ error: "Match not found." }, { status: 404 });
-  }
+    if (!match) {
+      return NextResponse.json({ error: "Match not found." }, { status: 404 });
+    }
 
-  if (match.competitionSeason.status === "FINISHED") {
+    if (!canAccessLeague(session.user, match.leagueId)) {
+      return NextResponse.json(
+        { error: "Forbidden: You are not authorized to cancel matches for this league." },
+        { status: 403 }
+      );
+    }
+
+    if (match.competitionSeason.status === "FINISHED") {
+      return NextResponse.json(
+        { error: "Cannot cancel results — competition season is finished." },
+        { status: 409 }
+      );
+    }
+
+    // Atomically reverse financial rewards, clear match events, and reset match to UPCOMING
+    const resetMatch = await prisma.$transaction(async (tx) => {
+      // 1. Reverse all budget rewards for this match
+      await reverseMatchRewards(tx, params.matchId);
+
+      // 1b. Reverse matchday ticket revenue
+      await reverseMatchdayRevenue(tx, params.matchId);
+
+      // 2. Delete all match events (goals, assists, cards, etc.)
+      await tx.matchEvent.deleteMany({
+        where: { matchId: params.matchId },
+      });
+
+      // 3. Reset match properties back to UPCOMING
+      const updated = await tx.match.update({
+        where: { id: params.matchId },
+        data: {
+          homeGoals: null,
+          awayGoals: null,
+          manOfTheMatchId: null,
+          status: "UPCOMING",
+          playedAt: null,
+        },
+        include: {
+          homeClub: { select: { id: true, name: true, logo: true } },
+          awayClub: { select: { id: true, name: true, logo: true } },
+        },
+      });
+
+      return updated;
+    });
+
+    // Recalculate market values after match reset (fire-and-forget)
+    if (match.leagueId) {
+      recalculateMarketValuesForLeague(match.leagueId).catch((err) => {
+        console.error("[MarketValue] Failed to recalculate market values on reset:", err);
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Match result successfully cancelled and reset to UPCOMING.",
+      match: resetMatch,
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/admin/matches/[matchId] error:", error);
     return NextResponse.json(
-      { error: "Cannot cancel results — competition season is finished." },
-      { status: 409 }
+      { error: error?.message || "Failed to cancel match result." },
+      { status: 500 }
     );
   }
-
-  // Atomically reverse financial rewards, clear match events, and reset match to UPCOMING
-  const resetMatch = await prisma.$transaction(async (tx) => {
-    // 1. Reverse all budget rewards for this match
-    await reverseMatchRewards(tx, params.matchId);
-
-    // 1b. Reverse matchday ticket revenue
-    await reverseMatchdayRevenue(tx, params.matchId);
-
-    // 2. Delete all match events (goals, assists, cards, etc.)
-    await tx.matchEvent.deleteMany({
-      where: { matchId: params.matchId },
-    });
-
-    // 3. Reset match properties back to UPCOMING
-    const updated = await tx.match.update({
-      where: { id: params.matchId },
-      data: {
-        homeGoals: null,
-        awayGoals: null,
-        manOfTheMatchId: null,
-        status: "UPCOMING",
-        playedAt: null,
-      },
-      include: {
-        homeClub: { select: { id: true, name: true, logo: true } },
-        awayClub: { select: { id: true, name: true, logo: true } },
-      },
-    });
-
-    return updated;
-  });
-
-  // Recalculate market values after match reset (fire-and-forget)
-  if (match.leagueId) {
-    recalculateMarketValuesForLeague(match.leagueId).catch((err) => {
-      console.error("[MarketValue] Failed to recalculate market values on reset:", err);
-    });
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: "Match result successfully cancelled and reset to UPCOMING.",
-    match: resetMatch,
-  });
 }
