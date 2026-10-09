@@ -210,17 +210,6 @@ export class StadiumEconomyEngine {
     "Valencia": { stadium: "Mestalla", capacity: 49430 },
     "Villarreal": { stadium: "Estadio de la Cerámica", capacity: 23000 },
     "Celta Vigo": { stadium: "Abanca-Balaídos", capacity: 24791 },
-    // ── BUNDESLIGA ───────────────────────────────────────────────────────────
-    "Bayern Munich": { stadium: "Allianz Arena", capacity: 75024 },
-    "Borussia Dortmund": { stadium: "Signal Iduna Park", capacity: 81365 },
-    "Bayer Leverkusen": { stadium: "BayArena", capacity: 30210 },
-    "RB Leipzig": { stadium: "Red Bull Arena", capacity: 47069 },
-    "Eintracht Frankfurt": { stadium: "Deutsche Bank Park", capacity: 58000 },
-    "Stuttgart": { stadium: "MHPArena", capacity: 60449 },
-    "Borussia Monchengladbach": { stadium: "Borussia-Park", capacity: 54057 },
-    "Werder Bremen": { stadium: "Weserstadion", capacity: 42100 },
-    "Schalke": { stadium: "Veltins-Arena", capacity: 62271 },
-    "Hamburg": { stadium: "Volksparkstadion", capacity: 57000 },
     // ── LIGUE 1 ──────────────────────────────────────────────────────────────
     "PSG": { stadium: "Parc des Princes", capacity: 47929 },
     "Marseille": { stadium: "Orange Vélodrome", capacity: 67394 },

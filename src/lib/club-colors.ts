@@ -50,10 +50,6 @@ const KNOWN_CLUB_THEMES: Record<string, Omit<ClubTheme, "stadium">> = {
   "Juventus": { primary: "#e2e8f0", secondary: "#0f172a", accent: "#fbbf24", background: "#08080a", glow: "rgba(226, 232, 240, 0.35)" },
   "Napoli": { primary: "#0284c7", secondary: "#ffffff", accent: "#facc15", background: "#020912", glow: "rgba(2, 132, 199, 0.45)" },
 
-  // 🇩🇪 BUNDESLIGA
-  "Bayern Munich": { primary: "#dc2626", secondary: "#2563eb", accent: "#ffffff", background: "#0f0304", glow: "rgba(220, 38, 38, 0.45)" },
-  "Borussia Dortmund": { primary: "#facc15", secondary: "#000000", accent: "#ffffff", background: "#0f0c02", glow: "rgba(250, 204, 21, 0.5)" },
-  "Bayer Leverkusen": { primary: "#ef4444", secondary: "#000000", accent: "#facc15", background: "#0f0304", glow: "rgba(239, 68, 68, 0.4)" },
 
   // 🇫🇷 LIGUE 1
   "PSG": { primary: "#1d4ed8", secondary: "#ef4444", accent: "#ffffff", background: "#020614", glow: "rgba(29, 78, 216, 0.45)" },

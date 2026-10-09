@@ -767,7 +767,7 @@ export async function getClubForeignPlayerCount(clubId: string): Promise<number>
 /**
  * Validates if a club can sign a player based on the 5 foreign player quota.
  * Note: This regulation strictly applies ONLY to the Moroccan Botola Pro league (FRMF rules).
- * Other leagues (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, VIP League) do not have this restriction.
+ * Other leagues (Premier League, La Liga, Serie A, Ligue 1, VIP League) do not have this restriction.
  */
 export async function validateForeignQuota(
   clubId: string,
