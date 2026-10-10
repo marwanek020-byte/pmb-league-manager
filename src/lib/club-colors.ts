@@ -30,6 +30,8 @@ const KNOWN_CLUB_THEMES: Record<string, Omit<ClubTheme, "stadium">> = {
   "Moghreb Athletic Tetouan": { primary: "#e11d48", secondary: "#ffffff", accent: "#2563eb", background: "#0c0205", glow: "rgba(225, 29, 72, 0.45)" },
   "Wydad Temara": { primary: "#dc2626", secondary: "#2563eb", accent: "#ffffff", background: "#0a0305", glow: "rgba(220, 38, 38, 0.45)" },
   "Yacoub El Mansour": { primary: "#dc2626", secondary: "#2563eb", accent: "#ffffff", background: "#0a0305", glow: "rgba(220, 38, 38, 0.45)" },
+  "Amal Tiznit": { primary: "#2563eb", secondary: "#ffffff", accent: "#94a3b8", background: "#030814", glow: "rgba(37, 99, 235, 0.45)" },
+  "Dcheira": { primary: "#10b981", secondary: "#f59e0b", accent: "#ffffff", background: "#020f08", glow: "rgba(16, 185, 129, 0.4)" },
 
   // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 PREMIER LEAGUE
   "Arsenal": { primary: "#ef4444", secondary: "#d97706", accent: "#ffffff", background: "#0f0304", glow: "rgba(239, 68, 68, 0.45)" },
