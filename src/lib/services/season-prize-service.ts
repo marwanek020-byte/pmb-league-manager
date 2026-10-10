@@ -192,7 +192,9 @@ export async function getSeasonStandings(seasonId: string): Promise<StandingRow[
         matchedClub = season.league.clubs.find((c) =>
           c.name.toLowerCase().includes(b.name.toLowerCase()) ||
           b.name.toLowerCase().includes(c.name.toLowerCase()) ||
-          (b.name.toLowerCase().includes("safi") && (c.name.toLowerCase().includes("tetouan") || c.name.toLowerCase().includes("tetuan")))
+          (b.name.toLowerCase().includes("safi") && (c.name.toLowerCase().includes("tetouan") || c.name.toLowerCase().includes("tetuan"))) ||
+          (b.name.toLowerCase().includes("mansour") && c.name.toLowerCase().includes("temara")) ||
+          (b.name.toLowerCase().includes("temara") && c.name.toLowerCase().includes("mansour"))
         );
       }
 
