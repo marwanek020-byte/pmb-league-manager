@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ClubBadge } from "@/components/ClubBadge";
 import { isAnyAdmin } from "@/lib/admin-auth";
+import { ChampionCelebrationModal } from "@/components/manager/ChampionCelebrationModal";
 
 export const dynamic = "force-dynamic";
 
@@ -564,6 +565,7 @@ export default async function ManagerDashboardPage() {
         ))}
       </div>
     </section>
+    <ChampionCelebrationModal />
   </div>
   );
 }

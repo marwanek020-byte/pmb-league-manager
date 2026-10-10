@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { computeStandings, computeClassificationSnapshot } from "@/lib/services/standings-service";
 import { updateClubPowerRatingsForSeason } from "@/lib/services/club-power-rating-service";
 import { isAnyAdmin } from "@/lib/admin-auth";
+import { finishSeasonAndDistributePrizes } from "@/lib/services/season-prize-service";
 
 async function requireAdmin() {
   const session = await auth();
@@ -91,38 +92,10 @@ export async function PATCH(
     // and update club power ratings
     if (newStatus === "FINISHED") {
       for (const season of cs.seasons) {
-        const matches = await prisma.match.findMany({
-          where: { seasonId: season.id },
-        });
-
-        const clubs = await prisma.club.findMany({
-          where: { leagueId: season.leagueId },
-          select: { id: true, name: true, logo: true },
-        });
-
-        const standings = computeStandings(matches, clubs);
-        const snapshot = computeClassificationSnapshot(standings, season.id);
-
-        // Upsert the classification snapshot
-        await prisma.$transaction(async (tx) => {
-          await tx.seasonClassification.deleteMany({
-            where: { seasonId: season.id },
-          });
-          if (snapshot.length > 0) {
-            await tx.seasonClassification.createMany({ data: snapshot });
-          }
-          // Mark the per-league season as FINISHED too
-          await tx.season.update({
-            where: { id: season.id },
-            data: { status: "FINISHED" },
-          });
-        });
-
-        // Update power ratings
         try {
-          await updateClubPowerRatingsForSeason(season.id);
+          await finishSeasonAndDistributePrizes(season.id, session.user.id);
         } catch (err) {
-          console.error(`Power rating update failed for season ${season.id}:`, err);
+          console.error(`Season prize distribution failed for season ${season.id}:`, err);
         }
       }
     }

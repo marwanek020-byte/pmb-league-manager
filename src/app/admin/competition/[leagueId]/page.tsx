@@ -9,6 +9,7 @@ import { GlobalTotwPitch } from "@/components/competition/GlobalTotwPitch";
 import { SeasonStatsLeaderboards } from "@/components/competition/SeasonStatsLeaderboards";
 import { ThroneCupBracket } from "@/components/competition/ThroneCupBracket";
 import { isAnyAdmin, canAccessLeague } from "@/lib/admin-auth";
+import { FinishSeasonButton } from "@/components/admin/FinishSeasonButton";
 
 export const dynamic = "force-dynamic";
 
@@ -144,6 +145,12 @@ export default async function LeagueMatchdayPage({
               <p className="text-xl font-bold text-gray-400">{upcomingTotal}</p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Remaining</p>
             </div>
+            <FinishSeasonButton
+              seasonId={seasonId}
+              seasonName={season.name}
+              leagueName={league.name}
+              seasonStatus={season.status}
+            />
           </div>
         </div>
       </section>
