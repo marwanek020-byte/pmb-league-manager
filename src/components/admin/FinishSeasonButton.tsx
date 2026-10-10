@@ -97,30 +97,68 @@ export function FinishSeasonButton({
     }
   }
 
+  const [resetting, setResetting] = useState(false);
+
+  async function handleResetSquads() {
+    if (
+      !confirm(
+        "Are you sure you want to reset all 16 Botola Pro club squads to 0 players for the new season?\n\nAll players will become AVAILABLE for fresh registrations."
+      )
+    )
+      return;
+    setResetting(true);
+    try {
+      const res = await fetch("/api/admin/botola/reset-squads", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to reset squads");
+      } else {
+        alert(data.message || "All 16 squads have been reset to 0 players!");
+        router.refresh();
+      }
+    } catch {
+      alert("Network error");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <>
-      {status === "ACTIVE" ? (
-        <button
-          onClick={openModal}
-          className="inline-flex items-center gap-2.5 rounded-xl border border-pmb-gold/50 bg-gradient-to-r from-pmb-gold/20 via-yellow-500/20 to-pmb-gold/10 px-5 py-2.5 text-sm font-bold text-pmb-gold shadow-lg shadow-pmb-gold/10 transition-all hover:scale-105 hover:border-pmb-gold hover:bg-pmb-gold hover:text-black active:scale-95"
-          title="Conclude season, crown champion, and distribute all official budget prizes"
-        >
-          <span className="text-base">🏆</span>
-          <span>Finish Season & Distribute Prizes</span>
-        </button>
-      ) : status === "FINISHED" ? (
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-400">
-            <span>✓</span> Season Finished · Prizes Distributed
-          </span>
+      <div className="flex flex-wrap items-center gap-2">
+        {status === "ACTIVE" ? (
           <button
             onClick={openModal}
-            className="text-xs text-pmb-gold/80 hover:text-pmb-gold underline transition"
+            className="inline-flex items-center gap-2.5 rounded-xl border border-pmb-gold/50 bg-gradient-to-r from-pmb-gold/20 via-yellow-500/20 to-pmb-gold/10 px-5 py-2.5 text-sm font-bold text-pmb-gold shadow-lg shadow-pmb-gold/10 transition-all hover:scale-105 hover:border-pmb-gold hover:bg-pmb-gold hover:text-black active:scale-95"
+            title="Conclude season, crown champion, and distribute all official budget prizes"
           >
-            View Prize Ledger
+            <span className="text-base">🏆</span>
+            <span>Finish Season & Distribute Prizes</span>
           </button>
-        </div>
-      ) : null}
+        ) : status === "FINISHED" ? (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-400">
+              <span>✓</span> Season Finished · Prizes Distributed
+            </span>
+            <button
+              onClick={openModal}
+              className="text-xs text-pmb-gold/80 hover:text-pmb-gold underline transition"
+            >
+              View Prize Ledger
+            </button>
+          </div>
+        ) : null}
+
+        <button
+          onClick={handleResetSquads}
+          disabled={resetting}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-gray-300 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+          title="Reset all 16 club squads to 0 players for new season registrations"
+        >
+          <span>🧹</span>
+          <span>{resetting ? "Resetting..." : "Reset Squads (0 Players)"}</span>
+        </button>
+      </div>
 
       {/* Confirmation & Summary Modal */}
       {modalOpen && (
