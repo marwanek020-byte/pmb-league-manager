@@ -26,6 +26,8 @@ const KNOWN_CLUB_THEMES: Record<string, Omit<ClubTheme, "stadium">> = {
   "Hassania Agadir": { primary: "#ef4444", secondary: "#f59e0b", accent: "#ffffff", background: "#0f0405", glow: "rgba(239, 68, 68, 0.4)" },
   "IR Tanger": { primary: "#3b82f6", secondary: "#ffffff", accent: "#f59e0b", background: "#030814", glow: "rgba(59, 130, 246, 0.4)" },
   "Olympique Safi": { primary: "#2563eb", secondary: "#dc2626", accent: "#fbbf24", background: "#040714", glow: "rgba(37, 99, 235, 0.4)" },
+  "Maghreb Athletic Tetouan": { primary: "#e11d48", secondary: "#ffffff", accent: "#2563eb", background: "#0c0205", glow: "rgba(225, 29, 72, 0.45)" },
+  "Moghreb Athletic Tetouan": { primary: "#e11d48", secondary: "#ffffff", accent: "#2563eb", background: "#0c0205", glow: "rgba(225, 29, 72, 0.45)" },
 
   // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 PREMIER LEAGUE
   "Arsenal": { primary: "#ef4444", secondary: "#d97706", accent: "#ffffff", background: "#0f0304", glow: "rgba(239, 68, 68, 0.45)" },

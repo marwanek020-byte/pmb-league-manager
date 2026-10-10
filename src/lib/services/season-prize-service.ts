@@ -191,7 +191,8 @@ export async function getSeasonStandings(seasonId: string): Promise<StandingRow[
         // Partial search
         matchedClub = season.league.clubs.find((c) =>
           c.name.toLowerCase().includes(b.name.toLowerCase()) ||
-          b.name.toLowerCase().includes(c.name.toLowerCase())
+          b.name.toLowerCase().includes(c.name.toLowerCase()) ||
+          (b.name.toLowerCase().includes("safi") && (c.name.toLowerCase().includes("tetouan") || c.name.toLowerCase().includes("tetuan")))
         );
       }
 
@@ -267,7 +268,8 @@ export async function getIndividualAwardRecipients(seasonId: string): Promise<Aw
   // Helper to find player and club by name
   function findClubAndPlayer(clubNamePartial: string, playerNamePartial: string) {
     const club = season!.league.clubs.find((c) =>
-      c.name.toLowerCase().includes(clubNamePartial.toLowerCase())
+      c.name.toLowerCase().includes(clubNamePartial.toLowerCase()) ||
+      (clubNamePartial.toLowerCase() === "safi" && (c.name.toLowerCase().includes("tetouan") || c.name.toLowerCase().includes("tetuan")))
     );
     const player = club?.players.find((p) =>
       p.fullName.toLowerCase().includes(playerNamePartial.toLowerCase())
