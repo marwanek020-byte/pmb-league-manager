@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { ClubDetailsEditor } from "@/components/admin/ClubDetailsEditor";
 import { ClubBadge } from "@/components/ClubBadge";
 import { PlayerListClient } from "@/components/manager/PlayerListClient";
 import { prisma } from "@/lib/prisma";
@@ -110,14 +111,21 @@ export default async function AdminClubPage({
           <ClubBadge name={club.name} size="lg" />
         )}
 
-        <div>
+        <div className="flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             Club
           </p>
 
-          <h1 className="mt-1 text-2xl font-bold text-white">
-            {club.name}
-          </h1>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">
+              {club.name}
+            </h1>
+            <ClubDetailsEditor
+              clubId={club.id}
+              currentName={club.name}
+              currentLogo={club.logo}
+            />
+          </div>
 
           <p className="mt-1 text-sm text-gray-400">
             {registeredPlayerCount} registered{" "}
@@ -217,12 +225,12 @@ export default async function AdminClubPage({
         </div>
 
         <PlayerListClient
-  initialSquad={club.players.map(serializePlayer)}
-  clubName={club.name}
-  clubId={club.id}
-  readOnly
-  adminCanRemove
-/>
+          initialSquad={club.players.map(serializePlayer)}
+          clubName={club.name}
+          clubId={club.id}
+          readOnly
+          adminCanRemove
+        />
       </section>
     </div>
   );
