@@ -91,25 +91,51 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const lower = trimmedUsername.toLowerCase();
           const allClubs = await prisma.club.findMany({ include: { league: true } });
           const matchingClub = allClubs.find((c) => {
-            const leagueSlug = c.league.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 7);
+            const rawLeague = c.league.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const leagueSlug = rawLeague.startsWith("botola") ? "botola" : rawLeague.slice(0, 7);
             const clubSlug = c.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-            return lower === `${leagueSlug}-${clubSlug}` || lower === `vip-${clubSlug}` || lower === clubSlug;
+            return (
+              lower === `${leagueSlug}-${clubSlug}` ||
+              lower === `vip-${clubSlug}` ||
+              lower === clubSlug ||
+              (rawLeague.startsWith("botola") && lower.endsWith(clubSlug))
+            );
           });
+
           if (matchingClub && password === getClubPassword(matchingClub.name)) {
             const hash = await bcrypt.hash(password, 10);
-            user = await prisma.user.create({
-              data: {
-                username: lower,
-                password: hash,
-                role: "CLUB_MANAGER",
-                clubId: matchingClub.id,
-              },
-              include: { club: { include: { league: true } }, adminLeague: true },
-            });
-            await prisma.club.update({
-              where: { id: matchingClub.id },
-              data: { managerId: user.id },
-            });
+
+            // Check if club already has a manager user, if so update their username and password
+            const existingManager = matchingClub.managerId
+              ? await prisma.user.findUnique({ where: { id: matchingClub.managerId } })
+              : await prisma.user.findFirst({ where: { clubId: matchingClub.id } });
+
+            if (existingManager) {
+              user = await prisma.user.update({
+                where: { id: existingManager.id },
+                data: {
+                  username: lower,
+                  password: hash,
+                  role: "CLUB_MANAGER",
+                  clubId: matchingClub.id,
+                },
+                include: { club: { include: { league: true } }, adminLeague: true },
+              });
+            } else {
+              user = await prisma.user.create({
+                data: {
+                  username: lower,
+                  password: hash,
+                  role: "CLUB_MANAGER",
+                  clubId: matchingClub.id,
+                },
+                include: { club: { include: { league: true } }, adminLeague: true },
+              });
+              await prisma.club.update({
+                where: { id: matchingClub.id },
+                data: { managerId: user.id },
+              });
+            }
           }
         }
 
