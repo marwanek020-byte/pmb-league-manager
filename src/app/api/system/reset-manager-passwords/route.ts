@@ -95,6 +95,7 @@ export async function GET(req: Request) {
         await prisma.user.update({
           where: { id: managerUser.id },
           data: {
+            username: expectedUsername,
             password: hashedPassword,
             role: Role.CLUB_MANAGER,
             clubId: club.id,
