@@ -381,9 +381,17 @@ export async function POST(req: Request) {
       clubCounts.set(p.clubId, count);
     }
 
+    const season = await prisma.season.findUnique({
+      where: { id: seasonId },
+      include: { league: true },
+    });
+
     const compSeasonId =
       competitionSeasonId ||
-      (await prisma.season.findUnique({ where: { id: seasonId } }))?.competitionSeasonId;
+      season?.competitionSeasonId;
+
+    const targetLeagueId = leagueId || season?.leagueId;
+    const targetLeagueName = season?.league?.name;
 
     if (!compSeasonId) {
       return NextResponse.json({ error: "Competition season ID not found" }, { status: 400 });
@@ -408,7 +416,7 @@ export async function POST(req: Request) {
         data: {
           competitionSeasonId: compSeasonId,
           seasonId,
-          leagueId,
+          leagueId: targetLeagueId,
           matchday,
           formation,
           isPublished: true,
@@ -434,8 +442,8 @@ export async function POST(req: Request) {
         },
       });
 
-      // Apply Competition Budget Rewards: 500k EUR per player + 2M EUR for POTW
-      await applyTotwRewards(tx, matchday, players);
+      // Apply Competition Budget Rewards: 500k EUR per player + 2M EUR for POTW (scoped to target league)
+      await applyTotwRewards(tx, matchday, players, targetLeagueId, targetLeagueName);
 
       return created;
     }, { maxWait: 15000, timeout: 30000 });

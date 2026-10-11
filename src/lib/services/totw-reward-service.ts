@@ -21,30 +21,45 @@ export type TotwRewardPlayerInput = {
 export async function applyTotwRewards(
   tx: TxClient,
   matchday: number,
-  players: TotwRewardPlayerInput[]
+  players: TotwRewardPlayerInput[],
+  leagueId?: string,
+  leagueName?: string
 ): Promise<void> {
-  const descPrefix = `TOTW MD${matchday}:`;
+  const leagueTag = leagueName ? `[${leagueName}] ` : "";
+  const descPrefix = `${leagueTag}TOTW MD${matchday}:`;
+  const legacyPrefix = `TOTW MD${matchday}:`;
 
-  // ── Step 1: Find and reverse previous TOTW rewards for this matchday ───────
+  // ── Step 1: Find and reverse previous TOTW rewards for this matchday in THIS LEAGUE ONLY ───────
+  // CRITICAL: We only reverse rewards for clubs in this league (club: { leagueId }),
+  // ensuring Serie A never touches Botola Pro, La Liga, Premier League, etc.!
   const previousTxns = await tx.clubBudgetTransaction.findMany({
     where: {
       type: BudgetTransactionType.COMPETITION_REWARD,
-      description: { startsWith: descPrefix },
+      ...(leagueId ? { club: { leagueId } } : {}),
+      OR: [
+        { description: { startsWith: descPrefix } },
+        { description: { startsWith: legacyPrefix } },
+        { description: { contains: `TOTW MD${matchday}:` } },
+      ],
     },
-    select: { id: true, clubId: true, amount: true },
+    select: { id: true, clubId: true, amount: true, description: true },
   });
 
-  const reversalByClub = new Map<string, Prisma.Decimal>();
+  // Calculate NET balance paid to each club for this matchday
+  // Summing positive rewards and past reversals prevents compounding negative deductions
+  const netPaidByClub = new Map<string, Prisma.Decimal>();
   for (const prev of previousTxns) {
-    const negated = new Prisma.Decimal(prev.amount.toString()).negated();
-    const current = reversalByClub.get(prev.clubId) ?? new Prisma.Decimal("0");
-    reversalByClub.set(prev.clubId, current.plus(negated));
+    const current = netPaidByClub.get(prev.clubId) ?? new Prisma.Decimal("0");
+    netPaidByClub.set(prev.clubId, current.plus(prev.amount));
   }
 
-  const reversalClubIds = [...reversalByClub.keys()].sort();
+  const reversalClubIds = [...netPaidByClub.keys()].sort();
   for (const clubId of reversalClubIds) {
-    const reversalAmount = reversalByClub.get(clubId)!;
-    if (reversalAmount.isZero()) continue;
+    const netPaid = netPaidByClub.get(clubId)!;
+    // If net balance paid is zero or negative, no money should be clawed back
+    if (netPaid.lte(0)) continue;
+
+    const reversalAmount = netPaid.negated();
 
     const currentBudget = await lockClubBudget(tx, clubId);
     await applyBudgetTransaction(tx, {

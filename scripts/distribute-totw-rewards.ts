@@ -36,6 +36,7 @@ const POTW_PRIZE_REWARD = new Prisma.Decimal("2000000");
 async function main() {
   const totws = await prisma.teamOfTheWeek.findMany({
     include: {
+      season: { include: { league: true } },
       players: {
         include: {
           player: true,
@@ -49,32 +50,42 @@ async function main() {
   console.log(`Found ${totws.length} TOTW records.`);
 
   for (const totw of totws) {
-    console.log(`\n=== Processing TOTW Matchday ${totw.matchday} ===`);
+    const leagueName = totw.season?.league?.name || "";
+    const leagueId = totw.leagueId || totw.season?.leagueId;
+    const leagueTag = leagueName ? `[${leagueName}] ` : "";
+    console.log(`\n=== Processing ${leagueTag}TOTW Matchday ${totw.matchday} ===`);
 
     await prisma.$transaction(
       async (tx) => {
-        const descPrefix = `TOTW MD${totw.matchday}:`;
+        const descPrefix = `${leagueTag}TOTW MD${totw.matchday}:`;
+        const legacyPrefix = `TOTW MD${totw.matchday}:`;
 
-        // 1. Reverse any previous TOTW rewards for this matchday
+        // 1. Reverse previous TOTW rewards for this matchday in THIS LEAGUE ONLY
         const previousTxns = await tx.clubBudgetTransaction.findMany({
           where: {
             type: BudgetTransactionType.COMPETITION_REWARD,
-            description: { startsWith: descPrefix },
+            ...(leagueId ? { club: { leagueId } } : {}),
+            OR: [
+              { description: { startsWith: descPrefix } },
+              { description: { startsWith: legacyPrefix } },
+              { description: { contains: `TOTW MD${totw.matchday}:` } },
+            ],
           },
-          select: { id: true, clubId: true, amount: true },
+          select: { id: true, clubId: true, amount: true, description: true },
         });
 
-        const reversalByClub = new Map<string, Prisma.Decimal>();
+        const netPaidByClub = new Map<string, Prisma.Decimal>();
         for (const prev of previousTxns) {
-          const negated = new Prisma.Decimal(prev.amount.toString()).negated();
-          const current = reversalByClub.get(prev.clubId) ?? new Prisma.Decimal("0");
-          reversalByClub.set(prev.clubId, current.plus(negated));
+          const current = netPaidByClub.get(prev.clubId) ?? new Prisma.Decimal("0");
+          netPaidByClub.set(prev.clubId, current.plus(prev.amount));
         }
 
-        const reversalClubIds = [...reversalByClub.keys()].sort();
+        const reversalClubIds = [...netPaidByClub.keys()].sort();
         for (const clubId of reversalClubIds) {
-          const reversalAmount = reversalByClub.get(clubId)!;
-          if (reversalAmount.isZero()) continue;
+          const netPaid = netPaidByClub.get(clubId)!;
+          if (netPaid.lte(0)) continue;
+
+          const reversalAmount = netPaid.negated();
 
           const currentBudget = await lockClubBudget(tx, clubId);
           await applyBudgetTransaction(tx, {
