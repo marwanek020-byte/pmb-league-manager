@@ -19,22 +19,22 @@
 
 | Club | Username | Permanent Password |
 | :--- | :--- | :--- |
+| **Amal Tiznit** | `botola-amaltiznit` | `Amal#878d!26` |
 | **Berkane** | `botola-berkane` | `Berk#6cd3!26` |
 | **COD Meknes** | `botola-codmeknes` | `Codm#efed!26` |
-| **Dcheira** | `botola-dcheira` | `Dche#20a0!26` |
 | **Difaa El Jadidi** | `botola-difaaeljadidi` | `Difa#7f3d!26` |
 | **FAR Rabat** | `botola-farrabat` | `Farr#b2c8!26` |
 | **FUS Rabat** | `botola-fusrabat` | `Fusr#d872!26` |
 | **Hassania Agadir** | `botola-hassaniaagadir` | `Hass#5878!26` |
 | **IR Tanger** | `botola-irtanger` | `Irta#08a7!26` |
 | **Kawkab Marrakech** | `botola-kawkabmarrakech` | `Kawk#3db0!26` |
+| **Maghreb Athletic Tetouan** | `botola-maghrebathletictetouan` | `Magh#83b5!26` |
 | **Maghreb Fez** | `botola-maghrebfez` | `Magh#830e!26` |
-| **Olympique Safi** | `botola-olympiquesafi` | `Olym#4e07!26` |
 | **Raja Casablanca** | `botola-rajacasablanca` | `Raja#8715!26` |
 | **Renaissance Zemamra** | `botola-renaissancezemamra` | `Rena#b9b9!26` |
 | **Union Touarga** | `botola-uniontouarga` | `Unio#a445!26` |
 | **Wydad AC** | `botola-wydadac` | `Wyda#d8bc!26` |
-| **Yacoub El Mansour** | `botola-yacoubelmansour` | `Yaco#1362!26` |
+| **Wydad Temara** | `botola-wydadtemara` | `Wyda#6e5a!26` |
 
 ## 🏆 La Liga (20 Clubs)
 

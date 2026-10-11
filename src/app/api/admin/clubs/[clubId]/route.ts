@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAnyAdmin } from "@/lib/admin-auth";
@@ -24,10 +26,11 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const { name, logo } = body;
+    const { name, logo, managerUsername, managerPassword } = body;
 
     const existingClub = await prisma.club.findUnique({
       where: { id: params.clubId },
+      include: { manager: true },
     });
 
     if (!existingClub) {
@@ -44,17 +47,46 @@ export async function PATCH(
       updateData.logo = logo.trim() || null;
     }
 
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        { error: "No valid fields provided to update (name or logo)" },
-        { status: 400 }
-      );
+    let updatedClub = existingClub;
+    if (Object.keys(updateData).length > 0) {
+      updatedClub = await prisma.club.update({
+        where: { id: params.clubId },
+        data: updateData,
+        include: { manager: true },
+      });
     }
 
-    const updatedClub = await prisma.club.update({
-      where: { id: params.clubId },
-      data: updateData,
-    });
+    // Update manager account username or password if provided
+    let updatedManager = existingClub.manager;
+    if (existingClub.managerId) {
+      const userUpdate: { username?: string; password?: string } = {};
+
+      if (typeof managerUsername === "string" && managerUsername.trim()) {
+        userUpdate.username = managerUsername.trim().toLowerCase();
+      }
+
+      if (typeof managerPassword === "string" && managerPassword.trim()) {
+        userUpdate.password = await bcrypt.hash(managerPassword.trim(), 10);
+      }
+
+      if (Object.keys(userUpdate).length > 0) {
+        updatedManager = await prisma.user.update({
+          where: { id: existingClub.managerId },
+          data: userUpdate,
+        });
+      }
+    }
+
+    // Purge Next.js Server & Client caches
+    try {
+      revalidatePath("/admin/dashboard");
+      revalidatePath("/admin/clubs");
+      revalidatePath(`/admin/clubs/${params.clubId}`);
+      revalidatePath("/manager/dashboard");
+      revalidatePath("/");
+    } catch (e) {
+      console.warn("revalidatePath error:", e);
+    }
 
     // Log the change
     await prisma.activityLog.create({
@@ -68,6 +100,7 @@ export async function PATCH(
           newName: updatedClub.name,
           previousLogo: existingClub.logo,
           newLogo: updatedClub.logo,
+          managerUsername: updatedManager?.username ?? null,
         },
       },
     });
@@ -75,6 +108,7 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       club: updatedClub,
+      manager: updatedManager ? { id: updatedManager.id, username: updatedManager.username } : null,
       message: `Club "${updatedClub.name}" details updated successfully.`,
     });
   } catch (error: any) {
