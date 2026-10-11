@@ -82,6 +82,12 @@ export function Navbar({
                     AI Scout
                   </Link>
                   <Link
+                    href="/admin/sponsors"
+                    className={`transition ${pathname.startsWith("/admin/sponsors") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
+                  >
+                    Sponsors
+                  </Link>
+                  <Link
                     href="/admin/social"
                     className={`transition ${pathname.startsWith("/admin/social") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
                   >
@@ -143,6 +149,12 @@ export function Navbar({
                     className={`transition ${pathname.startsWith("/manager/stadium") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
                   >
                     Stadium
+                  </Link>
+                  <Link
+                    href="/manager/sponsors"
+                    className={`transition ${pathname.startsWith("/manager/sponsors") ? "text-pmb-gold font-black" : "text-gray-400 hover:text-pmb-gold"}`}
+                  >
+                    Sponsors
                   </Link>
                   <Link
                     href="/manager/social"
@@ -246,6 +258,17 @@ export function Navbar({
               <span>Contracts</span>
             </Link>
           )}
+
+          {/* Sponsors */}
+          <Link
+            href={isAdmin ? "/admin/sponsors" : "/manager/sponsors"}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 text-[9px] font-bold uppercase tracking-wider shrink-0 transition ${
+              pathname.includes("/sponsors") ? "text-pmb-gold scale-105" : "text-gray-400"
+            }`}
+          >
+            <span className="text-sm">💎</span>
+            <span>Sponsors</span>
+          </Link>
 
           {/* Competition */}
           <Link

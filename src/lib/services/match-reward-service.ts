@@ -1,5 +1,6 @@
 import { Prisma, BudgetTransactionType } from "@prisma/client";
 import { lockClubBudget, applyBudgetTransaction } from "@/lib/services/budget-service";
+import { applySponsorMatchRewards } from "@/lib/services/sponsor-service";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -115,5 +116,37 @@ export async function applyMatchRewards(
       description: reward.label,
       matchId,
     });
+  }
+
+  // ── Step 5: apply sponsor match bonuses (New season only) ────────────────
+  try {
+    const matchRecord = await tx.match.findUnique({
+      where: { id: matchId },
+      select: {
+        season: {
+          select: { id: true, name: true, status: true },
+        },
+      },
+    });
+
+    const isNewSeasonMatch = Boolean(
+      matchRecord?.season &&
+        !matchRecord.season.name.toLowerCase().includes("first") &&
+        !matchRecord.season.name.toLowerCase().includes("season 1")
+    );
+
+    if (isNewSeasonMatch) {
+      await applySponsorMatchRewards(
+        tx,
+        matchId,
+        homeClubId,
+        awayClubId,
+        homeGoals,
+        awayGoals,
+        true
+      );
+    }
+  } catch (err) {
+    console.error("Error applying sponsor rewards for match:", err);
   }
 }

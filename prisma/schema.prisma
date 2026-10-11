@@ -107,6 +107,7 @@ model Club {
   rentalOffersTo                         StadiumRentalOffer[]    @relation("RentalOffersTo")
   lineup                                 ClubLineup?
   matchLineups                           MatchLineup[]
+  sponsorContracts                       ClubSponsorContract[]
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -1176,4 +1177,52 @@ model MatchSubmissionScreenshot {
 
   @@index([imageHash])
   @@index([submissionId])
+}
+
+// ── Botola Pro Season Sponsors & Draft Engine ────────────────────────────────
+enum SponsorClass {
+  DIAMOND
+  FIRST_CLASS
+  SECOND_CLASS
+  THIRD_CLASS
+}
+
+enum SponsorContractStatus {
+  ACTIVE
+  TERMINATED_5_LOSSES
+  COMPLETED
+}
+
+model ClubSponsorContract {
+  id                String                @id @default(cuid())
+  clubId            String
+  seasonId          String?
+  sponsorId         String                // e.g. "ocp-groupe"
+  sponsorName       String
+  sponsorClass      SponsorClass
+  slotNumber        Int                   @default(1)
+  baseValue         Decimal               @db.Decimal(14, 2)
+  winBonus          Decimal               @db.Decimal(14, 2)
+  drawBonus         Decimal               @db.Decimal(14, 2)
+  consecutiveLosses Int                   @default(0)
+  status            SponsorContractStatus @default(ACTIVE)
+  draftedAt         DateTime              @default(now())
+  terminatedAt      DateTime?
+
+  club              Club                  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, sponsorId])
+  @@index([clubId])
+  @@index([seasonId])
+  @@index([status])
+}
+
+model SponsorDraftSession {
+  id               String   @id @default("botola-s2-draft")
+  leagueId         String?
+  seasonId         String?
+  currentTurnIndex Int      @default(0) // index in DRAFT_ORDER (0 to 14)
+  isCompleted      Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
 }
