@@ -168,9 +168,10 @@ export async function PATCH(
         // Clear old events and create merged extracted events
         await tx.matchEvent.deleteMany({ where: { matchId: params.matchId } });
 
-        if (mergedEvents.length > 0) {
+        const validEvents = mergedEvents.filter((ev) => ev.playerId);
+        if (validEvents.length > 0) {
           await tx.matchEvent.createMany({
-            data: mergedEvents.map((ev) => ({
+            data: validEvents.map((ev) => ({
               matchId: params.matchId,
               clubId: ev.clubId,
               playerId: ev.playerId,

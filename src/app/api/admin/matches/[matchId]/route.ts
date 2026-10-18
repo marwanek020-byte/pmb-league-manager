@@ -210,8 +210,10 @@ export async function PATCH(
           throw new Error("A club cannot make more than 5 substitutions in a match.");
         }
 
+        const validEventsData = eventsData.filter((e: { playerId: string }) => e.playerId);
+
         await tx.matchEvent.createMany({
-          data: eventsData,
+          data: validEventsData,
         });
       }
     }
