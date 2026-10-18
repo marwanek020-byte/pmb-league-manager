@@ -194,6 +194,23 @@ export async function PATCH(
 
         await applyMatchdayRevenue(tx, params.matchId);
 
+        // Advance active stadium upgrades for BOTH clubs (home & away)
+        for (const clubId of [submission.match.homeClubId, submission.match.awayClubId]) {
+          const upgrade = await tx.stadiumUpgrade.findUnique({
+            where: { clubId },
+          });
+          if (upgrade && upgrade.status === "IN_PROGRESS") {
+            const nextRounds = upgrade.roundsLeft - 1;
+            await tx.stadiumUpgrade.update({
+              where: { clubId },
+              data: {
+                roundsLeft: Math.max(0, nextRounds),
+                status: nextRounds <= 0 ? "COMPLETED" : "IN_PROGRESS",
+              },
+            });
+          }
+        }
+
         // Approve ALL pending submissions for this match
         await tx.matchSubmission.updateMany({
           where: {
