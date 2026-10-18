@@ -4,7 +4,20 @@ import { useEffect, useRef } from "react";
 
 const SONGS = [
   "/music/After%20Hours.mp3",
+  "/music/Akra%20-%20All%20Over%20The%20Cities.mp3",
+  "/music/Akra%20-%20Gatsby.mp3",
+  "/music/Dave%2C%20Tems%20-%20Raindance.mp3",
+  "/music/Don%20Bigg%20-%20Ghadi%20Bellour.mp3",
+  "/music/Drive%20(feat.%20Snor).mp3",
+  "/music/Fetah%20-%20Go.mp3",
+  "/music/Flashback.mp3",
+  "/music/Inkonnu%20-%20Arabi.mp3",
+  "/music/Karma.mp3",
+  "/music/L7ARB%20-%20Spotify%20Singles.mp3",
+  "/music/LAMERDE.mp3",
+  "/music/Motto.mp3",
   "/music/OMAR.mp3",
+  "/music/ROUTINE.mp3",
   "/music/STALINE.mp3",
   "/music/Storm.mp3",
 ];
@@ -106,6 +119,23 @@ export function PMBMusic() {
       playRandomSong();
     }
 
+    function handlePlayTrack(e: any) {
+      if (e.detail?.track) {
+        const query = String(e.detail.track).toLowerCase().trim();
+        const matched = SONGS.find((s) => {
+          const decoded = decodeURIComponent(s).toLowerCase();
+          return decoded.includes(query);
+        });
+        if (matched) {
+          audio.src = matched;
+          lastSongRef.current = matched;
+          sessionStorage.setItem("pmb-music-started", "true");
+          audio.play().catch(() => {});
+          broadcastState();
+        }
+      }
+    }
+
     function handleRequestState() {
       broadcastState();
     }
@@ -149,6 +179,7 @@ export function PMBMusic() {
     window.addEventListener("pmb-set-volume", handleSetVolume);
     window.addEventListener("pmb-toggle-music", handleToggleMusic);
     window.addEventListener("pmb-next-track", handleNextTrack);
+    window.addEventListener("pmb-play-track", handlePlayTrack);
     window.addEventListener("pmb-request-music-state", handleRequestState);
 
     return () => {
@@ -165,6 +196,7 @@ export function PMBMusic() {
       window.removeEventListener("pmb-set-volume", handleSetVolume);
       window.removeEventListener("pmb-toggle-music", handleToggleMusic);
       window.removeEventListener("pmb-next-track", handleNextTrack);
+      window.removeEventListener("pmb-play-track", handlePlayTrack);
       window.removeEventListener("pmb-request-music-state", handleRequestState);
 
       audio.src = "";

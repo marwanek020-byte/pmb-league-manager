@@ -11,7 +11,20 @@ interface AppMusicSettingsHubProps {
 
 const PLAYLIST = [
   { id: "After Hours", title: "After Hours", artist: "The Weeknd (Mercato Mix)", duration: "3:48", tag: "Atmospheric" },
+  { id: "Akra - All Over The Cities", title: "All Over The Cities", artist: "Akra", duration: "3:38", tag: "Urban Heat" },
+  { id: "Akra - Gatsby", title: "Gatsby", artist: "Akra", duration: "4:05", tag: "Moroccan Drill" },
+  { id: "Dave, Tems - Raindance", title: "Raindance", artist: "Dave ft. Tems", duration: "4:44", tag: "Afro Beats" },
+  { id: "Don Bigg - Ghadi Bellour", title: "Ghadi Bellour", artist: "Don Bigg", duration: "4:36", tag: "PMB Legend" },
+  { id: "Drive (feat. Snor)", title: "Drive", artist: "Drive (feat. Snor)", duration: "2:50", tag: "Night Ride" },
+  { id: "Fetah - Go", title: "Go", artist: "Fetah", duration: "2:50", tag: "High Energy" },
+  { id: "Flashback", title: "Flashback", artist: "PMB Melodic", duration: "2:41", tag: "Melodic Trap" },
+  { id: "Inkonnu - Arabi", title: "Arabi", artist: "Inkonnu", duration: "3:44", tag: "Moroccan Rap" },
+  { id: "Karma", title: "Karma", artist: "PMB Sound", duration: "3:14", tag: "Trap Energy" },
+  { id: "L7ARB - Spotify Singles", title: "L7ARB", artist: "L7ARB (Spotify Singles)", duration: "3:44", tag: "Street Hype" },
+  { id: "LAMERDE", title: "LAMERDE", artist: "PMB Street Flow", duration: "3:06", tag: "Raw Street" },
+  { id: "Motto", title: "Motto", artist: "PMB Anthem", duration: "3:37", tag: "Anthem" },
   { id: "OMAR", title: "OMAR", artist: "Moroccan Hip-Hop & Trap", duration: "2:54", tag: "Urban Heat" },
+  { id: "ROUTINE", title: "ROUTINE", artist: "PMB Focus Flow", duration: "3:12", tag: "Focus Flow" },
   { id: "STALINE", title: "STALINE", artist: "High Voltage Synth", duration: "3:12", tag: "Stadium Hype" },
   { id: "Storm", title: "Storm", artist: "Cinematic Orchestral Theme", duration: "4:05", tag: "Epic Matchday" },
 ];
@@ -72,6 +85,14 @@ export function AppMusicSettingsHub({
 
   const nextTrack = () => {
     window.dispatchEvent(new CustomEvent("pmb-next-track"));
+  };
+
+  const selectTrack = (trackId: string) => {
+    window.dispatchEvent(
+      new CustomEvent("pmb-play-track", { detail: { track: trackId } })
+    );
+    setCurrentTrack(trackId);
+    setIsPlaying(true);
   };
 
   return (
@@ -270,8 +291,9 @@ export function AppMusicSettingsHub({
 
           {/* OFFICIAL TRACKLIST */}
           <div className="border-t border-white/10 pt-4 space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">
-              OFFICIAL SOUNDTRACK PLAYLIST (4 TRACKS)
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 flex items-center justify-between">
+              <span>OFFICIAL SOUNDTRACK PLAYLIST ({PLAYLIST.length} TRACKS)</span>
+              <span className="text-[9px] text-[#e9c349]/80 font-mono tracking-normal">CLICK ANY TRACK TO PLAY</span>
             </p>
             <div className="space-y-2">
               {PLAYLIST.map((song, idx) => {
@@ -279,10 +301,11 @@ export function AppMusicSettingsHub({
                 return (
                   <div
                     key={song.id}
-                    className={`flex items-center justify-between rounded-xl p-3 border transition-all ${
+                    onClick={() => selectTrack(song.id)}
+                    className={`flex items-center justify-between rounded-xl p-3 border transition-all cursor-pointer ${
                       isCurrent
-                        ? "border-[#e9c349]/60 bg-[#e9c349]/10 shadow-[0_0_15px_rgba(233,195,73,0.15)]"
-                        : "border-white/5 bg-white/[0.02] hover:bg-white/5"
+                        ? "border-[#e9c349]/60 bg-[#e9c349]/15 shadow-[0_0_15px_rgba(233,195,73,0.2)]"
+                        : "border-white/5 bg-white/[0.02] hover:bg-white/[0.07] hover:border-white/20 active:scale-[0.99]"
                     }`}
                   >
                     <div className="flex items-center gap-3">
