@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ClubBadge } from "@/components/ClubBadge";
 import { MissionCard, MissionData } from "@/components/manager/MissionCard";
+import { generateMatchdayMissions } from "@/lib/services/mission-service";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,32 @@ export default async function ManagerMissionsPage() {
 
   if (!club) {
     redirect("/unauthorized");
+  }
+
+  // Auto-generate missions on-demand if upcoming match doesn't have one yet
+  try {
+    const nextMatch = await prisma.match.findFirst({
+      where: {
+        status: "UPCOMING",
+        OR: [{ homeClubId: clubId }, { awayClubId: clubId }],
+      },
+      orderBy: { matchday: "asc" },
+    });
+
+    if (nextMatch) {
+      const existing = await prisma.clubMission.findFirst({
+        where: { clubId, matchId: nextMatch.id },
+      });
+      if (!existing) {
+        await generateMatchdayMissions({
+          seasonId: nextMatch.seasonId,
+          matchday: nextMatch.matchday,
+          leagueId: nextMatch.leagueId,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Auto-generation of missions failed:", err);
   }
 
   // Fetch all missions for this club

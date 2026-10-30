@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { generateMatchdayMissions } from "@/lib/services/mission-service";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,31 @@ export async function GET() {
 
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    }
+
+    try {
+      const nextMatch = await prisma.match.findFirst({
+        where: {
+          status: "UPCOMING",
+          OR: [{ homeClubId: clubId }, { awayClubId: clubId }],
+        },
+        orderBy: { matchday: "asc" },
+      });
+
+      if (nextMatch) {
+        const existing = await prisma.clubMission.findFirst({
+          where: { clubId, matchId: nextMatch.id },
+        });
+        if (!existing) {
+          await generateMatchdayMissions({
+            seasonId: nextMatch.seasonId,
+            matchday: nextMatch.matchday,
+            leagueId: nextMatch.leagueId,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Auto-generation in API failed:", err);
     }
 
     const missions = await prisma.clubMission.findMany({
