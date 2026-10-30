@@ -44,7 +44,7 @@ model CompetitionSeason {
   updatedAt DateTime                @updatedAt
   seasons   Season[]
   matches   Match[]
-  totws     TeamOfTheWeek[]
+  totws               TeamOfTheWeek[]
   globalTotws GlobalTeamOfTheWeek[]
 
   @@index([status])
@@ -64,6 +64,7 @@ model League {
   globalTotwPlayers GlobalTotwPlayer[]
   throneCups ThroneCup[]
   leagueAdmins User[]  @relation("LeagueAdmin")
+  missions     ClubMission[]
 }
 
 model Club {
@@ -108,6 +109,7 @@ model Club {
   lineup                                 ClubLineup?
   matchLineups                           MatchLineup[]
   sponsorContracts                       ClubSponsorContract[]
+  missions                               ClubMission[]
 
   @@unique([name, leagueId])
   @@index([leagueId])
@@ -303,6 +305,7 @@ model Season {
   classifications     SeasonClassification[]
   competitionSeason   CompetitionSeason?      @relation(fields: [competitionSeasonId], references: [id])
   matches             Match[]
+  missions            ClubMission[]
   totws               TeamOfTheWeek[]
 
   @@unique([leagueId, name])
@@ -394,6 +397,7 @@ model Match {
   events              MatchEvent[]
   matchLineups        MatchLineup[]
   submissions         MatchSubmission[]
+  missions            ClubMission[]
 
   @@index([competitionSeasonId])
   @@index([seasonId])
@@ -485,6 +489,8 @@ enum BudgetTransactionType {
   STADIUM_RENTAL_INCOME
   MATCHDAY_REVENUE
   MATCHDAY_COST
+  MISSION_REWARD
+  MISSION_PENALTY
 }
 
 enum AuctionStatus {
@@ -1225,4 +1231,73 @@ model SponsorDraftSession {
   isCompleted      Boolean  @default(false)
   updatedAt        DateTime @updatedAt
   createdAt        DateTime @default(now())
+}
+
+// ── Missions System ──────────────────────────────────────────────────────────
+enum MissionCategory {
+  MATCHDAY
+  TRANSFER
+  LONG_TERM
+}
+
+enum MissionStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum MissionConditionType {
+  SCORE_AT_LEAST
+  CONCEDE_AT_MOST
+  WIN_MATCH
+  DRAW_OR_WIN
+  CLEAN_SHEET
+  WIN_BY_MARGIN
+  SCORE_AND_DRAW_OR_WIN
+  CONCEDE_MAX_AND_WIN
+  WIN_STREAK
+  SCORE_TOTAL
+  CONCEDE_TOTAL_MAX
+  CLEAN_SHEETS_COUNT
+  UNBEATEN_STREAK
+  COMPLETE_TRANSFERS
+  SIGN_PLAYER_VALUE
+}
+
+model ClubMission {
+  id                 String               @id @default(cuid())
+  clubId             String
+  category           MissionCategory      @default(MATCHDAY)
+  title              String
+  description        String
+  conditionType      MissionConditionType
+  targetValue        Int?
+  targetValueDecimal Decimal?             @db.Decimal(14, 2)
+  currentProgress    Int                  @default(0)
+  rewardAmount       Decimal              @db.Decimal(14, 2)
+  penaltyAmount      Decimal              @db.Decimal(14, 2)
+  status             MissionStatus        @default(ACTIVE)
+  startMatchday      Int?
+  endMatchday        Int?
+  matchId            String?
+  pairedMissionId    String?
+  seasonId           String?
+  leagueId           String?
+  completedAt        DateTime?
+  failedAt           DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  club               Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  match              Match?               @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  season             Season?              @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  league             League?              @relation(fields: [leagueId], references: [id], onDelete: SetNull)
+
+  @@index([clubId])
+  @@index([matchId])
+  @@index([seasonId])
+  @@index([leagueId])
+  @@index([status])
+  @@index([category])
 }

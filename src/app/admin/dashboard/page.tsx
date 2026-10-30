@@ -204,7 +204,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* ═══ ADMIN FEATURES: AUCTIONS, FREE AGENTS, AI SCOUT, DUGOUT, STADIUMS ═══ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Live Auctions Card */}
         <div className="rounded-xl border border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
           <div>
@@ -296,6 +296,29 @@ export default async function AdminDashboardPage() {
             className="mt-5 inline-flex items-center justify-center rounded-lg bg-pmb-gold hover:bg-yellow-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
           >
             Enter The Dugout →
+          </Link>
+        </div>
+
+        
+        {/* Missions & Bounties Card */}
+        <div className="rounded-xl border border-yellow-500/40 bg-gradient-to-br from-yellow-950/30 via-pmb-charcoal/80 to-pmb-black p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl">🎯</span>
+              <span className="rounded-full bg-yellow-500/20 border border-yellow-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase text-yellow-300">
+                Stakes Engine
+              </span>
+            </div>
+            <h3 className="mt-3 text-lg font-bold text-white">Missions &amp; Bounties</h3>
+            <p className="mt-1.5 text-xs text-gray-400 leading-relaxed">
+              Dispatch relative matchday quests, campaign streaks, and transfer window challenges with financial rewards and penalties.
+            </p>
+          </div>
+          <Link
+            href="/admin/missions"
+            className="mt-5 inline-flex items-center justify-center rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2.5 px-4 text-xs uppercase tracking-wider transition"
+          >
+            Manage Missions →
           </Link>
         </div>
 

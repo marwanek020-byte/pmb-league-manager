@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/budget-service";
 import { validateForeignQuota } from "@/lib/services/botola-contract-service";
 import { isAnyAdmin } from "@/lib/admin-auth";
+import { evaluateTransferMissions } from "@/lib/services/mission-service";
 
 export type TransferServiceErrorCode =
   | "WINDOW_CLOSED"
@@ -701,6 +702,15 @@ export async function completeTransfer(userId: string, transferId: string) {
         });
       }
     }
+
+        // Evaluate transfer missions for buyer and seller
+    const transferPlayer = await tx.player.findUnique({
+      where: { id: transfer.playerId },
+      select: { marketValue: true },
+    });
+    const playerMv = Number(transferPlayer?.marketValue ?? 0);
+    await evaluateTransferMissions(tx, transfer.toClubId, playerMv);
+    await evaluateTransferMissions(tx, transfer.fromClubId, playerMv);
 
     return tx.transfer.update({
       where: { id: transfer.id },

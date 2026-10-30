@@ -142,6 +142,12 @@ export default async function ManagerDashboardPage() {
   // ── Quick Access cards ────────────────────────────────────────────────
   const quickCards = [
     {
+      href: "/manager/missions",
+      title: "Club Missions",
+      sub: "Win bounties or suffer fines",
+      img: "/dashboard/card-competition.jpg",
+    },
+    {
       href: "/manager/free-agents",
       title: "Free Agent Store",
       sub: "Sign free players with 0 fee",
@@ -223,6 +229,20 @@ export default async function ManagerDashboardPage() {
 
       {/* Action Header Pills */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Missions Quick Button */}
+        <Link
+          href="/manager/missions"
+          className="flex items-center gap-2.5 rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-950/40 via-black to-black p-3 transition hover:border-amber-400 hover:shadow-[0_0_20px_rgba(245,158,11,0.35)]"
+        >
+          <span className="text-base">🎯</span>
+          <div className="text-left">
+            <span className="block text-[9px] font-black uppercase tracking-widest text-amber-400">
+              Club Missions
+            </span>
+            <span className="text-xs font-bold text-white">Bounties &amp; Fines →</span>
+          </div>
+        </Link>
+
         {/* Free Agent Store Quick Button */}
         <Link
           href="/manager/free-agents"
