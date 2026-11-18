@@ -595,6 +595,90 @@ export async function completeTransfer(userId: string, transferId: string) {
     },
   });
 }
+
+    // ── LOAN: move player to destination club, process fee, create PlayerLoan record ──
+    if (transfer.type === TransferType.LOAN) {
+      const loanPlayers = await tx.$queryRaw<Player[]>(
+        Prisma.sql`SELECT * FROM "Player" WHERE "id" = ${transfer.playerId} FOR UPDATE`
+      );
+      const loanPlayer = loanPlayers[0];
+
+      if (!loanPlayer) {
+        throw new TransferServiceError("Player not found.", "PLAYER_NOT_FOUND");
+      }
+
+      if (loanPlayer.pmbClubId !== transfer.fromClubId) {
+        throw new TransferServiceError(
+          "The player is no longer owned by the lending club.",
+          "OWNERSHIP_CONFLICT"
+        );
+      }
+
+      // Move player to loaning (destination) club
+      await tx.player.update({
+        where: { id: loanPlayer.id },
+        data: {
+          pmbClubId: transfer.toClubId,
+          status: "REGISTERED",
+        },
+      });
+
+      // Process loan fee if any
+      if (transfer.fee && transfer.fee.greaterThan(new Prisma.Decimal(0))) {
+        try {
+          const sortedClubIds = [transfer.fromClubId, transfer.toClubId].sort();
+          const budgets = new Map<string, Prisma.Decimal>();
+          for (const clubId of sortedClubIds) {
+            budgets.set(clubId, await lockClubBudget(tx, clubId));
+          }
+          await applyBudgetTransaction(tx, {
+            clubId: transfer.toClubId,
+            amount: transfer.fee.negated(),
+            currentBudget: budgets.get(transfer.toClubId)!,
+            type: BudgetTransactionType.TRANSFER_OUT,
+            description: `Loan fee paid: ${transfer.playerName}`,
+            transferId: transfer.id,
+            playerId: loanPlayer.id,
+          });
+          await applyBudgetTransaction(tx, {
+            clubId: transfer.fromClubId,
+            amount: transfer.fee,
+            currentBudget: budgets.get(transfer.fromClubId)!,
+            type: BudgetTransactionType.TRANSFER_IN,
+            description: `Loan fee received: ${transfer.playerName}`,
+            transferId: transfer.id,
+            playerId: loanPlayer.id,
+          });
+        } catch (error) {
+          if (error instanceof BudgetServiceError) {
+            const code: TransferServiceErrorCode =
+              error.code === "INVALID_AMOUNT" ? "INVALID_VALUE" : error.code;
+            throw new TransferServiceError(error.message, code);
+          }
+          throw error;
+        }
+      }
+
+      // Create PlayerLoan tracking record
+      const durationDays = transfer.durationDays ?? 90;
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      await tx.playerLoan.create({
+        data: {
+          id: transfer.id,
+          playerId: loanPlayer.id,
+          fromClubId: transfer.fromClubId,
+          toClubId: transfer.toClubId,
+          transferId: transfer.id,
+          startDate,
+          endDate,
+          durationDays,
+          status: "ACTIVE",
+          updatedAt: new Date(),
+        },
+      });
+    }
+
     const changesOwnership =
       transfer.type === TransferType.PERMANENT ||
       transfer.type === TransferType.FREE_TRANSFER;
