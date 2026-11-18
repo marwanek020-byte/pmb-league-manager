@@ -103,7 +103,14 @@ export async function applyBudgetTransaction(tx: TxClient, input: ApplyBudgetTra
 
   const newBalance = input.currentBudget.plus(input.amount);
 
-  if (newBalance.isNegative()) {
+  // Debits (money leaving the club) cannot push the budget below zero.
+  // Credits (money entering the club) must always be accepted, even if reducing a negative balance.
+  // Admin adjustments can also debit or credit as commanded by the league admin.
+  if (
+    input.amount.isNegative() &&
+    newBalance.isNegative() &&
+    input.type !== BudgetTransactionType.ADMIN_ADJUSTMENT
+  ) {
     throw new BudgetServiceError("INSUFFICIENT_BUDGET", "This club does not have enough budget for this transaction.");
   }
 
