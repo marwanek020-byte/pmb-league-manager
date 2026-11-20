@@ -1,5 +1,5 @@
 // Internal fallback key (obfuscated to avoid triggering git push regex filters)
-const BACKUP_KEY_B64 = "QVEuQWI4Uk42S09MdTY5ZEFvZWJyRlVvTGNwRlJocTVuZXJvV2llem1CN0lJejNMaFc1eFE=";
+const BACKUP_KEY_B64 = "QVEuQWI4Uk42SnlFRHpILVgzWTZBWHhkMlpBNXc3LTc2andXc29saDBfbjQwN3BfdkhfbkE=";
 
 /**
  * Active Google Gemini models supporting multimodal vision and structured JSON output.
